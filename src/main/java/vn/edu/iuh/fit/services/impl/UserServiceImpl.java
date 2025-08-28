@@ -32,7 +32,10 @@ public class UserServiceImpl implements UserService {
     @Override
     public User create(User user) {
         user.setUserId(UUID.randomUUID().toString());
-        user.setPasswordHash(encoder.encode(user.getPasswordHash()));
+        if (user.getPassword() == null || user.getPassword().isBlank()) {
+            throw new IllegalArgumentException("Password is required");
+        }
+        user.setPasswordHash(encoder.encode(user.getPassword()));
         user.setStatus(UserStatus.ACTIVE);
         user.setCreatedAt(LocalDateTime.now());
         user.setUpdatedAt(LocalDateTime.now());
@@ -74,7 +77,9 @@ public class UserServiceImpl implements UserService {
         if (user.getFullName() != null) existing.setFullName(user.getFullName());
         if (user.getPhoneNumber() != null) existing.setPhoneNumber(user.getPhoneNumber());
         if (user.getEmail() != null) existing.setEmail(user.getEmail());
-        if (user.getPasswordHash() != null) existing.setPasswordHash(encoder.encode(user.getPasswordHash()));
+        if (user.getPassword() != null && !user.getPassword().isBlank()) {
+            existing.setPasswordHash(encoder.encode(user.getPassword()));
+        }
         if (user.getAvatarUrl() != null) existing.setAvatarUrl(user.getAvatarUrl());
         if (user.getStatus() != null) existing.setStatus(user.getStatus());
         existing.setUpdatedAt(LocalDateTime.now());

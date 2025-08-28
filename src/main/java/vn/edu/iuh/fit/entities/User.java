@@ -1,6 +1,7 @@
 package vn.edu.iuh.fit.entities;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.*;
@@ -33,6 +34,10 @@ public class User {
     @JsonIgnore
     @Column(name = "password_hash", length = 255)
     private String passwordHash;
+
+    @Transient
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
+    private String password;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "role_id", referencedColumnName = "role_id")
