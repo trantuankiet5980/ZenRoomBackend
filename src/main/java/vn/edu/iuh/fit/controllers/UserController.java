@@ -1,12 +1,14 @@
 package vn.edu.iuh.fit.controllers;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import vn.edu.iuh.fit.entities.User;
+import vn.edu.iuh.fit.dtos.user.UserCreateRequest;
+import vn.edu.iuh.fit.dtos.user.UserResponse;
+import vn.edu.iuh.fit.dtos.user.UserUpdateRequest;
 import vn.edu.iuh.fit.services.UserService;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/users")
@@ -18,19 +20,21 @@ public class UserController {
         this.userService = userService;
     }
     @PostMapping
-    public ResponseEntity<User> create(@RequestBody User user) {
+    public ResponseEntity<UserResponse> create(@RequestBody UserCreateRequest user) {
         return ResponseEntity.status(HttpStatus.CREATED).body(userService.create(user));
     }
     @GetMapping("/{id}")
-    public ResponseEntity<User> get(@PathVariable String id) {
+    public ResponseEntity<UserResponse> get(@PathVariable String id) {
         return ResponseEntity.ok(userService.getById(id));
     }
     @GetMapping
-    public ResponseEntity<List<User>> list() {
-        return ResponseEntity.ok(userService.getAll());
+    public ResponseEntity<Page<UserResponse>> list(
+            @RequestParam(defaultValue="0") int page,
+            @RequestParam(defaultValue="20") int size){
+        return ResponseEntity.ok(userService.list(PageRequest.of(page,size)));
     }
     @PutMapping("/{id}")
-    public ResponseEntity<User> update(@PathVariable String id, @RequestBody User user) {
+    public ResponseEntity<UserResponse> update(@PathVariable String id, @RequestBody UserUpdateRequest user) {
         return ResponseEntity.ok(userService.update(id, user));
     }
 

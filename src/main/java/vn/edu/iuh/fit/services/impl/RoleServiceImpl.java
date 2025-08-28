@@ -1,6 +1,12 @@
 package vn.edu.iuh.fit.services.impl;
 
+import jakarta.persistence.EntityNotFoundException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import vn.edu.iuh.fit.dtos.role.RoleCreateRequest;
+import vn.edu.iuh.fit.dtos.role.RoleResponse;
+import vn.edu.iuh.fit.dtos.role.RoleUpdateRequest;
 import vn.edu.iuh.fit.entities.Role;
 import vn.edu.iuh.fit.repositories.RoleRepository;
 import vn.edu.iuh.fit.services.RoleService;
@@ -18,41 +24,42 @@ public class RoleServiceImpl implements RoleService {
         this.roleRepository = roleRepository;
     }
     @Override
-    public Role create(Role role) {
-        //lower case role name
-        if(role.getRoleName() != null){
-            role.setRoleName(role.getRoleName().toLowerCase(Locale.ROOT).trim());
-        }
-        if(roleRepository.existsByRoleName(role.getRoleName())){
-            throw new IllegalArgumentException("Role name already exists: " + role.getRoleName());
-        }
-        if(role.getRoleId() == null) {
-            role.setRoleId(UUID.randomUUID().toString());
-        }
-        return roleRepository.save(role);
+    public RoleResponse create(RoleCreateRequest req) {
+        if (req == null || req.roleName() == null || req.roleName().isBlank())
+            throw new IllegalArgumentException("roleName is required");
+
+        String name = req.roleName().toLowerCase(Locale.ROOT).trim();
+        if (roleRepository.existsByRoleName(name)) throw new IllegalArgumentException("Role already exists: " + name);
+
+        Role r = new Role();
+        r.setRoleId(UUID.randomUUID().toString());
+        r.setRoleName(name);
+        roleRepository.save(r);
+
+        return new RoleResponse(r.getRoleId(), r.getRoleName());
     }
 
     @Override
-    public Role getById(String id) {
-        return roleRepository.findById(id).orElseThrow(() -> new RuntimeException("Role not found"));
+    public RoleResponse  getById(String id) {
+        Role r = roleRepository.findById(id).orElseThrow(() -> new EntityNotFoundException("Role not found"));
+        return new RoleResponse(r.getRoleId(), r.getRoleName());    }
+
+    @Override
+    public Page<RoleResponse> list(Pageable pageable) {
+        return roleRepository.findAll(pageable).map(r -> new RoleResponse(r.getRoleId(), r.getRoleName()));
     }
 
     @Override
-    public List<Role> getAll() {
-        return roleRepository.findAll();
-    }
-
-    @Override
-    public Role update(String id, Role role) {
-        Role existing = getById(id);
-        if (role.getRoleName() != null) {
-            String newRoleName = role.getRoleName().toLowerCase(Locale.ROOT).trim();
-            if (!newRoleName.equals(existing.getRoleName()) && roleRepository.existsByRoleName(newRoleName)) {
-                throw new IllegalArgumentException("Role name already exists: " + newRoleName);
-            }
-            existing.setRoleName(newRoleName);
+    public RoleResponse update(String id, RoleUpdateRequest req) {
+        Role r = roleRepository.findById(id).orElseThrow(() -> new EntityNotFoundException("Role not found"));
+        if (req.roleName() != null && !req.roleName().isBlank()) {
+            String name = req.roleName().toLowerCase(Locale.ROOT).trim();
+            if (!name.equals(r.getRoleName()) && roleRepository.existsByRoleName(name))
+                throw new IllegalArgumentException("Role already exists: " + name);
+            r.setRoleName(name);
         }
-        return roleRepository.save(existing);
+        roleRepository.save(r);
+        return new RoleResponse(r.getRoleId(), r.getRoleName());
     }
 
     @Override
