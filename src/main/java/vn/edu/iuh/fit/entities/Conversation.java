@@ -1,4 +1,4 @@
-package vn.edu.iuh.fit.entity;
+package vn.edu.iuh.fit.entities;
 
 import jakarta.persistence.*;
 import lombok.*;

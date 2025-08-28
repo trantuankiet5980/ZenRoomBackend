@@ -1,12 +1,12 @@
-package vn.edu.iuh.fit.entity;
+package vn.edu.iuh.fit.entities;
 
 import jakarta.persistence.*;
 import lombok.*;
-import java.time.*;
+
 import java.util.*;
 
-import vn.edu.iuh.fit.entity.enums.DiscountStatus;
-import vn.edu.iuh.fit.entity.enums.DiscountType;
+import vn.edu.iuh.fit.entities.enums.DiscountStatus;
+import vn.edu.iuh.fit.entities.enums.DiscountType;
 
 @Data @NoArgsConstructor @AllArgsConstructor @Builder
 @Entity @Table(name = "DiscountCodes")

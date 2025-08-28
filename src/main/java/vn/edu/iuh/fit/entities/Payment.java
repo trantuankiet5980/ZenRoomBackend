@@ -1,4 +1,4 @@
-package vn.edu.iuh.fit.entity;
+package vn.edu.iuh.fit.entities;
 
 import jakarta.persistence.*;
 import lombok.*;
@@ -6,8 +6,8 @@ import java.time.*;
 import java.util.*;
 
 
-import vn.edu.iuh.fit.entity.enums.PaymentMethod;
-import vn.edu.iuh.fit.entity.enums.PaymentStatus;
+import vn.edu.iuh.fit.entities.enums.PaymentMethod;
+import vn.edu.iuh.fit.entities.enums.PaymentStatus;
 
 @Data @NoArgsConstructor @AllArgsConstructor @Builder
 @Entity @Table(name = "Payments")
