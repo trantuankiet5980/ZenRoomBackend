@@ -1,11 +1,11 @@
-package vn.edu.iuh.fit.entity;
+package vn.edu.iuh.fit.entities;
 
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.*;
 import java.util.*;
 
-import vn.edu.iuh.fit.entity.enums.NotificationType;
+import vn.edu.iuh.fit.entities.enums.NotificationType;
 
 @Data @NoArgsConstructor @AllArgsConstructor @Builder
 @Entity @Table(name = "Notifications")
