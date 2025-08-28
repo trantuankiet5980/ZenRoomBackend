@@ -1,5 +1,6 @@
 package vn.edu.iuh.fit.entities;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.*;
@@ -29,6 +30,7 @@ public class User {
     @Column(name = "email", length = 100, unique = true)
     private String email;
 
+    @JsonIgnore
     @Column(name = "password_hash", length = 255)
     private String passwordHash;
 
