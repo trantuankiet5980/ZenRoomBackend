@@ -11,38 +11,24 @@ import java.util.*;
 @Data @NoArgsConstructor @AllArgsConstructor @Builder
 @Entity @Table(name = "Reports")
 public class Report {
-    @Id
-    @Column(name = "report_id", columnDefinition = "CHAR(36)")
-    private String reportId;
-
+    @Id @Column(name="report_id", columnDefinition="CHAR(36)") String reportId;
     @PrePersist
-    void prePersist() {
-        if (this.reportId == null) this.reportId = UUID.randomUUID().toString();
+    private void prePersist() {
+        if (this.reportId == null) {
+            this.reportId = UUID.randomUUID().toString();
+        }
+        if (this.createdAt == null) {
+            this.createdAt = LocalDateTime.now();
+        }
+        if (this.status == null) {
+            this.status = ReportStatus.PENDING;
+        }
     }
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "reporter_id", referencedColumnName = "user_id")
-    private User reporter;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "reported_id", referencedColumnName = "user_id")
-    private User reported;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "room_id", referencedColumnName = "room_id")
-    private Room room;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "booking_id", referencedColumnName = "booking_id")
-    private Booking booking;
-
-    @Lob
-    @Column(name = "reason", columnDefinition = "TEXT")
+    @ManyToOne @JoinColumn(name="reporter_id") private User reporter;
+    @ManyToOne @JoinColumn(name="reported_id") private User reported;
+    @ManyToOne @JoinColumn(name="property_id") private Property property;
+    @ManyToOne @JoinColumn(name="booking_id") private Booking booking;
     private String reason;
-
-    @Enumerated(EnumType.STRING)
-    @Column(name = "status", length = 20)
-    private ReportStatus status;
-
-    @Column(name = "created_at") private LocalDateTime createdAt;
+    @Enumerated(EnumType.STRING) private ReportStatus status;
+    private LocalDateTime createdAt;
 }
