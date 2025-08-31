@@ -1,5 +1,5 @@
 package vn.edu.iuh.fit.entities.enums;
 
-public enum DiscountStatus {
+public enum DiscountCodeStatus {
     ACTIVE, EXPIRED;
 }

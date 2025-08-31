@@ -19,83 +19,89 @@ public class User {
 
     @PrePersist
     void prePersist() {
-        if (this.userId == null) this.userId = UUID.randomUUID().toString();
+        if (userId == null) userId = UUID.randomUUID().toString();
+        if (createdAt == null) createdAt = LocalDateTime.now();
+        if (updatedAt == null) updatedAt = LocalDateTime.now();
     }
 
-    @Column(name = "full_name", length = 100)
+    @Column(length = 100)
     private String fullName;
 
-    @Column(name = "phone_number", length = 15, unique = true)
+    @Column(length = 15, unique = true)
     private String phoneNumber;
 
-    @Column(name = "email", length = 100, unique = true)
+    @Column(length = 100, unique = true)
     private String email;
 
     @JsonIgnore
-    @Column(name = "password_hash", length = 255)
+    @Column(length = 255)
     private String passwordHash;
 
-    @Transient
-    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
-    private String password;
-
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "role_id", referencedColumnName = "role_id")
+    @JoinColumn(name = "role_id")
     private Role role;
 
-    @Column(name = "avatar_url", length = 255)
     private String avatarUrl;
-
-    @Column(name = "last_login")
     private LocalDateTime lastLogin;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "status", length = 20)
     private UserStatus status;
 
-    @Column(name = "created_at")
     private LocalDateTime createdAt;
-
-    @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
-    // Collections
+    /* ---------------- Relations ---------------- */
+
+    // Properties (landlord)
     @OneToMany(mappedBy = "landlord", fetch = FetchType.LAZY)
-    @Builder.Default private List<Room> rooms = new ArrayList<>();
+    private List<Property> properties = new ArrayList<>();
 
+    // Bookings (tenant)
     @OneToMany(mappedBy = "tenant", fetch = FetchType.LAZY)
-    @Builder.Default private List<Booking> bookings = new ArrayList<>();
+    private List<Booking> bookings = new ArrayList<>();
 
+    // Reviews (tenant)
+    @OneToMany(mappedBy = "tenant", fetch = FetchType.LAZY)
+    private List<Review> reviews = new ArrayList<>();
+
+    // Review replies (landlord)
+    @OneToMany(mappedBy = "landlord", fetch = FetchType.LAZY)
+    private List<ReviewReply> reviewReplies = new ArrayList<>();
+
+    // Favorites
+    @OneToMany(mappedBy = "tenant", fetch = FetchType.LAZY)
+    private List<Favorite> favorites = new ArrayList<>();
+
+    // Search history
+    @OneToMany(mappedBy = "tenant", fetch = FetchType.LAZY)
+    private List<SearchHistory> searches = new ArrayList<>();
+
+    // Reports
     @OneToMany(mappedBy = "reporter", fetch = FetchType.LAZY)
-    @Builder.Default private List<Report> reportsCreated = new ArrayList<>();
+    private List<Report> reportsCreated = new ArrayList<>();
 
     @OneToMany(mappedBy = "reported", fetch = FetchType.LAZY)
-    @Builder.Default private List<Report> reportsReceived = new ArrayList<>();
+    private List<Report> reportsReceived = new ArrayList<>();
 
-    @OneToMany(mappedBy = "sender", fetch = FetchType.LAZY)
-    @Builder.Default private List<Message> sentMessages = new ArrayList<>();
-
-    @OneToMany(mappedBy = "user", fetch = FetchType.LAZY)
-    @Builder.Default private List<Notification> notifications = new ArrayList<>();
-
-    @OneToMany(mappedBy = "tenant", fetch = FetchType.LAZY)
-    @Builder.Default private List<Favorite> favorites = new ArrayList<>();
-
-    @OneToMany(mappedBy = "tenant", fetch = FetchType.LAZY)
-    @Builder.Default private List<SearchHistory> searches = new ArrayList<>();
-
+    // User management logs
     @OneToMany(mappedBy = "admin", fetch = FetchType.LAZY)
-    @Builder.Default private List<UserManagementLog> adminActions = new ArrayList<>();
+    private List<UserManagementLog> adminActions = new ArrayList<>();
 
     @OneToMany(mappedBy = "targetUser", fetch = FetchType.LAZY)
-    @Builder.Default private List<UserManagementLog> targetedActions = new ArrayList<>();
+    private List<UserManagementLog> targetedActions = new ArrayList<>();
 
+    // Conversations
     @OneToMany(mappedBy = "tenant", fetch = FetchType.LAZY)
-    @Builder.Default private List<Review> reviews = new ArrayList<>();
+    private List<Conversation> conversationsAsTenant = new ArrayList<>();
 
     @OneToMany(mappedBy = "landlord", fetch = FetchType.LAZY)
-    @Builder.Default private List<ReviewReply> reviewReplies = new ArrayList<>();
+    private List<Conversation> conversationsAsLandlord = new ArrayList<>();
 
+    // Messages
+    @OneToMany(mappedBy = "sender", fetch = FetchType.LAZY)
+    private List<Message> sentMessages = new ArrayList<>();
+
+    // Notifications
     @OneToMany(mappedBy = "user", fetch = FetchType.LAZY)
-    @Builder.Default private List<DiscountCodeUsage> couponUsages = new ArrayList<>();
+    private List<Notification> notifications = new ArrayList<>();
 }

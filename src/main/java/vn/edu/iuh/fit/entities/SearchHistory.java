@@ -16,6 +16,9 @@ public class SearchHistory {
     @PrePersist
     void prePersist() {
         if (this.searchId == null) this.searchId = UUID.randomUUID().toString();
+        if (createdAt == null) {
+            createdAt = LocalDateTime.now();
+        }
     }
 
     @ManyToOne(fetch = FetchType.LAZY)
