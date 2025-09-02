@@ -2,6 +2,8 @@ package vn.edu.iuh.fit.entities;
 
 import jakarta.persistence.*;
 import lombok.*;
+
+import java.math.BigDecimal;
 import java.time.*;
 import java.util.*;
 
@@ -12,35 +14,24 @@ import vn.edu.iuh.fit.entities.enums.PaymentStatus;
 @Data @NoArgsConstructor @AllArgsConstructor @Builder
 @Entity @Table(name = "Payments")
 public class Payment {
-    @Id
-    @Column(name = "payment_id", columnDefinition = "CHAR(36)")
-    private String paymentId;
-
+    @Id @Column(name="payment_id", columnDefinition="CHAR(36)") String paymentId;
     @PrePersist
-    void prePersist() {
-        if (this.paymentId == null) this.paymentId = UUID.randomUUID().toString();
+    private void prePersist() {
+        if (this.paymentId == null) {
+            this.paymentId = UUID.randomUUID().toString();
+        }
+        if (this.createdAt == null) {
+            this.createdAt = LocalDateTime.now();
+        }
+        if (this.refundedAmount == null) {
+            this.refundedAmount = BigDecimal.ZERO;
+        }
     }
-
-    @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "booking_id", referencedColumnName = "booking_id")
-    private Booking booking;
-
-    @Column(name = "amount", precision = 12, scale = 2)
-    private java.math.BigDecimal amount;
-
-    @Enumerated(EnumType.STRING)
-    @Column(name = "payment_method", length = 20)
-    private PaymentMethod paymentMethod;
-
-    @Enumerated(EnumType.STRING)
-    @Column(name = "payment_status", length = 20)
-    private PaymentStatus paymentStatus;
-
-    @Column(name = "transaction_id", length = 100)
+    @ManyToOne @JoinColumn(name="booking_id") private Booking booking;
+    private BigDecimal amount;
+    @Enumerated(EnumType.STRING) private PaymentMethod paymentMethod;
+    @Enumerated(EnumType.STRING) private PaymentStatus paymentStatus;
     private String transactionId;
-
-    @Column(name = "refunded_amount", precision = 12, scale = 2)
-    private java.math.BigDecimal refundedAmount;
-
-    @Column(name = "created_at") private LocalDateTime createdAt;
+    private BigDecimal refundedAmount;
+    private LocalDateTime createdAt;
 }

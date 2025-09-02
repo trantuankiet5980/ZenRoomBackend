@@ -9,26 +9,18 @@ import java.util.*;
 @Data @NoArgsConstructor @AllArgsConstructor @Builder
 @Entity @Table(name = "ReviewReplies")
 public class ReviewReply {
-    @Id
-    @Column(name = "reply_id", columnDefinition = "CHAR(36)")
-    private String replyId;
-
+    @Id @Column(name="reply_id", columnDefinition="CHAR(36)") String replyId;
     @PrePersist
-    void prePersist() {
-        if (this.replyId == null) this.replyId = UUID.randomUUID().toString();
+    private void prePersist() {
+        if (this.replyId == null) {
+            this.replyId = UUID.randomUUID().toString();
+        }
+        if (this.createdAt == null) {
+            this.createdAt = LocalDateTime.now();
+        }
     }
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "review_id", referencedColumnName = "review_id")
-    private Review review;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "landlord_id", referencedColumnName = "user_id")
-    private User landlord;
-
-    @Lob
-    @Column(name = "reply_text", columnDefinition = "TEXT")
+    @ManyToOne @JoinColumn(name="review_id") private Review review;
+    @ManyToOne @JoinColumn(name="landlord_id") private User landlord;
     private String replyText;
-
-    @Column(name = "created_at") private LocalDateTime createdAt;
+    private LocalDateTime createdAt;
 }

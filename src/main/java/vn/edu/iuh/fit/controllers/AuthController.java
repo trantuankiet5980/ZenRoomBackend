@@ -1,10 +1,9 @@
 package vn.edu.iuh.fit.controllers;
 
-import lombok.Data;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.*;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
+import vn.edu.iuh.fit.dtos.requests.LoginRequest;
 import vn.edu.iuh.fit.dtos.responses.LoginResponse;
 import vn.edu.iuh.fit.entities.User;
 import vn.edu.iuh.fit.entities.enums.UserStatus;
@@ -16,6 +15,7 @@ import java.util.Date;
 @RestController
 @RequestMapping("/auth")
 public class AuthController {
+
     private final UserRepository userRepository;
     private final PasswordEncoder encoder;
     private final JwtUtil jwtUtil;
@@ -27,37 +27,42 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<LoginResponse> login(@RequestBody vn.edu.iuh.fit.dtos.requests.LoginRequest request) {
-        String phone = request.getPhoneNumber();
-        User user = userRepository.findByPhoneNumber(phone)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+    public ResponseEntity<LoginResponse> login(@RequestBody LoginRequest request) {
+        // 1) Tìm theo phone
+        User user = userRepository.findByPhoneNumber(request.getPhoneNumber())
+                .orElse(null);
+        if (user == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(LoginResponse.fail("Số điện thoại không đúng"));
+        }
+
+
+        // 2) Kiểm tra trạng thái
         if (user.getStatus() == UserStatus.BANNED) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(LoginResponse.fail("Account is banned"));
+                    .body(LoginResponse.fail("Tài khoản đã bị khóa"));
         }
         if (user.getStatus() == UserStatus.INACTIVE) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(LoginResponse.fail("Account is inactive"));
+                    .body(LoginResponse.fail("Tài khoản chưa kích hoạt"));
         }
-
+        System.out.println("User found: " + user.getPhoneNumber() + ", status: " + user.getStatus());
+        //mat khau
+        System.out.println("Password encoded: " + encoder.encode(request.getPassword()));
+        // 3) So khớp mật khẩu
         if (!encoder.matches(request.getPassword(), user.getPasswordHash())) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(LoginResponse.fail("Invalid phone number or password"));
+                    .body(LoginResponse.fail("Mật khẩu không đúng"));
         }
-        String roleName = user.getRole() != null ? user.getRole().getRoleName() : "tenant";
+
+        // 4) Tạo token
+        String roleName = (user.getRole() != null) ? user.getRole().getRoleName() : "tenant";
         String token = jwtUtil.generateToken(user.getUserId(), roleName);
         Date expiry = new Date(System.currentTimeMillis() + jwtUtil.getExpiration());
 
-        return ResponseEntity.ok(LoginResponse.ok(token, roleName, user.getUserId(), expiry.getTime()));
-    }
-    @Data
-    public static class LoginRequest {
-        private String userId;    // ví dụ: UUID của user
-        private String roleName;  // tenant | landlord | admin
-    }
-
-    @Data
-    public static class JwtResponse {
-        private final String token;
+        return ResponseEntity.ok(LoginResponse.ok(
+                token, roleName, user.getUserId(), expiry.getTime(),
+                "Đăng nhập thành công"
+        ));
     }
 }
