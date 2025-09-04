@@ -11,7 +11,7 @@ import vn.edu.iuh.fit.dtos.user.UserUpdateRequest;
 import vn.edu.iuh.fit.services.UserService;
 
 @RestController
-@RequestMapping("/api/users")
+@RequestMapping("/api/v1/users")
 public class UserController {
 
     private final UserService userService;
