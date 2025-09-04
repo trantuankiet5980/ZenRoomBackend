@@ -10,6 +10,8 @@ import vn.edu.iuh.fit.entities.enums.UserStatus;
 import vn.edu.iuh.fit.repositories.UserRepository;
 import vn.edu.iuh.fit.utils.JwtUtil;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.Date;
 
 @RestController
@@ -36,7 +38,6 @@ public class AuthController {
                     .body(LoginResponse.fail("Số điện thoại không đúng"));
         }
 
-
         // 2) Kiểm tra trạng thái
         if (user.getStatus() == UserStatus.BANNED) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
@@ -46,22 +47,21 @@ public class AuthController {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .body(LoginResponse.fail("Tài khoản chưa kích hoạt"));
         }
-        System.out.println("User found: " + user.getPhoneNumber() + ", status: " + user.getStatus());
-        //mat khau
-        System.out.println("Password encoded: " + encoder.encode(request.getPassword()));
         // 3) So khớp mật khẩu
         if (!encoder.matches(request.getPassword(), user.getPasswordHash())) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(LoginResponse.fail("Mật khẩu không đúng"));
         }
 
+        user.setLastLogin(LocalDateTime.now());
+        userRepository.save(user);
         // 4) Tạo token
         String roleName = (user.getRole() != null) ? user.getRole().getRoleName() : "tenant";
         String token = jwtUtil.generateToken(user.getUserId(), roleName);
         Date expiry = new Date(System.currentTimeMillis() + jwtUtil.getExpiration());
 
         return ResponseEntity.ok(LoginResponse.ok(
-                token, roleName, user.getUserId(), expiry.getTime(),
+                token, roleName, user.getUserId(), user.getFullName(), expiry.getTime(),
                 "Đăng nhập thành công"
         ));
     }
