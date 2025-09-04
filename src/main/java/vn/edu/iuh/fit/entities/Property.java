@@ -31,13 +31,17 @@ public class Property {
     @ManyToOne @JoinColumn(name="parent_id") private Property parent;
     @ManyToOne @JoinColumn(name="landlord_id") private User landlord;
     private String propertyName;
-    private String address;
-    private Double latitude;
-    private Double longitude;
+
+    @ManyToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+    @JoinColumn(name = "address_id")
+    private Address address;
+
     private Integer totalFloors;
     private Integer parkingCapacity;
+
     @ManyToOne @JoinColumn(name="room_type_id") private RoomType roomType;
     private String roomNumber;
+
     private Integer floorNo;
     private Double area;
     private Integer capacity;
