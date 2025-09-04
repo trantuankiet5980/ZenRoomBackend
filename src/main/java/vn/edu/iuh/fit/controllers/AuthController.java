@@ -79,7 +79,7 @@ public class AuthController {
         String refreshToken = jwtTokenUtil.generateRefreshToken(user.getUserId());
 
         return ResponseEntity.ok(LoginResponse.ok(
-                token, roleName, user.getUserId(), jwtTokenUtil.getExpiration(), "Đăng nhập thành công", refreshToken
+                token, roleName, user.getUserId(), user.getFullName(), jwtTokenUtil.getExpiration(), "Đăng nhập thành công", refreshToken
         ));
     }
 
