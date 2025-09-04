@@ -13,7 +13,7 @@ public class LoginResponse {
     private String userId;
     private Long  expiresAt;
 
-    public static LoginResponse ok(String token, String role, String userId, Long exp, String msg) {
+    public static LoginResponse ok(String token, String role, String userId, Long exp, String msg, String refreshToken) {
         return new LoginResponse(true, msg, token, role, userId, exp);
     }
     public static LoginResponse fail(String msg) {
