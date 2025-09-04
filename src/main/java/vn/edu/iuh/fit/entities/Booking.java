@@ -30,4 +30,7 @@ public class Booking {
     @ManyToOne @JoinColumn(name="discount_code_id") private DiscountCode discountCode;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+
+    @OneToOne(mappedBy = "booking", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private Contract contract;
 }
