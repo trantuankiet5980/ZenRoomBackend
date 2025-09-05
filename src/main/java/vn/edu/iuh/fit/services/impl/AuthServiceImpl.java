@@ -151,7 +151,7 @@ public class AuthServiceImpl implements AuthService {
         return LoginResponse.ok(
                 accessToken,
                 roleName,
-                userId,
+                userId, user.getFullName(),
                 jwtTokenUtil.accessTokenExpiration,
                 "Đăng nhập thành công",
                 refreshToken
