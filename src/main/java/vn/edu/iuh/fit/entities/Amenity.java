@@ -5,6 +5,9 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.ArrayList;
+import java.util.List;
+
 @Entity
 @Table(name="Amenities")
 @NoArgsConstructor
@@ -22,4 +25,7 @@ public class Amenity {
         }
     }
     private String amenityName;
+
+    @OneToMany(mappedBy = "amenity", fetch = FetchType.LAZY)
+    private List<PropertyAmenity> properties = new ArrayList<>();
 }
