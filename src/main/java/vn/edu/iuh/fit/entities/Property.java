@@ -53,5 +53,15 @@ public class Property {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
-    @OneToMany(mappedBy="property") private List<PropertyMedia> media = new ArrayList<>();
+    @OneToMany(mappedBy="property")
+    private List<PropertyMedia> media = new ArrayList<>();
+
+    @OneToMany(mappedBy = "property", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<PropertyAmenity> amenities = new ArrayList<>();
+
+    @OneToMany(mappedBy = "property", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<PropertyFurnishing> furnishings = new ArrayList<>();
+
+    @OneToMany(mappedBy = "property", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<PropertyService> services = new ArrayList<>();
 }

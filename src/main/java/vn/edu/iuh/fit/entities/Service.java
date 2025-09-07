@@ -7,6 +7,8 @@ import lombok.NoArgsConstructor;
 import vn.edu.iuh.fit.entities.enums.ChargeBasis;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name="Services")
@@ -22,4 +24,7 @@ public class Service {
     private BigDecimal defaultFee;
     @Enumerated(EnumType.STRING) private ChargeBasis chargeBasis;
     private String notes;
+
+    @OneToMany(mappedBy = "service", fetch = FetchType.LAZY)
+    private List<PropertyService> properties = new ArrayList<>();
 }
