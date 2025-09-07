@@ -115,48 +115,48 @@ public class AuthServiceImpl implements AuthService {
         return true;
     }
 
-    @Override
-    public LoginResponse login(LoginRequest loginRequest) {
-        String formattedPhone = FormatPhoneNumber.formatPhoneNumberTo84(loginRequest.getPhoneNumber());
-        User user = userRepository.findByPhoneNumber(formattedPhone)
-                .orElseThrow(() -> new UserNotFoundException("Số điện thoại không tồn tại."));
-
-        if (user.getStatus() == UserStatus.BANNED) {
-            throw new UserNotFoundException("Tài khoản đã bị khóa.");
-        }
-        if (user.getStatus() == UserStatus.INACTIVE) {
-            throw new UserNotFoundException("Tài khoản chưa kích hoạt.");
-        }
-
-        Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(formattedPhone, loginRequest.getPassword())
-        );
-
-        SecurityContextHolder.getContext().setAuthentication(authentication);
-        UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
-        String accessToken = jwtTokenUtil.generateToken(user.getUserId(), user.getRole().getRoleName());
-        String refreshToken = jwtTokenUtil.generateRefreshToken(user.getUserId());
-        String userId = userPrincipal.getUserResponse().getUserId();
-
-        RefreshToken token = RefreshToken.builder()
-                .refreshToken(refreshToken)
-                .id(Long.valueOf(userId))
-                .expiresDate(jwtTokenUtil.generateExpirationDate())
-                .revoked(false)
-                .build();
-
-        refreshTokenService.saveRefreshToken(token);
-
-        String roleName = user.getRole() != null ? user.getRole().getRoleName() : "USER";
-        return LoginResponse.ok(
-                accessToken,
-                roleName,
-                userId, user.getFullName(),
-                jwtTokenUtil.accessTokenExpiration,
-                "Đăng nhập thành công",
-                refreshToken
-        );
-    }
+//    @Override
+//    public LoginResponse login(LoginRequest loginRequest) {
+//        String formattedPhone = FormatPhoneNumber.formatPhoneNumberTo84(loginRequest.getPhoneNumber());
+//        User user = userRepository.findByPhoneNumber(formattedPhone)
+//                .orElseThrow(() -> new UserNotFoundException("Số điện thoại không tồn tại."));
+//
+//        if (user.getStatus() == UserStatus.BANNED) {
+//            throw new UserNotFoundException("Tài khoản đã bị khóa.");
+//        }
+//        if (user.getStatus() == UserStatus.INACTIVE) {
+//            throw new UserNotFoundException("Tài khoản chưa kích hoạt.");
+//        }
+//
+//        Authentication authentication = authenticationManager.authenticate(
+//                new UsernamePasswordAuthenticationToken(formattedPhone, loginRequest.getPassword())
+//        );
+//
+//        SecurityContextHolder.getContext().setAuthentication(authentication);
+//        UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
+//        String accessToken = jwtTokenUtil.generateToken(user.getUserId(), user.getRole().getRoleName());
+//        String refreshToken = jwtTokenUtil.generateRefreshToken(user.getUserId());
+//        String userId = userPrincipal.getUserResponse().getUserId();
+//
+//        RefreshToken token = RefreshToken.builder()
+//                .refreshToken(refreshToken)
+//                .id(Long.valueOf(userId))
+//                .expiresDate(jwtTokenUtil.generateExpirationDate())
+//                .revoked(false)
+//                .build();
+//
+//        refreshTokenService.saveRefreshToken(token);
+//
+//        String roleName = user.getRole() != null ? user.getRole().getRoleName() : "USER";
+//        return LoginResponse.ok(
+//                accessToken,
+//                roleName,
+//                userId,
+//                jwtTokenUtil.accessTokenExpiration,
+//                "Đăng nhập thành công",
+//                refreshToken
+//        );
+//    }
 
    @Override
     public void logout(String accessToken) {
@@ -228,7 +228,7 @@ public class AuthServiceImpl implements AuthService {
                     jwtEncoder
             );
 
-            return new RefreshTokenResponse(newAccessToken, "Bearer", jwtTokenUtil.accessTokenExpiration);
+            return new RefreshTokenResponse(newAccessToken, "Bearer", jwtTokenUtil.getExpiration());
         } catch (JwtException e) {
             throw new InvalidTokenException("Refresh token không hợp lệ.");
         }

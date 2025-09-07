@@ -33,7 +33,7 @@ public class UserDetailsServiceImpl implements UserDetailsService {
         return UserPrincipal.builder()
                 .username(user.getPhoneNumber())
                 .password(user.getPasswordHash())
-                .authorities(Collections.singletonList(new SimpleGrantedAuthority(user.getRole().getRoleName()))) // Convert Role to String
+                .authorities(Collections.singletonList(new SimpleGrantedAuthority(user.getRole().getRoleName().toUpperCase()))) // Convert Role to String
                 .userResponse(userResponse)
                 .build();
     }
