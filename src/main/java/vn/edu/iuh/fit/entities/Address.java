@@ -16,6 +16,13 @@ public class Address {
     @Column(name = "address_id", columnDefinition = "CHAR(36)")
     private String addressId;
 
+    @PrePersist
+    public void prePersist() {
+        if (this.addressId == null || this.addressId.isEmpty()) {
+            this.addressId = java.util.UUID.randomUUID().toString();
+        }
+    }
+
     @Column(name = "country_code", length = 2)
     private String countryCode; // VN, US, ...
 

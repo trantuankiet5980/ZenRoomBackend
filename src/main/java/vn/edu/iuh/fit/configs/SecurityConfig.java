@@ -42,12 +42,26 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.DELETE, "/api/v1/users/**").hasRole("ADMIN")
 
                         // ROLES
-                        .requestMatchers("/api/v1/roles/**").hasRole("ADMIN")
+                        .requestMatchers("/api/v1/roles/**").permitAll()
 
                         // Custom roles
                         .requestMatchers("/admin/**").hasRole("ADMIN")
                         .requestMatchers("/landlord/**").hasAnyRole("LANDLORD", "ADMIN")
                         .requestMatchers("/tenant/**").hasAnyRole("TENANT", "ADMIN")
+
+                        // POSTS
+//                        .requestMatchers(HttpMethod.POST, "/api/v1/posts/**").hasAnyRole("LANDLORD", "ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/v1/posts/**").permitAll()
+                        .requestMatchers(HttpMethod.PUT, "/api/v1/posts/**").hasAnyRole("LANDLORD", "ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/v1/posts/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/posts/**").permitAll()
+
+                        // PROPERTIES
+//                        .requestMatchers(HttpMethod.POST, "/api/v1/properties/**").hasAnyRole("LANDLORD", "ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/v1/properties/**").permitAll()
+                        .requestMatchers(HttpMethod.PUT, "/api/v1/properties/**").hasAnyRole("LANDLORD", "ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/v1/properties/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/properties/**").permitAll()
 
                         .anyRequest().authenticated()
                 )
