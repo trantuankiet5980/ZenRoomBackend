@@ -2,23 +2,33 @@ package vn.edu.iuh.fit.dtos.responses;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.Getter;
 
+@Getter
 @Data
 @AllArgsConstructor
 public class LoginResponse {
     private boolean success;
     private String message;
     private String token;
-    private String refreshToken;
     private String role;
     private String userId;
-    private String fullName;
-    private Long  expiresAt;
+    private long expiresAt;
 
-    public static LoginResponse ok(String token, String role, String userId, String fullName, Long exp, String msg, String refreshToken) {
-        return new LoginResponse(true, msg, token, refreshToken, role, userId, fullName, exp);
+    public LoginResponse() {
+
+    }
+
+    public static LoginResponse ok(String token, String role, String userId, long exp) {
+        LoginResponse r = new LoginResponse();
+        r.success = true; r.message = "Login successful";
+        r.token = token; r.role = role; r.userId = userId; r.expiresAt = exp;
+        return r;
     }
     public static LoginResponse fail(String msg) {
-        return new LoginResponse(false, msg, null, null, null, null, null, null);
+        LoginResponse r = new LoginResponse();
+        r.success = false; r.message = msg;
+        return r;
     }
+
 }
