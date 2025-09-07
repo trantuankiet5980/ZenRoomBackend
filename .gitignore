@@ -35,3 +35,9 @@ out/
 
 ### VS Code ###
 .vscode/
+
+# Bỏ qua file Firebase service account
+src/main/resources/firebase-service-account.json
+
+# Bỏ qua file ..env
+.env

@@ -7,7 +7,7 @@
 
     public interface AuthService {
         boolean signUp(SignUpRequest signUpRequest);
-        LoginResponse login(LoginRequest loginRequest);
+//        LoginResponse login(LoginRequest loginRequest);
         void logout(String token);
         RefreshTokenResponse refreshToken(String refreshToken);
     }
