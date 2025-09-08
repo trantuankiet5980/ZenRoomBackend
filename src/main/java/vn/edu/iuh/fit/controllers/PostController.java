@@ -10,8 +10,11 @@ import org.springframework.web.bind.annotation.*;
 import vn.edu.iuh.fit.dtos.PostCreateDTO;
 import vn.edu.iuh.fit.dtos.responses.ApiResponse;
 import vn.edu.iuh.fit.entities.Post;
+import vn.edu.iuh.fit.mappers.PostMapper;
 import vn.edu.iuh.fit.repositories.PostRepository;
 import vn.edu.iuh.fit.services.PostService;
+
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1/posts")
@@ -20,6 +23,7 @@ public class PostController {
 
     private final PostService postService;
     private final PostRepository postRepository;
+    private final PostMapper postMapper;
 
     @PostMapping
     public ResponseEntity<?> create(@RequestBody PostCreateDTO dto) {
@@ -53,9 +57,19 @@ public class PostController {
             ){
         Pageable pageable = PageRequest.of(page, size);
         Page<Post> result = postRepository.findByLandlord_UserId(userId, pageable);
+
+        Page<PostCreateDTO> dtoPage = result.map(postMapper::toDTO);
+
         return ResponseEntity.ok(ApiResponse.builder()
                 .success(true)
-                .data(result)
+                .data(Map.of(
+                        "totalElements", dtoPage.getTotalElements(),
+                        "totalPages", dtoPage.getTotalPages(),
+                        "page", dtoPage.getNumber(),
+                        "size", dtoPage.getSize(),
+                        "content", dtoPage.getContent()
+                ))
+                .message("List of posts for user " + userId)
                 .build());
     }
 
