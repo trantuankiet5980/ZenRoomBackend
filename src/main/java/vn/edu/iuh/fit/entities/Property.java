@@ -32,7 +32,7 @@ public class Property {
     @ManyToOne @JoinColumn(name="landlord_id") private User landlord;
     private String propertyName;
 
-    @ManyToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "address_id")
     private Address address;
 
@@ -53,7 +53,10 @@ public class Property {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
-    @OneToMany(mappedBy="property")
+    @OneToMany(mappedBy="property",
+            fetch = FetchType.LAZY,
+            cascade = CascadeType.ALL,
+            orphanRemoval = true)
     private List<PropertyMedia> media = new ArrayList<>();
 
     @OneToMany(mappedBy = "property", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)

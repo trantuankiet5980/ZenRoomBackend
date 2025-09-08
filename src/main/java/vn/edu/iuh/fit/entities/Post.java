@@ -70,6 +70,9 @@ public class Post {
     @Column(name = "status", length = 20, nullable = false)
     private PostStatus status;
 
+    @Column(name = "rejected_reason", columnDefinition = "TEXT")
+    private String rejectedReason; // lý do từ chối nếu có
+
     @Column(name = "published_at")
     private LocalDateTime publishedAt; // set khi duyệt/đăng
 
