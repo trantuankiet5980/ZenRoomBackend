@@ -45,18 +45,6 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.PUT, "/api/v1/properties/**").hasAnyRole("LANDLORD", "ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/v1/properties/**").hasAnyRole("LANDLORD", "ADMIN")
 
-                        //POST
-                        .requestMatchers(HttpMethod.GET, "/api/v1/posts/**").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/v1/posts/**").hasAnyRole("LANDLORD", "ADMIN")
-                        .requestMatchers(HttpMethod.PUT, "/api/v1/posts/**").hasAnyRole("LANDLORD", "ADMIN")
-                        .requestMatchers(HttpMethod.DELETE, "/api/v1/posts/**").hasAnyRole("LANDLORD", "ADMIN")
-
-                        // AUDIT
-                        .requestMatchers(HttpMethod.GET, "/api/v1/audit/**").hasRole("ADMIN")
-
-                        // MODERATION
-                        .requestMatchers(HttpMethod.GET, "/api/v1/moderation/**").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.PUT, "/api/v1/moderation/**").hasRole("ADMIN")
 
                         // Custom roles
                         .requestMatchers("/admin/**").hasRole("ADMIN")
