@@ -107,7 +107,7 @@ public class AuthController {
         String token = jwtTokenUtil.generateToken(user.getUserId(), roleName);
         Date expiry = new Date(System.currentTimeMillis() + jwtTokenUtil.getExpiration());
 
-        return ResponseEntity.ok(LoginResponse.ok(token, roleName, user.getUserId(), expiry.getTime()));
+        return ResponseEntity.ok(LoginResponse.ok(token, roleName, user.getUserId(), user.getFullName(), expiry.getTime()));
     }
     @Data
     public static class LoginRequest {
