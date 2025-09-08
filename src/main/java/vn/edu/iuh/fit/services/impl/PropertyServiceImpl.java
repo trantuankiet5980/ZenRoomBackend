@@ -3,8 +3,8 @@ package vn.edu.iuh.fit.services.impl;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
-import vn.edu.iuh.fit.dtos.AddressCreateDTO;
-import vn.edu.iuh.fit.dtos.PropertyCreateDTO;
+import vn.edu.iuh.fit.dtos.AddressDto;
+import vn.edu.iuh.fit.dtos.PropertyDto;
 import vn.edu.iuh.fit.entities.Address;
 import vn.edu.iuh.fit.entities.Property;
 import vn.edu.iuh.fit.entities.RoomType;
@@ -38,7 +38,7 @@ public class PropertyServiceImpl implements PropertyService {
 
     @Transactional
     @Override
-    public Property create(PropertyCreateDTO dto) {
+    public Property create(PropertyDto dto) {
         if(dto == null) throw new IllegalArgumentException("Request is null");
         if(isBlank(dto.getLandlordId())) throw new IllegalArgumentException("Landlord ID is required");
         if(isBlank(dto.getPropertyType())) throw new IllegalArgumentException("Property type is required");
@@ -63,7 +63,7 @@ public class PropertyServiceImpl implements PropertyService {
                     .orElseThrow(() -> new EntityNotFoundException("Address not found with ID: " + dto.getAddressId()));
             p.setAddress(address);
         } else {
-            AddressCreateDTO a = dto.getAddress();
+            AddressDto a = dto.getAddress();
             if(a == null) throw new IllegalArgumentException("Address information is required");
             Address address = new Address();
             address.setAddressFull(UUID.randomUUID().toString());

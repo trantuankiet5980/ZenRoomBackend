@@ -11,10 +11,12 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import vn.edu.iuh.fit.auths.UserPrincipal;
 import vn.edu.iuh.fit.dtos.ApiMessage;
+import vn.edu.iuh.fit.dtos.PostCreateDTO;
 import vn.edu.iuh.fit.dtos.requests.PostRejectRequest;
 import vn.edu.iuh.fit.dtos.responses.ApiResponse;
 import vn.edu.iuh.fit.entities.Post;
 import vn.edu.iuh.fit.entities.enums.PostStatus;
+import vn.edu.iuh.fit.mappers.PostMapper;
 import vn.edu.iuh.fit.repositories.PostRepository;
 import vn.edu.iuh.fit.services.PostModerationService;
 
@@ -27,6 +29,7 @@ public class PostModerationController {
 
     private final PostModerationService postModerationService;
     private final PostRepository postRepository;
+    private final PostMapper postMapper;
 
     @GetMapping("/pending")
     public ResponseEntity<?> listPendingPosts(
@@ -36,13 +39,18 @@ public class PostModerationController {
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
         Page<Post> result = postRepository.findByStatus(PostStatus.PENDING, pageable);
 
-        return ResponseEntity.ok(Map.of(
-                "totalElements", result.getTotalElements(),
-                "totalPages", result.getTotalPages(),
-                "number", result.getNumber(),
-                "size", result.getSize(),
-                "content", result.getContent()
-        ));
+        Page<PostCreateDTO> dtoPage = result.map(postMapper::toDTO);
+
+        return ResponseEntity.ok(ApiResponse.builder()
+                .success(true)
+                .data(Map.of(
+                        "posts", dtoPage.getContent(),
+                        "currentPage", dtoPage.getNumber(),
+                        "totalItems", dtoPage.getTotalElements(),
+                        "totalPages", dtoPage.getTotalPages()
+                ))
+                .message("Pending posts retrieved successfully")
+                .build());
     }
 
     @PutMapping("/{postId}/approve")
