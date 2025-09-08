@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import vn.edu.iuh.fit.dtos.PropertyCreateDTO;
+import vn.edu.iuh.fit.dtos.responses.ApiResponse;
 import vn.edu.iuh.fit.entities.Property;
 import vn.edu.iuh.fit.services.PropertyService;
 
@@ -24,7 +25,18 @@ public class PropertyController {
     public ResponseEntity<?> create(@RequestBody PropertyCreateDTO dto){
         try {
             Property createdProperty = propertyService.create(dto);
-            return ResponseEntity.status(HttpStatus.CREATED).body(createdProperty.getPropertyId());
+            if (createdProperty == null) {
+                return ResponseEntity.ok(ApiResponse.builder()
+                        .success(false)
+                        .message("Property creation failed")
+                        .data(null)
+                        .build());
+            }
+            return ResponseEntity.ok(ApiResponse.builder()
+                    .success(true)
+                    .message("Property created successfully")
+                    .data(createdProperty)
+                    .build());
         } catch (IllegalArgumentException | jakarta.persistence.EntityNotFoundException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         } catch (Exception e) {

@@ -16,6 +16,10 @@ public class UserPrincipal implements UserDetails {
     private Collection<? extends GrantedAuthority> authorities;
     private UserResponse userResponse;
 
+    public String getUserId(){
+        return (userResponse != null) ? userResponse.getUserId() : null;
+    }
+
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         return authorities;
