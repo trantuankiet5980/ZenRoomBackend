@@ -4,10 +4,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import vn.edu.iuh.fit.dtos.PostCreateDTO;
+import vn.edu.iuh.fit.dtos.PostDto;
 import vn.edu.iuh.fit.dtos.responses.ApiResponse;
 import vn.edu.iuh.fit.entities.Post;
 import vn.edu.iuh.fit.mappers.PostMapper;
@@ -26,9 +25,10 @@ public class PostController {
     private final PostMapper postMapper;
 
     @PostMapping
-    public ResponseEntity<?> create(@RequestBody PostCreateDTO dto) {
+    public ResponseEntity<?> create(@RequestBody PostDto dto) {
         try {
             Post p = postService.create(dto);
+            PostDto postDto = postMapper.toDTO(p);
             if (p == null) {
                 return ResponseEntity.ok(ApiResponse.builder()
                         .success(false)
@@ -39,13 +39,23 @@ public class PostController {
             return ResponseEntity.ok(ApiResponse.builder()
                     .success(true)
                     .message("Post created successfully")
-                    .data(p)
+                    .data(postDto)
                     .build());
 //            return ResponseEntity.status(HttpStatus.CREATED).body(p.getPostId());
         } catch (IllegalArgumentException | jakarta.persistence.EntityNotFoundException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
+            return ResponseEntity.badRequest().body(
+                    ApiResponse.builder()
+                            .success(false)
+                            .message(e.getMessage())
+                            .build()
+            );
         } catch (Exception e) {
-            return ResponseEntity.status(500).body("An unexpected error occurred: " + e.getMessage());
+            return ResponseEntity.status(500).body(
+                    ApiResponse.builder()
+                            .success(false)
+                            .message("An unexpected error occurred: " + e.getMessage())
+                            .build()
+            );
         }
     }
 
@@ -58,7 +68,7 @@ public class PostController {
         Pageable pageable = PageRequest.of(page, size);
         Page<Post> result = postRepository.findByLandlord_UserId(userId, pageable);
 
-        Page<PostCreateDTO> dtoPage = result.map(postMapper::toDTO);
+        Page<PostDto> dtoPage = result.map(postMapper::toDTO);
 
         return ResponseEntity.ok(ApiResponse.builder()
                 .success(true)

@@ -1,5 +1,6 @@
 package vn.edu.iuh.fit.services.impl;
 
+import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -26,6 +27,7 @@ public class PostModerationServiceImpl implements PostModerationService {
     private final PostRepository postRepository;
     private final PostAuditRepository postAuditRepository;
     private final UserRepository userRepository;
+    private final EntityManager em;
 
     private Post getPendingOrThrow(String postId){
         Post post = postRepository.findById(postId)
@@ -35,11 +37,29 @@ public class PostModerationServiceImpl implements PostModerationService {
         }
         return post;
     }
+    private User refUserById(String userId) {
+        return (userId == null) ? null : em.getReference(User.class, userId);
+    }
+    private String currentUserId(UserPrincipal actorParam) {
+        if (actorParam != null && actorParam.getUserId() != null) return actorParam.getUserId();
 
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated()) return null;
+
+        Object p = auth.getPrincipal();
+        if (p instanceof vn.edu.iuh.fit.auths.UserPrincipal up) return up.getUserId();
+        if (p instanceof String s && !"anonymousUser".equalsIgnoreCase(s)) return s; // vì filter đang set principal = userId (String)
+        return null;
+    }
     private void log(Post post, PostAuditAction action, PostStatus from, PostStatus to, String reason, User actor) {
         PostAudit audit = PostAudit.builder()
-                .post(post).action(action).fromStatus(from).toStatus(to)
-                .reason(reason).actor(actor).build();
+                .post(post)
+                .action(action)
+                .fromStatus(from)
+                .toStatus(to)
+                .reason(reason)
+                .actor(actor)
+                .build();
         postAuditRepository.save(audit);
     }
 
@@ -54,11 +74,10 @@ public class PostModerationServiceImpl implements PostModerationService {
         post.setRejectedReason(null);
         postRepository.save(post);
 
-        User actorEntity = (actor != null && actor.getUserResponse() != null)
-                ? userRepository.findById(actor.getUserResponse().getUserId()).orElse(null)
-                : null;
+        String actorId = currentUserId(actor);
+        User actorRef = refUserById(actorId);
 
-        log(post, PostAuditAction.APPROVE, from, post.getStatus(), null, actorEntity);
+        log(post, PostAuditAction.APPROVE, from, post.getStatus(), null, actorRef);
     }
 
     @Override
@@ -74,10 +93,9 @@ public class PostModerationServiceImpl implements PostModerationService {
         post.setUpdatedAt(LocalDateTime.now());
         postRepository.save(post);
 
-        User actorEntity = (actor != null && actor.getUserResponse() != null)
-                ? userRepository.findById(actor.getUserResponse().getUserId()).orElse(null)
-                : null;
+        String actorId = currentUserId(actor);
+        User actorRef = refUserById(actorId);
 
-        log(post, PostAuditAction.REJECT, from, post.getStatus(), req.getReason(), actorEntity);
+        log(post, PostAuditAction.REJECT, from, post.getStatus(), req.getReason(), actorRef);
     }
 }

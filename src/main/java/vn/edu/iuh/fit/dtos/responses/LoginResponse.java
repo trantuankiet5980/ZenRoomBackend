@@ -13,16 +13,22 @@ public class LoginResponse {
     private String token;
     private String role;
     private String userId;
+    private String fullName;
     private long expiresAt;
 
     public LoginResponse() {
 
     }
 
-    public static LoginResponse ok(String token, String role, String userId, long exp) {
+    public static LoginResponse ok(String token, String role, String userId, String fullName, long exp) {
         LoginResponse r = new LoginResponse();
-        r.success = true; r.message = "Login successful";
-        r.token = token; r.role = role; r.userId = userId; r.expiresAt = exp;
+        r.success = true;
+        r.message = "Login successful";
+        r.token = token;
+        r.role = role;
+        r.userId = userId;
+        r.fullName = fullName;
+        r.expiresAt = exp;
         return r;
     }
     public static LoginResponse fail(String msg) {

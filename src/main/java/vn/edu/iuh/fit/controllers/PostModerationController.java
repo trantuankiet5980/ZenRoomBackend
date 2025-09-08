@@ -11,7 +11,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import vn.edu.iuh.fit.auths.UserPrincipal;
 import vn.edu.iuh.fit.dtos.ApiMessage;
-import vn.edu.iuh.fit.dtos.PostCreateDTO;
+import vn.edu.iuh.fit.dtos.PostDto;
 import vn.edu.iuh.fit.dtos.requests.PostRejectRequest;
 import vn.edu.iuh.fit.dtos.responses.ApiResponse;
 import vn.edu.iuh.fit.entities.Post;
@@ -39,7 +39,7 @@ public class PostModerationController {
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
         Page<Post> result = postRepository.findByStatus(PostStatus.PENDING, pageable);
 
-        Page<PostCreateDTO> dtoPage = result.map(postMapper::toDTO);
+        Page<PostDto> dtoPage = result.map(postMapper::toDTO);
 
         return ResponseEntity.ok(ApiResponse.builder()
                 .success(true)
