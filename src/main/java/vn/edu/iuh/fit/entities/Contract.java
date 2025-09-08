@@ -6,6 +6,8 @@ import lombok.*;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Data
 @NoArgsConstructor
@@ -57,6 +59,9 @@ public class Contract {
 
     @Column(name = "end_date")
     private LocalDate endDate;
+
+    @OneToMany(mappedBy = "contract", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<ContractService> services = new ArrayList<>();
 
     @Column(name = "rent_price", precision = 12, scale = 2)
     private BigDecimal rentPrice;

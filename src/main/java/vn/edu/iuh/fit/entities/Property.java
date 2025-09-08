@@ -1,70 +1,136 @@
 package vn.edu.iuh.fit.entities;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-import vn.edu.iuh.fit.entities.enums.PropertyStatus;
+import lombok.*;
+import vn.edu.iuh.fit.entities.enums.ApartmentCategory;
+import vn.edu.iuh.fit.entities.enums.PostStatus;
 import vn.edu.iuh.fit.entities.enums.PropertyType;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 
 @Entity
-@Table(name = "Properties")
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
+@Table(name = "properties",
+        indexes = {
+                @Index(name="idx_property_type", columnList = "propertyType"),
+                @Index(name="idx_property_parent", columnList = "parent_id"),
+                @Index(name="idx_property_landlord", columnList = "landlord_id"),
+                @Index(name="idx_property_created", columnList = "createdAt")
+        })
+@Data @NoArgsConstructor @AllArgsConstructor @Builder
 public class Property {
+
     @Id
-    @Column(name="property_id", columnDefinition="CHAR(36)")
+    @Column(name = "property_id", columnDefinition = "CHAR(36)")
     private String propertyId;
+
     @PrePersist
-    void pre(){ if(propertyId==null) propertyId= UUID.randomUUID().toString(); }
+    void prePersist() {
+        if (propertyId == null) propertyId = UUID.randomUUID().toString();
+        if (createdAt == null) createdAt = LocalDateTime.now();
+        if (updatedAt == null) updatedAt = LocalDateTime.now();
+        if (postStatus == null) postStatus = PostStatus.PENDING;
+        validateByType();
+    }
 
-    @Enumerated(EnumType.STRING) private PropertyType propertyType;
-    @ManyToOne @JoinColumn(name="parent_id") private Property parent;
-    @ManyToOne @JoinColumn(name="landlord_id") private User landlord;
-    private String propertyName;
+    @PreUpdate
+    void preUpdate() {
+        updatedAt = LocalDateTime.now();
+        validateByType();
+    }
 
+    /* ===== Phân loại ===== */
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private PropertyType propertyType;  // BUILDING | ROOM
+
+    /* ===== Quan hệ cha–con (ROOM -> BUILDING) ===== */
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "address_id")
+    @JoinColumn(name = "parent_id")
+    private Property parent;            // null nếu là BUILDING
+
+    /* ===== Chủ nhà ===== */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "landlord_id", nullable = false)
+    private User landlord;
+
+    /* ===== Địa chỉ (cả BUILDING & ROOM) ===== */
+    @ManyToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+    @JoinColumn(name = "address_id", nullable = false)
     private Address address;
 
-    private Integer totalFloors;
-    private Integer parkingCapacity;
+    /* ===== Thông tin dùng khi “đăng” (đưa thẳng vào Property) ===== */
+    @Column(name = "title", length = 200, nullable = false)
+    private String title;               // tiêu đề đăng
 
-    @ManyToOne @JoinColumn(name="room_type_id") private RoomType roomType;
-    private String roomNumber;
+    @Column(name = "description", columnDefinition = "TEXT")
+    private String description;         // mô tả đăng
 
-    private Integer floorNo;
-    private Double area;
-    private Integer capacity;
-    private Integer parkingSlots;
-    private BigDecimal price;
-    private BigDecimal deposit;
-    @Enumerated(EnumType.STRING) private PropertyStatus status;
-    private String description;
-    private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
+    /* ===== Thông tin chung (có thể dùng cho cả 2) ===== */
+    private Double area;                // m2
+    private BigDecimal price;           // giá thuê / tháng
+    private BigDecimal deposit;         // tiền cọc
 
-    @OneToMany(mappedBy="property",
-            fetch = FetchType.LAZY,
-            cascade = CascadeType.ALL,
-            orphanRemoval = true)
-    private List<PropertyMedia> media = new ArrayList<>();
+    /* ===== Riêng cho BUILDING (căn hộ/tòa) ===== */
+    private String buildingName;        // tên tòa/căn hộ
+    @Enumerated(EnumType.STRING)
+    private ApartmentCategory apartmentCategory; // CHUNG_CU | DUPLEX | PENTHOUSE
+    private Integer bedrooms;           // số phòng ngủ (nếu bạn áp cho building)
+    private Integer bathrooms;          // số phòng vệ sinh (nếu bạn áp cho building)
 
-    @OneToMany(mappedBy = "property", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<PropertyAmenity> amenities = new ArrayList<>();
+    /* ===== Riêng cho ROOM (nếu cần thêm fields thì mở rộng) ===== */
+    private String roomNumber;          // optional
+    private Integer floorNo;            // optional
 
+    /* ===== Nội thất / Tiện nghi / Dịch vụ ===== */
     @OneToMany(mappedBy = "property", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
     private List<PropertyFurnishing> furnishings = new ArrayList<>();
 
     @OneToMany(mappedBy = "property", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<PropertyService> services = new ArrayList<>();
+    private List<PropertyAmenity> amenities = new ArrayList<>();
+
+    /* ===== Media: ảnh/video (S3 URLs) ===== */
+    @OneToMany(mappedBy = "property", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<PropertyMedia> media = new ArrayList<>();
+
+    /* ===== Trạng thái duyệt bài ===== */
+    @Enumerated(EnumType.STRING)
+    @Column(name="post_status", length=20, nullable=false)
+    private PostStatus postStatus;
+
+    @Column(name="rejected_reason", columnDefinition="TEXT")
+    private String rejectedReason;
+
+    private LocalDateTime publishedAt;
+
+    /* ===== Audit ===== */
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
+
+    /* ===== Ràng buộc theo loại ===== */
+    private void validateByType() {
+        if (propertyType == PropertyType.BUILDING) {
+            // BUILDING: bắt buộc các thông tin riêng
+            if (buildingName == null || buildingName.isBlank())
+                throw new IllegalArgumentException("BUILDING: 'buildingName' is required");
+            if (apartmentCategory == null)
+                throw new IllegalArgumentException("BUILDING: 'apartmentCategory' is required");
+
+             if (bedrooms == null) throw new IllegalArgumentException("BUILDING: 'bedrooms' is required");
+             if (bathrooms == null) throw new IllegalArgumentException("BUILDING: 'bathrooms' is required");
+        } else if (propertyType == PropertyType.ROOM) {
+            // ROOM: giá/diện tích/cọc thường bắt buộc
+            if (parent == null)
+                throw new IllegalArgumentException("ROOM: 'parent' (building) is required");
+            if (area == null || area <= 0)
+                throw new IllegalArgumentException("ROOM: 'area' is required and must be > 0");
+            if (price == null || price.compareTo(BigDecimal.ZERO) <= 0)
+                throw new IllegalArgumentException("ROOM: 'price' is required and must be > 0");
+            if (deposit == null || deposit.compareTo(BigDecimal.ZERO) < 0)
+                throw new IllegalArgumentException("ROOM: 'deposit' is required and must be >= 0");
+        } else {
+            throw new IllegalArgumentException("Unknown propertyType");
+        }
+    }
 }
