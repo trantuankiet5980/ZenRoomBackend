@@ -89,7 +89,9 @@ public class AuthServiceImpl implements AuthService {
             throw new IllegalArgumentException("At least one role is required.");
         }
 
-        boolean validRoles = roles.stream().allMatch(role -> role.equals("landlord") || role.equals("tenant"));
+        boolean validRoles = roles.stream().allMatch(role ->
+                role != null && (role.equals("landlord") || role.equals("tenant"))
+        );
         if (!validRoles) {
             throw new IllegalArgumentException("Roles phải là 'landlord' hoặc 'tenant'.");
         }
@@ -173,7 +175,7 @@ public class AuthServiceImpl implements AuthService {
                 throw new IllegalArgumentException("Token không chứa thông tin hợp lệ.");
             }
 
-            boolean isAccessToken = decodedToken.getClaims().containsKey("roles");
+            boolean isAccessToken = decodedToken.getClaims().containsKey("role");
             if (!isAccessToken) {
                 throw new InvalidTokenException("Bạn đã truyền nhầm Refresh Token thay vì Access Token.");
             }
@@ -224,8 +226,8 @@ public class AuthServiceImpl implements AuthService {
             }
 
             String newAccessToken = jwtTokenUtil.generateToken(
-                    String.valueOf(new UsernamePasswordAuthenticationToken(userPrincipal, null, userPrincipal.getAuthorities())),
-                    jwtEncoder
+                    userPrincipal.getUserResponse().getUserId(),
+                    userPrincipal.getUserResponse().getRoleName()
             );
 
             return new RefreshTokenResponse(newAccessToken, "Bearer", jwtTokenUtil.getExpiration());
@@ -233,4 +235,23 @@ public class AuthServiceImpl implements AuthService {
             throw new InvalidTokenException("Refresh token không hợp lệ.");
         }
     }
+
+    @Override
+    public void resetPassword(String phoneNumber, String newPassword) {
+        if (phoneNumber == null || phoneNumber.trim().isEmpty() || newPassword == null || newPassword.trim().isEmpty()) {
+            throw new IllegalArgumentException("Phone number or new password cannot be empty.");
+        }
+
+        String formattedPhone = FormatPhoneNumber.formatPhoneNumberTo0(phoneNumber);
+        User user = userRepository.findByPhoneNumber(formattedPhone)
+                .orElseThrow(() -> new UserNotFoundException("User not found with phone: " + formattedPhone));
+
+        if (!newPassword.matches("^(?=.*[A-Za-z])(?=.*\\d)[A-Za-z\\d]{8,}$")) {
+            throw new IllegalArgumentException("Mật khẩu phải có ít nhất 8 ký tự, bao gồm chữ cái và số.");
+        }
+
+        user.setPasswordHash(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
+    }
+
 }

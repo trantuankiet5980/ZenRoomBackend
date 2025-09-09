@@ -5,4 +5,7 @@ public interface SmsService {
     public void sendOtp(String phoneNumber);
 
     public boolean verifyOtp(String phoneNumber, String otp);
+    boolean isOtpVerified(String phoneNumber);
+    void clearOtpVerification(String phoneNumber);
+    void setOtpVerified(String phone, boolean verified);
 }

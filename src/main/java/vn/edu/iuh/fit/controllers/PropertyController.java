@@ -7,9 +7,12 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+//import vn.edu.iuh.fit.dtos.PropertyCreateDTO;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import vn.edu.iuh.fit.dtos.PropertyDto;
+import vn.edu.iuh.fit.dtos.responses.ApiResponse;
 import vn.edu.iuh.fit.entities.Property;
 import vn.edu.iuh.fit.entities.enums.PostStatus;
 import vn.edu.iuh.fit.mappers.PropertyMapper;
@@ -18,6 +21,9 @@ import vn.edu.iuh.fit.services.PropertyService;
 import java.net.URI;
 import java.util.Map;
 import java.util.Optional;
+
+import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
 @RequiredArgsConstructor
@@ -114,6 +120,41 @@ public class PropertyController {
                     p.getNumber(), p.getSize(), p.getTotalElements(), p.getTotalPages(),
                     p.isFirst(), p.isLast(), p.getContent()
             );
+        }
+    }
+
+    @GetMapping("/landlord/{landlordId}")
+    public ResponseEntity<?> getByLandlordId(@PathVariable String landlordId) {
+        try {
+            List<Property> properties = propertyService.getByLandlordId(landlordId);
+            List<PropertyDto> propertyDtos = properties.stream()
+                    .map(propertyMapper::toDto)
+                    .collect(Collectors.toList());
+
+            return ResponseEntity.ok(ApiResponse.builder()
+                    .success(true)
+                    .message("Properties retrieved successfully")
+                    .data(propertyDtos)
+                    .build());
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body("An unexpected error occurred: " + e.getMessage());
+        }
+    }
+    @GetMapping("/all")
+    public ResponseEntity<?> getAll() {
+        try {
+            List<Property> properties = propertyService.getAll();
+            List<PropertyDto> propertyDtos = properties.stream()
+                    .map(propertyMapper::toDto)
+                    .collect(Collectors.toList());
+
+            return ResponseEntity.ok(ApiResponse.builder()
+                    .success(true)
+                    .message("All properties retrieved successfully")
+                    .data(propertyDtos)
+                    .build());
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body("An unexpected error occurred: " + e.getMessage());
         }
     }
 }
