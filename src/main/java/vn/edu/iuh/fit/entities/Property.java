@@ -87,8 +87,6 @@ public class Property {
     @OneToMany(mappedBy = "property", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
     private List<PropertyFurnishing> furnishings = new ArrayList<>();
 
-    @OneToMany(mappedBy = "property", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<PropertyAmenity> amenities = new ArrayList<>();
 
     /* ===== Media: ảnh/video (S3 URLs) ===== */
     @OneToMany(mappedBy = "property", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
@@ -120,9 +118,7 @@ public class Property {
              if (bedrooms == null) throw new IllegalArgumentException("BUILDING: 'bedrooms' is required");
              if (bathrooms == null) throw new IllegalArgumentException("BUILDING: 'bathrooms' is required");
         } else if (propertyType == PropertyType.ROOM) {
-            // ROOM: giá/diện tích/cọc thường bắt buộc
-            if (parent == null)
-                throw new IllegalArgumentException("ROOM: 'parent' (building) is required");
+
             if (area == null || area <= 0)
                 throw new IllegalArgumentException("ROOM: 'area' is required and must be > 0");
             if (price == null || price.compareTo(BigDecimal.ZERO) <= 0)

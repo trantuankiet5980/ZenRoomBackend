@@ -12,18 +12,16 @@ public class PropertyMapper {
     private final UserMapper userMapper;
     private final AddressMapper addressMapper;
     private final PropertyFurnishingMapper furnishingMapper;
-    private final PropertyAmenityMapper amenityMapper;
+
     private final PropertyMediaMapper mediaMapper;
 
     public PropertyMapper(UserMapper userMapper,
                           AddressMapper addressMapper,
                           PropertyFurnishingMapper furnishingMapper,
-                          PropertyAmenityMapper amenityMapper,
                           PropertyMediaMapper mediaMapper) {
         this.userMapper = userMapper;
         this.addressMapper = addressMapper;
         this.furnishingMapper = furnishingMapper;
-        this.amenityMapper = amenityMapper;
         this.mediaMapper = mediaMapper;
     }
 
@@ -49,8 +47,6 @@ public class PropertyMapper {
                 entity.getFloorNo(),
                 entity.getFurnishings() != null ?
                         entity.getFurnishings().stream().map(furnishingMapper::toDto).collect(Collectors.toList()) : null,
-                entity.getAmenities() != null ?
-                        entity.getAmenities().stream().map(amenityMapper::toDto).collect(Collectors.toList()) : null,
 
                 entity.getMedia() != null ?
                         entity.getMedia().stream().map(mediaMapper::toDto).collect(Collectors.toList()) : null,
@@ -94,14 +90,6 @@ public class PropertyMapper {
                     .map(furnishingMapper::toEntity)
                     .collect(Collectors.toList()));
         }
-
-        // Amenities
-        if (dto.getAmenities() != null) {
-            entity.setAmenities(dto.getAmenities().stream()
-                    .map(amenityMapper::toEntity)
-                    .collect(Collectors.toList()));
-        }
-
 
         // Media
         if (dto.getMedia() != null) {

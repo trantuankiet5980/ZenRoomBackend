@@ -31,7 +31,6 @@ public class PropertyDto implements Serializable {
     String roomNumber;
     Integer floorNo;
     List<PropertyFurnishingDto> furnishings;
-    List<PropertyAmenityDto> amenities;
     List<PropertyMediaDto> media;
     PostStatus postStatus;
     String rejectedReason;
