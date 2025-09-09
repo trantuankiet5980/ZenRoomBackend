@@ -47,6 +47,9 @@ public class SecurityConfig {
 
                         // FURNISHINGS
                         .requestMatchers(HttpMethod.GET, "/api/v1/furnishings/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/furnishings/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/api/v1/furnishings/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/v1/furnishings/**").hasRole("ADMIN")
 
                         // Custom roles
                         .requestMatchers("/admin/**").hasRole("ADMIN")
