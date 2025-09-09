@@ -9,9 +9,12 @@ public class PropertyFurnishingMapper {
 
     public PropertyFurnishingDto toDto(PropertyFurnishing entity) {
         if (entity == null) return null;
+        String fid = (entity.getFurnishing() != null) ? entity.getFurnishing().getFurnishingId() : null;
+        String fname = (entity.getFurnishing() != null) ? entity.getFurnishing().getFurnishingName() : null;
 
         return new PropertyFurnishingDto(
                 entity.getId(),
+                fid,
                 entity.getQuantity()
         );
     }

@@ -35,7 +35,7 @@ public class SecurityConfig {
 
                         // ROLES
                         .requestMatchers(HttpMethod.GET, "/api/v1/roles/**").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.POST, "/api/v1/roles/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/v1/roles/**").permitAll()
                         .requestMatchers(HttpMethod.PUT, "/api/v1/roles/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/v1/roles/**").hasRole("ADMIN")
 
@@ -45,6 +45,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.PUT, "/api/v1/properties/**").hasAnyRole("LANDLORD", "ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/v1/properties/**").hasAnyRole("LANDLORD", "ADMIN")
 
+                        // FURNISHINGS
+                        .requestMatchers(HttpMethod.GET, "/api/v1/furnishings/**").permitAll()
 
                         // Custom roles
                         .requestMatchers("/admin/**").hasRole("ADMIN")

@@ -1,117 +1,258 @@
 package vn.edu.iuh.fit.services.impl;
 
+import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityNotFoundException;
-import jakarta.transaction.Transactional;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
-import vn.edu.iuh.fit.dtos.AddressDto;
+import org.springframework.transaction.annotation.Transactional;
+import vn.edu.iuh.fit.dtos.FurnishingsDto;
 import vn.edu.iuh.fit.dtos.PropertyDto;
-import vn.edu.iuh.fit.entities.Address;
-import vn.edu.iuh.fit.entities.Property;
-import vn.edu.iuh.fit.entities.RoomType;
-import vn.edu.iuh.fit.entities.User;
-import vn.edu.iuh.fit.entities.enums.PropertyStatus;
+import vn.edu.iuh.fit.dtos.PropertyFurnishingDto;
+import vn.edu.iuh.fit.entities.*;
+import vn.edu.iuh.fit.entities.enums.PostStatus;
 import vn.edu.iuh.fit.entities.enums.PropertyType;
+import vn.edu.iuh.fit.mappers.FurnishingsMapper;
+import vn.edu.iuh.fit.mappers.PropertyMapper;
 import vn.edu.iuh.fit.repositories.AddressRepository;
+import vn.edu.iuh.fit.repositories.FurnishingRepository;
 import vn.edu.iuh.fit.repositories.PropertyRepository;
-import vn.edu.iuh.fit.repositories.RoomTypeRepository;
 import vn.edu.iuh.fit.repositories.UserRepository;
 import vn.edu.iuh.fit.services.PropertyService;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
-import java.util.UUID;
+import java.util.Optional;
 
 @Service
+@RequiredArgsConstructor
 public class PropertyServiceImpl implements PropertyService {
 
     private final PropertyRepository propertyRepository;
     private final UserRepository userRepository;
-    private final RoomTypeRepository roomTypeRepository;
     private final AddressRepository addressRepository;
+    private final FurnishingRepository furnishingRepository;
+    private final PropertyMapper propertyMapper;
+    private final EntityManager em;
 
-    public PropertyServiceImpl(PropertyRepository propertyRepository, UserRepository userRepository, RoomTypeRepository roomTypeRepository, AddressRepository addressRepository) {
-        this.propertyRepository = propertyRepository;
-        this.userRepository = userRepository;
-        this.roomTypeRepository = roomTypeRepository;
-        this.addressRepository = addressRepository;
-    }
-
+    /* =================== CREATE =================== */
     @Transactional
     @Override
     public Property create(PropertyDto dto) {
-//        if(dto == null) throw new IllegalArgumentException("Request is null");
-//        if(isBlank(dto.getLandlordId())) throw new IllegalArgumentException("Landlord ID is required");
-//        if(isBlank(dto.getPropertyType())) throw new IllegalArgumentException("Property type is required");
-//
-//        User landlord = userRepository.findById(dto.getLandlordId())
-//                .orElseThrow(() -> new EntityNotFoundException("Landlord not found with ID: " + dto.getLandlordId()));
-//
-//        PropertyType type = PropertyType.valueOf(dto.getPropertyType().toUpperCase(Locale.ROOT).trim());
-//
-//        Property p = new Property();
-//        p.setPropertyId(UUID.randomUUID().toString());
-//        p.setLandlord(landlord);
-//        p.setPropertyType(type);
-//        p.setPropertyName(dto.getPropertyName());
-//        p.setDescription(dto.getDescription());
-//        p.setCreatedAt(LocalDateTime.now());
-//        p.setUpdatedAt(LocalDateTime.now());
-//
-//        //ADDRESS: dung addressId co san, hoac tao address moi tu dto
-//        if(!isBlank(dto.getAddressId())){
-//            Address address = addressRepository.findById(dto.getAddressId())
-//                    .orElseThrow(() -> new EntityNotFoundException("Address not found with ID: " + dto.getAddressId()));
-//            p.setAddress(address);
-//        } else {
-//            AddressDto a = dto.getAddress();
-//            if(a == null) throw new IllegalArgumentException("Address information is required");
-//            Address address = new Address();
-//            address.setAddressFull(UUID.randomUUID().toString());
-//            address.setCountryCode(a.getCountryCode());
-//            address.setProvince(a.getProvince());
-//            address.setDistrict(a.getDistrict());
-//            address.setWard(a.getWard());
-//            address.setStreet(a.getStreet());
-//            address.setHouseNumber(a.getHouseNumber());
-//            address.setPostalCode(a.getPostalCode());
-//            address.setAddressFull(a.getAddressFull());
-//            address.setLatitude(a.getLatitude());
-//            address.setLongitude(a.getLongitude());
-//            addressRepository.save(address);
-//            p.setAddress(address);
-//        }
-//
-//        if(type == PropertyType.BUILDING){
-//            //BUILDING
-//            p.setTotalFloors(dto.getTotalFloors());
-//            p.setParkingCapacity(dto.getParkingCapacity());
-//            p.setStatus(PropertyStatus.ACTIVE); // mac dinh ACTIVE
-//        } else {
-//            //ROOM
-//            if(isBlank(dto.getParentId()))
-//                throw new IllegalArgumentException("Parent building ID is required for ROOM type");
-//
-//            Property parent = propertyRepository.findById(dto.getParentId())
-//                    .orElseThrow(() -> new EntityNotFoundException("Parent building not found with ID: " + dto.getParentId()));
-//            p.setParent(parent);
-//
-//            if(!isBlank(dto.getRoomTypeId())){
-//                RoomType roomType = roomTypeRepository.findById(dto.getRoomTypeId())
-//                        .orElseThrow(() -> new EntityNotFoundException("Room type not found with ID: " + dto.getRoomTypeId()));
-//                p.setRoomType(roomType);
-//            }
-//            p.setRoomNumber(dto.getRoomNumber());
-//            p.setFloorNo(dto.getFloorNo());
-//            p.setArea(dto.getArea());
-//            p.setCapacity(dto.getCapacity());
-//            p.setParkingSlots(dto.getParkingSlots());
-//            p.setPrice(dto.getPrice());
-//            p.setDeposit(dto.getDeposit());
-//            p.setStatus(PropertyStatus.ACTIVE); // mac dinh ACTIVE
-//        }
-//
-//        return propertyRepository.save(p);
-        return null;
+        if (dto == null) throw new IllegalArgumentException("Request is null");
+        if (dto.getPropertyType() == null) throw new IllegalArgumentException("propertyType is required");
+        if (dto.getLandlord() == null || dto.getLandlord().getUserId() == null)
+            throw new IllegalArgumentException("landlord.userId is required");
+        if (dto.getAddress() == null)
+            throw new IllegalArgumentException("address is required");
+
+        // Map cơ bản từ DTO sang Entity (nhờ mapper của bạn)
+        Property entity = propertyMapper.toEntity(dto);
+
+        // Đảm bảo landlord & address là managed entity (tránh detached/transient)
+        User managedLandlord = userRepository.findById(dto.getLandlord().getUserId())
+                .orElseThrow(() -> new EntityNotFoundException("Landlord not found: " + dto.getLandlord().getUserId()));
+        entity.setLandlord(managedLandlord);
+
+        // Address: nếu AddressDto có id thì dùng lại; nếu không, để cascade ALL của bạn persist
+        if (dto.getAddress().getAddressId() != null) {
+            Address managedAddress = addressRepository.findById(dto.getAddress().getAddressId())
+                    .orElseThrow(() -> new EntityNotFoundException("Address not found: " + dto.getAddress().getAddressId()));
+            entity.setAddress(managedAddress);
+        }
+
+        // Trạng thái bài viết: luôn PENDING khi tạo mới
+        entity.setPostStatus(PostStatus.PENDING);
+        entity.setRejectedReason(null);
+        entity.setPublishedAt(null);
+        entity.setCreatedAt(LocalDateTime.now());
+        entity.setUpdatedAt(LocalDateTime.now());
+
+        // ===== Build furnishings từ danh mục có sẵn =====
+        List<PropertyFurnishing> fixed = new ArrayList<>();
+        if (dto.getFurnishings() != null) {
+            for (PropertyFurnishingDto fDto : dto.getFurnishings()) {
+                if (fDto.getFurnishingId() == null || fDto.getFurnishingId().isBlank()) {
+                    throw new IllegalArgumentException("Each furnishing must include furnishingId");
+                }
+                // Thay vì getReference (nổ khi id không tồn tại lúc flush), bạn có thể findById để báo lỗi sớm:
+                Furnishings furnishing = furnishingRepository.findById(fDto.getFurnishingId())
+                        .orElseThrow(() -> new EntityNotFoundException("Furnishing not found: " + fDto.getFurnishingId()));
+
+                PropertyFurnishing pf = new PropertyFurnishing();
+                pf.setProperty(entity);
+                pf.setFurnishing(furnishing);
+                pf.setQuantity(fDto.getQuantity() != null ? fDto.getQuantity() : 1);
+
+                fixed.add(pf);
+            }
+        }
+        entity.setFurnishings(fixed);
+
+        // validateByType() sẽ chạy trong @PrePersist của entity
+        return propertyRepository.save(entity);
     }
-    private boolean isBlank(String s) { return s == null || s.isBlank(); }
+
+    /* =================== GET =================== */
+    @Transactional(readOnly = true)
+    @Override
+    public Optional<PropertyDto> getById(String id) {
+        return propertyRepository.findById(id)
+                .map(propertyMapper::toDto);
+    }
+
+    /* =================== LIST =================== */
+    @Transactional(readOnly = true)
+    @Override
+    public Page<PropertyDto> list(String landlordId, String postStatus, String type, String keyword, Pageable pageable) {
+        Specification<Property> spec = PropertySpecs.landlordIdEq(landlordId)
+                .and(PropertySpecs.postStatusEq(postStatus))
+                .and(PropertySpecs.typeEq(type))
+                .and(PropertySpecs.keywordLike(keyword));
+
+        Page<Property> page = propertyRepository.findAll(spec, pageable);
+        return page.map(propertyMapper::toDto);
+    }
+
+    /* =================== UPDATE (→ PENDING) =================== */
+    @Transactional
+    @Override
+    public Property update(String id, PropertyDto dto) {
+        Property existing = propertyRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Property not found: " + id));
+
+        // Cập nhật các field được phép (không đổi landlord ở đây)
+        if (dto.getTitle() != null) existing.setTitle(dto.getTitle());
+        if (dto.getDescription() != null) existing.setDescription(dto.getDescription());
+        if (dto.getArea() != null) existing.setArea(dto.getArea());
+        if (dto.getPrice() != null) existing.setPrice(dto.getPrice());
+        if (dto.getDeposit() != null) existing.setDeposit(dto.getDeposit());
+
+        if (dto.getBuildingName() != null) existing.setBuildingName(dto.getBuildingName());
+        if (dto.getApartmentCategory() != null) existing.setApartmentCategory(dto.getApartmentCategory());
+        if (dto.getBedrooms() != null) existing.setBedrooms(dto.getBedrooms());
+        if (dto.getBathrooms() != null) existing.setBathrooms(dto.getBathrooms());
+
+        if (dto.getRoomNumber() != null) existing.setRoomNumber(dto.getRoomNumber());
+        if (dto.getFloorNo() != null) existing.setFloorNo(dto.getFloorNo());
+
+        // Address: nếu DTO có id → map sang managed entity; nếu không, có thể merge AddressDto (tuỳ bạn)
+        if (dto.getAddress() != null) {
+            if (dto.getAddress().getAddressId() != null) {
+                Address managedAddress = addressRepository.findById(dto.getAddress().getAddressId())
+                        .orElseThrow(() -> new EntityNotFoundException("Address not found: " + dto.getAddress().getAddressId()));
+                existing.setAddress(managedAddress);
+            } else {
+                // merge từng field nếu bạn muốn cập nhật địa chỉ hiện hữu:
+                Address addr = existing.getAddress();
+                if (addr == null) {
+                    addr = propertyMapper.toEntity(dto).getAddress(); // lấy object mới từ mapper
+                } else {
+                    // copy field đơn giản (tuỳ DTO AddressDto của bạn)
+                    var a = dto.getAddress();
+                    if (a.getCountryCode() != null) addr.setCountryCode(a.getCountryCode());
+                    if (a.getProvince() != null) addr.setProvince(a.getProvince());
+                    if (a.getDistrict() != null) addr.setDistrict(a.getDistrict());
+                    if (a.getWard() != null) addr.setWard(a.getWard());
+                    if (a.getStreet() != null) addr.setStreet(a.getStreet());
+                    if (a.getHouseNumber() != null) addr.setHouseNumber(a.getHouseNumber());
+                    if (a.getPostalCode() != null) addr.setPostalCode(a.getPostalCode());
+                    if (a.getAddressFull() != null) addr.setAddressFull(a.getAddressFull());
+                    if (a.getLatitude() != null) addr.setLatitude(a.getLatitude());
+                    if (a.getLongitude() != null) addr.setLongitude(a.getLongitude());
+                }
+                existing.setAddress(addr);
+            }
+        }
+
+        // Sau khi chỉnh, đưa về PENDING để duyệt lại
+        existing.setPostStatus(PostStatus.PENDING);
+        existing.setRejectedReason(null);
+        existing.setPublishedAt(null);
+        existing.setUpdatedAt(LocalDateTime.now());
+
+        return propertyRepository.save(existing);
+    }
+
+    /* =================== CHANGE STATUS =================== */
+    @Transactional
+    @Override
+    public void changeStatus(String id, PostStatus status, String rejectedReason) {
+        Property p = propertyRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Property not found: " + id));
+
+        p.setPostStatus(status);
+        p.setUpdatedAt(LocalDateTime.now());
+
+        if (status == PostStatus.APPROVED) {
+            p.setRejectedReason(null);
+            p.setPublishedAt(LocalDateTime.now());
+        } else if (status == PostStatus.REJECTED) {
+            p.setRejectedReason(rejectedReason != null ? rejectedReason : "Rejected");
+            p.setPublishedAt(null);
+        } else { // PENDING / INACTIVE ...
+            p.setRejectedReason(null);
+            if (status != PostStatus.APPROVED) p.setPublishedAt(null);
+        }
+        propertyRepository.save(p);
+    }
+
+    /* =================== DELETE =================== */
+    @Transactional
+    @Override
+    public void delete(String id) {
+        if (!propertyRepository.existsById(id)) {
+            throw new EntityNotFoundException("Property not found: " + id);
+        }
+        propertyRepository.deleteById(id);
+        // Nếu muốn xoá media S3: inject mediaRepo/mediaService và xoá trước
+    }
+
+    /* ===== Specs cho list() ===== */
+    static class PropertySpecs {
+        static Specification<Property> landlordIdEq(String landlordId) {
+            return (root, cq, cb) -> {
+                if (landlordId == null || landlordId.isBlank()) return cb.conjunction();
+                return cb.equal(root.get("landlord").get("userId"), landlordId);
+            };
+        }
+        static Specification<Property> postStatusEq(String postStatus) {
+            return (root, cq, cb) -> {
+                if (postStatus == null || postStatus.isBlank()) return cb.conjunction();
+                try {
+                    PostStatus st = PostStatus.valueOf(postStatus.toUpperCase(Locale.ROOT));
+                    return cb.equal(root.get("postStatus"), st);
+                } catch (Exception e) {
+                    return cb.disjunction();
+                }
+            };
+        }
+        static Specification<Property> typeEq(String type) {
+            return (root, cq, cb) -> {
+                if (type == null || type.isBlank()) return cb.conjunction();
+                try {
+                    PropertyType t = PropertyType.valueOf(type.toUpperCase(Locale.ROOT));
+                    return cb.equal(root.get("propertyType"), t);
+                } catch (Exception e) {
+                    return cb.disjunction();
+                }
+            };
+        }
+        static Specification<Property> keywordLike(String keyword) {
+            return (root, cq, cb) -> {
+                if (keyword == null || keyword.isBlank()) return cb.conjunction();
+                String like = "%" + keyword.toLowerCase(Locale.ROOT).trim() + "%";
+                return cb.or(
+                        cb.like(cb.lower(root.get("title")), like),
+                        cb.like(cb.lower(root.get("description")), like),
+                        cb.like(cb.lower(root.get("buildingName")), like),
+                        cb.like(cb.lower(root.get("roomNumber")), like)
+                );
+            };
+        }
+    }
 }
