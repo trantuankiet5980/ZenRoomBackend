@@ -123,38 +123,4 @@ public class PropertyController {
         }
     }
 
-    @GetMapping("/landlord/{landlordId}")
-    public ResponseEntity<?> getByLandlordId(@PathVariable String landlordId) {
-        try {
-            List<Property> properties = propertyService.getByLandlordId(landlordId);
-            List<PropertyDto> propertyDtos = properties.stream()
-                    .map(propertyMapper::toDto)
-                    .collect(Collectors.toList());
-
-            return ResponseEntity.ok(ApiResponse.builder()
-                    .success(true)
-                    .message("Properties retrieved successfully")
-                    .data(propertyDtos)
-                    .build());
-        } catch (Exception e) {
-            return ResponseEntity.status(500).body("An unexpected error occurred: " + e.getMessage());
-        }
-    }
-    @GetMapping("/all")
-    public ResponseEntity<?> getAll() {
-        try {
-            List<Property> properties = propertyService.getAll();
-            List<PropertyDto> propertyDtos = properties.stream()
-                    .map(propertyMapper::toDto)
-                    .collect(Collectors.toList());
-
-            return ResponseEntity.ok(ApiResponse.builder()
-                    .success(true)
-                    .message("All properties retrieved successfully")
-                    .data(propertyDtos)
-                    .build());
-        } catch (Exception e) {
-            return ResponseEntity.status(500).body("An unexpected error occurred: " + e.getMessage());
-        }
-    }
 }
