@@ -19,9 +19,11 @@ import vn.edu.iuh.fit.dtos.responses.LoginResponse;
 import vn.edu.iuh.fit.dtos.responses.RefreshTokenResponse;
 import vn.edu.iuh.fit.entities.User;
 import vn.edu.iuh.fit.entities.enums.UserStatus;
+import vn.edu.iuh.fit.exceptions.UserNotFoundException;
 import vn.edu.iuh.fit.repositories.UserRepository;
 import vn.edu.iuh.fit.services.AuthService;
 import vn.edu.iuh.fit.services.SmsService;
+import vn.edu.iuh.fit.services.impl.SmsServiceImpl;
 import vn.edu.iuh.fit.utils.FormatPhoneNumber;
 import vn.edu.iuh.fit.utils.JwtUtil;
 
@@ -87,9 +89,13 @@ public class AuthController {
 
     @PostMapping("/login")
     public ResponseEntity<LoginResponse> login(@RequestBody vn.edu.iuh.fit.dtos.requests.LoginRequest request) {
-        String phone = request.getPhoneNumber();
-        User user = userRepository.findByPhoneNumber(phone)
+//        String phone = request.getPhoneNumber();
+//        User user = userRepository.findByPhoneNumber(phone)
+//                .orElseThrow(() -> new RuntimeException("User not found"));
+        String formattedPhone = FormatPhoneNumber.formatPhoneNumberTo0(request.getPhoneNumber());
+        User user = userRepository.findByPhoneNumber(formattedPhone)
                 .orElseThrow(() -> new RuntimeException("User not found"));
+
         if (user.getStatus() == UserStatus.BANNED) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .body(LoginResponse.fail("Account is banned"));
@@ -214,6 +220,8 @@ public class AuthController {
                     .build());
         }
 
+
+
         SignUpRequest signUpRequest = pendingRegistrations.remove(formattedPhone);
         if (signUpRequest == null) {
             return ResponseEntity.badRequest().body(ApiResponse.builder()
@@ -268,5 +276,140 @@ public class AuthController {
                 .build());
     }
 
+    @PostMapping("/send-reset-otp")
+    public ResponseEntity<ApiResponse<?>> sendResetOtp(@RequestBody Map<String, String> request) {
+        String phone = request.get("phoneNumber");
+        if (phone == null || phone.trim().isEmpty()) {
+            return ResponseEntity.badRequest().body(ApiResponse.builder()
+                    .success(false)
+                    .message("Phone number cannot be empty")
+                    .data(null)
+                    .build());
+        }
+
+        String formattedPhone = FormatPhoneNumber.formatPhoneNumberTo0(phone);
+        boolean exists = userRepository.existsByPhoneNumber(formattedPhone);
+        if (!exists) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiResponse.builder()
+                    .success(false)
+                    .message("User not found")
+                    .data(null)
+                    .build());
+        }
+
+        try {
+            smsService.sendOtp(formattedPhone); // Đã có service gửi OTP dùng SNS
+            return ResponseEntity.ok(ApiResponse.builder()
+                    .success(true)
+                    .message("OTP sent successfully.")
+                    .data(null)
+                    .build());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.builder()
+                    .success(false)
+                    .message("Failed to send OTP: " + e.getMessage())
+                    .data(null)
+                    .build());
+        }
+    }
+
+    @PostMapping("/verify-reset-otp")
+    public ResponseEntity<ApiResponse<?>> verifyResetOtp(@RequestBody Map<String, String> request) {
+        String phone = request.get("phoneNumber");
+        String otp = request.get("otp");
+
+        if (phone == null || otp == null || phone.trim().isEmpty() || otp.trim().isEmpty()) {
+            return ResponseEntity.badRequest().body(ApiResponse.builder()
+                    .success(false)
+                    .message("Phone number or OTP cannot be empty")
+                    .data(null)
+                    .build());
+        }
+
+        String formattedPhone = FormatPhoneNumber.formatPhoneNumberTo0(phone);
+        boolean isValid = smsService.verifyOtp(formattedPhone, otp);
+
+        if (!isValid) {
+            return ResponseEntity.badRequest().body(ApiResponse.builder()
+                    .success(false)
+                    .message("OTP verification failed!")
+                    .data(null)
+                    .build());
+        }
+
+        if (smsService instanceof SmsServiceImpl smsServiceImpl) {
+            smsServiceImpl.setOtpVerified(formattedPhone, true);
+        }
+
+        return ResponseEntity.ok(ApiResponse.builder()
+                .success(true)
+                .message("OTP verified successfully! You can now reset your password.")
+                .data(null)
+                .build());
+    }
+
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<ApiResponse<?>> resetPassword(@RequestBody Map<String, String> request) {
+        String phone = request.get("phoneNumber");
+        String newPassword = request.get("newPassword");
+
+        if (phone == null || phone.trim().isEmpty()) {
+            return ResponseEntity.badRequest().body(ApiResponse.builder()
+                    .success(false)
+                    .message("Phone number cannot be empty.")
+                    .data(null)
+                    .build());
+        }
+        if (newPassword == null || newPassword.trim().isEmpty()) {
+            return ResponseEntity.badRequest().body(ApiResponse.builder()
+                    .success(false)
+                    .message("New password cannot be empty.")
+                    .data(null)
+                    .build());
+        }
+
+        logger.debug("Reset password request for phone: {}, new password: {}", phone, newPassword);
+        String formattedPhone = FormatPhoneNumber.formatPhoneNumberTo0(phone);
+
+        if (!(smsService instanceof SmsServiceImpl smsServiceImpl) ||
+                !smsServiceImpl.isOtpVerified(formattedPhone)) {
+            return ResponseEntity.badRequest().body(ApiResponse.builder()
+                    .success(false)
+                    .message("You must verify OTP before resetting password.")
+                    .data(null)
+                    .build());
+        }
+
+        if (!newPassword.matches("^(?=.*[A-Za-z])(?=.*\\d)[A-Za-z\\d]{8,}$")) {
+            return ResponseEntity.badRequest().body(ApiResponse.builder()
+                    .success(false)
+                    .message("Password must be at least 8 characters long, including letters and numbers.")
+                    .data(null)
+                    .build());
+        }
+
+        try {
+            authService.resetPassword(formattedPhone, newPassword);
+            smsServiceImpl.clearOtpVerification(formattedPhone);
+            return ResponseEntity.ok(ApiResponse.builder()
+                    .success(true)
+                    .message("Password reset successfully.")
+                    .data(null)
+                    .build());
+        } catch (UserNotFoundException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiResponse.builder()
+                    .success(false)
+                    .message(e.getMessage())
+                    .data(null)
+                    .build());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.builder()
+                    .success(false)
+                    .message(e.getMessage())
+                    .data(null)
+                    .build());
+        }
+    }
 
 }

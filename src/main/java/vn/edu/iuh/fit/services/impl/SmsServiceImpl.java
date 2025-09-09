@@ -18,7 +18,8 @@ import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 @RequiredArgsConstructor
-public class SmsServiceImpl implements SmsService {
+public
+class SmsServiceImpl implements SmsService {
     private static final Logger logger = LoggerFactory.getLogger(SmsServiceImpl.class);
     private final SnsClient snsClient;
 
@@ -26,6 +27,7 @@ public class SmsServiceImpl implements SmsService {
     private String awsRegion;
 
     private final Map<String, OtpDetails> otpStorage = new ConcurrentHashMap<>();
+    private final Map<String, Boolean> otpVerified = new ConcurrentHashMap<>();
     private static final int OTP_LENGTH = 6;
     private static final long OTP_EXPIRY_SECONDS = 300; // 5 minutes
 
@@ -105,5 +107,22 @@ public class SmsServiceImpl implements SmsService {
         }
 
         return isValid;
+    }
+
+    @Override
+    public boolean isOtpVerified(String phoneNumber) {
+        String formattedPhone = FormatPhoneNumber.formatPhoneNumberTo84(phoneNumber);
+        return otpVerified.getOrDefault(formattedPhone, false);
+    }
+
+    @Override
+    public void clearOtpVerification(String phoneNumber) {
+        String formattedPhone = FormatPhoneNumber.formatPhoneNumberTo84(phoneNumber);
+        otpVerified.remove(formattedPhone);
+    }
+
+    @Override
+    public void setOtpVerified(String phone, boolean verified) {
+        otpVerified.put(phone, verified);
     }
 }

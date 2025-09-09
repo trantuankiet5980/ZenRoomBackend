@@ -10,4 +10,5 @@
 //        LoginResponse login(LoginRequest loginRequest);
         void logout(String token);
         RefreshTokenResponse refreshToken(String refreshToken);
+        void resetPassword(String phoneNumber, String newPassword);
     }

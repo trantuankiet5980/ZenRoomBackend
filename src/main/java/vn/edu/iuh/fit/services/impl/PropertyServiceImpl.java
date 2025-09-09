@@ -18,6 +18,7 @@ import vn.edu.iuh.fit.repositories.UserRepository;
 import vn.edu.iuh.fit.services.PropertyService;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
 
@@ -112,5 +113,16 @@ public class PropertyServiceImpl implements PropertyService {
 
         return propertyRepository.save(p);
     }
+
+    @Override
+    public List<Property> getByLandlordId(String landlordId) {
+        return propertyRepository.findByLandlord_UserId(landlordId);
+    }
+
     private boolean isBlank(String s) { return s == null || s.isBlank(); }
+
+    @Override
+    public List<Property> getAll() {
+        return propertyRepository.getAll();
+    }
 }
