@@ -16,11 +16,11 @@ public class PropertyFurnishing {
     @PrePersist
     void pre() { if (id == null) id = java.util.UUID.randomUUID().toString(); }
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "property_id", nullable = false)
     private Property property;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "furnishing_id", nullable = false)
     private Furnishings furnishing;
 

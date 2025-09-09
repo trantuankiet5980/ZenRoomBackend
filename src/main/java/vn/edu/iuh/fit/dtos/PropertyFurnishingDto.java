@@ -10,5 +10,6 @@ import java.io.Serializable;
 @Value
 public class PropertyFurnishingDto implements Serializable {
     String id;
+    String furnishingId;
     Integer quantity;
 }
