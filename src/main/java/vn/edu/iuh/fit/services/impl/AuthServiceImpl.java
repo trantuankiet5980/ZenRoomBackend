@@ -8,12 +8,14 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.JwtException;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 import vn.edu.iuh.fit.auths.UserPrincipal;
 import vn.edu.iuh.fit.dtos.requests.LoginRequest;
 import vn.edu.iuh.fit.dtos.requests.SignUpRequest;
@@ -60,6 +62,70 @@ public class AuthServiceImpl implements AuthService {
     private RefreshTokenService refreshTokenService;
     @Autowired
     private UserDetailsServiceImpl userDetailsService;
+
+    // ====== NEW: helper lấy Authentication hiện tại
+    private Authentication getAuth() {
+        return SecurityContextHolder.getContext() != null
+                ? SecurityContextHolder.getContext().getAuthentication()
+                : null;
+    }
+
+    // ====== NEW: trích userId từ nhiều kiểu principal
+    private String resolveCurrentUserId(Authentication auth) {
+        if (auth == null || !auth.isAuthenticated()) return null;
+
+        Object principal = auth.getPrincipal();
+
+        // 1) Bạn có UserPrincipal custom?
+        if (principal instanceof UserPrincipal up && up.getUserResponse() != null) {
+            return up.getUserResponse().getUserId();
+        }
+
+        // 2) Spring Security OAuth2 Resource Server: principal có thể là Jwt
+        if (principal instanceof Jwt jwt) {
+            // subject = userId (khuyến nghị)
+            String sub = jwt.getSubject();
+            if (StringUtils.hasText(sub)) return sub;
+
+            // nếu bạn nhét userId ở claim khác (vd "uid")
+            Object uid = jwt.getClaims().get("uid");
+            if (uid != null) return String.valueOf(uid);
+        }
+
+        // 3) Trường hợp principal là UserDetails và username = userId
+        if (principal instanceof UserDetails ud) {
+            return ud.getUsername(); // đảm bảo username là userId khi build token
+        }
+
+        // 4) Principal kiểu String (vd "anonymousUser" hoặc chính userId)
+        if (principal instanceof String s) {
+            if ("anonymousUser".equalsIgnoreCase(s)) return null;
+            return s;
+        }
+
+        return null;
+    }
+
+    @Override
+    public User getCurrentUser() {
+        Authentication auth = getAuth();
+        String userId = resolveCurrentUserId(auth);
+        if (!StringUtils.hasText(userId)) {
+            throw new IllegalStateException("Unauthenticated");
+        }
+        return userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalStateException("User not found: " + userId));
+    }
+
+    @Override
+    public String getCurrentUserId() {
+        Authentication auth = getAuth();
+        String userId = resolveCurrentUserId(auth);
+        if (!StringUtils.hasText(userId)) {
+            throw new IllegalStateException("Unauthenticated");
+        }
+        return userId;
+    }
 
     @Override
     public boolean signUp(SignUpRequest signUpRequest) {

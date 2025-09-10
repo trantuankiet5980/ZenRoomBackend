@@ -39,12 +39,6 @@ public class UserController {
         return ResponseEntity.ok(userService.update(id, user));
     }
 
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable String id) {
-        userService.delete(id);
-        return ResponseEntity.noContent().build();
-    }
-
     @PostMapping("/request-delete")
     public ResponseEntity<Void> requestDeleteAccount(@RequestParam String userId) {
         userService.requestDeleteAccount(userId);
