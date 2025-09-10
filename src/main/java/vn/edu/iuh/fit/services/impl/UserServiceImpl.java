@@ -135,4 +135,12 @@ public class UserServiceImpl implements UserService {
     public void delete(String id) {
         userRepository.deleteById(id);
     }
+
+    @Override
+    public void requestDeleteAccount(String userId) {
+        User u = userRepository.findById(userId).orElseThrow(() -> new EntityNotFoundException("User not found"));
+        u.setStatus(UserStatus.PENDING_DELETE);
+        u.setUpdatedAt(LocalDateTime.now());
+        userRepository.save(u);
+    }
 }
