@@ -22,7 +22,12 @@ public class UserMapper {
                 e.getDeleteRequestedAt(),
                 e.getDeleteEffectiveAt(),
                 e.getCreatedAt(),
-                e.getUpdatedAt()
+                e.getUpdatedAt(),
+                e.getGender(),
+                e.getDateOfBirth(),
+                e.getBio(),
+                null,
+                null
         );
     }
 
@@ -42,6 +47,9 @@ public class UserMapper {
                 .deleteEffectiveAt(d.getDeleteEffectiveAt())
                 .createdAt(d.getCreatedAt())
                 .updatedAt(d.getUpdatedAt())
+                .gender(d.getGender())
+                .dateOfBirth(d.getDateOfBirth())
+                .bio(d.getBio())
                 .build();
     }
 }

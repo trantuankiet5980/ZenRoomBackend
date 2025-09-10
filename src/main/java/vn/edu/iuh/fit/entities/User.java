@@ -8,6 +8,7 @@ import java.time.*;
 import java.util.*;
 
 
+import vn.edu.iuh.fit.entities.enums.Gender;
 import vn.edu.iuh.fit.entities.enums.UserStatus;
 
 @Data @NoArgsConstructor @AllArgsConstructor @Builder
@@ -32,6 +33,15 @@ public class User {
 
     @Column(length = 100, unique = true)
     private String email;
+
+    @Enumerated(EnumType.STRING)
+    @Column(length = 20)
+    private Gender gender;
+
+    private LocalDateTime dateOfBirth;
+
+    @Column(length = 1000)
+    private String bio; // thông tin giới thiệu
 
     @JsonIgnore
     @Column(length = 255)
