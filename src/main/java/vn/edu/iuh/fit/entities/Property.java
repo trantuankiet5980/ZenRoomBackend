@@ -71,6 +71,11 @@ public class Property {
     private Double area;                // m2
     private BigDecimal price;           // giá thuê / tháng
     private BigDecimal deposit;         // tiền cọc
+    //capcity có thể null nếu là BUILDING
+    @Column(name = "capacity", nullable = true)
+    private Integer capacity;            // sức chứa (số người ở tối đa)
+    private String roomNumber;          // số/tên phòng
+    private Integer floorNo;            // số tầng
 
     /* ===== Riêng cho BUILDING (căn hộ/tòa) ===== */
     private String buildingName;        // tên tòa/căn hộ
@@ -80,8 +85,7 @@ public class Property {
     private Integer bathrooms;          // số phòng vệ sinh (nếu bạn áp cho building)
 
     /* ===== Riêng cho ROOM (nếu cần thêm fields thì mở rộng) ===== */
-    private String roomNumber;          // optional
-    private Integer floorNo;            // optional
+    private Integer parkingSlots;
 
     /* ===== Nội thất / Tiện nghi / Dịch vụ ===== */
     @OneToMany(mappedBy = "property", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
@@ -125,6 +129,9 @@ public class Property {
                 throw new IllegalArgumentException("ROOM: 'price' is required and must be > 0");
             if (deposit == null || deposit.compareTo(BigDecimal.ZERO) < 0)
                 throw new IllegalArgumentException("ROOM: 'deposit' is required and must be >= 0");
+
+             if (capacity == null || capacity <= 0) throw new IllegalArgumentException("ROOM: 'capacity' is required and must be > 0");
+             if (parkingSlots != null && parkingSlots < 0) throw new IllegalArgumentException("ROOM: 'parkingSlots' must be >= 0");
         } else {
             throw new IllegalArgumentException("Unknown propertyType");
         }
