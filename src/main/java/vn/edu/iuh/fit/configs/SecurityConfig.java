@@ -51,6 +51,12 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.PUT, "/api/v1/furnishings/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/v1/furnishings/**").hasRole("ADMIN")
 
+                        // ROOM TYPES
+                        .requestMatchers(HttpMethod.GET, "/api/v1/room-types/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/room-types/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/api/v1/room-types/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/v1/room-types/**").hasRole("ADMIN")
+
                         // Custom roles
                         .requestMatchers("/admin/**").hasRole("ADMIN")
                         .requestMatchers("/landlord/**").hasAnyRole("LANDLORD", "ADMIN")
