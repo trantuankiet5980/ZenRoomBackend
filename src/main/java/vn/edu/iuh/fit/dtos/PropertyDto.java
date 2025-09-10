@@ -22,6 +22,8 @@ public class PropertyDto implements Serializable {
     String title;
     String description;
     Double area;
+    Integer capacity;
+    Integer parkingSlots;
     BigDecimal price;
     BigDecimal deposit;
     String buildingName;

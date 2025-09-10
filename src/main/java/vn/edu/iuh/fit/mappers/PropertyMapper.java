@@ -37,6 +37,8 @@ public class PropertyMapper {
                 entity.getTitle(),
                 entity.getDescription(),
                 entity.getArea(),
+                entity.getCapacity(),
+                entity.getParkingSlots(),
                 entity.getPrice(),
                 entity.getDeposit(),
                 entity.getBuildingName(),
@@ -72,6 +74,8 @@ public class PropertyMapper {
         entity.setArea(dto.getArea());
         entity.setPrice(dto.getPrice());
         entity.setDeposit(dto.getDeposit());
+        entity.setCapacity(dto.getCapacity());
+        entity.setParkingSlots(dto.getParkingSlots());
         entity.setBuildingName(dto.getBuildingName());
         entity.setApartmentCategory(dto.getApartmentCategory());
         entity.setBedrooms(dto.getBedrooms());
