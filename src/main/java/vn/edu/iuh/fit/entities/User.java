@@ -8,6 +8,7 @@ import java.time.*;
 import java.util.*;
 
 
+import vn.edu.iuh.fit.entities.enums.Gender;
 import vn.edu.iuh.fit.entities.enums.UserStatus;
 
 @Data @NoArgsConstructor @AllArgsConstructor @Builder
@@ -33,6 +34,15 @@ public class User {
     @Column(length = 100, unique = true)
     private String email;
 
+    @Enumerated(EnumType.STRING)
+    @Column(length = 20)
+    private Gender gender;
+
+    private LocalDateTime dateOfBirth;
+
+    @Column(length = 1000)
+    private String bio; // thông tin giới thiệu
+
     @JsonIgnore
     @Column(length = 255)
     private String passwordHash;
@@ -46,6 +56,9 @@ public class User {
 
     @Enumerated(EnumType.STRING)
     private UserStatus status;
+    private String banReason; //Ly do bi khoa
+    private LocalDateTime deleteRequestedAt;  // khi user gửi yêu cầu
+    private LocalDateTime deleteEffectiveAt;  // thời điểm sẽ xóa cứng (approve + 30 ngày)
 
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

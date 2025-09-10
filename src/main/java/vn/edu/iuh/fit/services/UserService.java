@@ -17,7 +17,6 @@ public interface UserService {
     UserResponse getById(String id);
     Page<UserResponse> list(Pageable pageable);
     UserResponse update(String id, UserUpdateRequest req);
-    void delete(String id);
 
     void requestDeleteAccount(String userId);
 }

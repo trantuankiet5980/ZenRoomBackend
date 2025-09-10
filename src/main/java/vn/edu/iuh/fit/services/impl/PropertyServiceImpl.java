@@ -14,12 +14,9 @@ import vn.edu.iuh.fit.dtos.PropertyFurnishingDto;
 import vn.edu.iuh.fit.entities.*;
 import vn.edu.iuh.fit.entities.enums.PostStatus;
 import vn.edu.iuh.fit.entities.enums.PropertyType;
-import vn.edu.iuh.fit.mappers.FurnishingsMapper;
 import vn.edu.iuh.fit.mappers.PropertyMapper;
-import vn.edu.iuh.fit.repositories.AddressRepository;
-import vn.edu.iuh.fit.repositories.FurnishingRepository;
-import vn.edu.iuh.fit.repositories.PropertyRepository;
-import vn.edu.iuh.fit.repositories.UserRepository;
+import vn.edu.iuh.fit.repositories.*;
+import vn.edu.iuh.fit.services.AuthService;
 import vn.edu.iuh.fit.services.PropertyService;
 
 import java.time.LocalDateTime;
@@ -38,6 +35,18 @@ public class PropertyServiceImpl implements PropertyService {
     private final FurnishingRepository furnishingRepository;
     private final PropertyMapper propertyMapper;
     private final EntityManager em;
+    private final UserManagementLogRepository userManagementLogRepository;
+    private final AuthService authService;
+
+    private void logAction(User admin, User target, String action){
+        UserManagementLog log = UserManagementLog.builder()
+                .admin(admin)
+                .targetUser(target)
+                .action(action)
+                .createdAt(LocalDateTime.now())
+                .build();
+        userManagementLogRepository.save(log);
+    }
 
     /* =================== CREATE =================== */
     @Transactional
@@ -198,6 +207,9 @@ public class PropertyServiceImpl implements PropertyService {
             p.setRejectedReason(null);
             if (status != PostStatus.APPROVED) p.setPublishedAt(null);
         }
+        // Log action
+        User admin = authService.getCurrentUser();
+        logAction(admin, p.getLandlord(), "CHANGE_PROPERTY_STATUS: " + status + (rejectedReason != null ? " REASON: " + rejectedReason : ""));
         propertyRepository.save(p);
     }
 

@@ -58,7 +58,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.DELETE, "/api/v1/room-types/**").hasRole("ADMIN")
 
                         // Custom roles
-                        .requestMatchers("/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
                         .requestMatchers("/landlord/**").hasAnyRole("LANDLORD", "ADMIN")
                         .requestMatchers("/tenant/**").hasAnyRole("TENANT", "ADMIN")
 
