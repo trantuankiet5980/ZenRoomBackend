@@ -4,7 +4,9 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import vn.edu.iuh.fit.dtos.UserDto;
 import vn.edu.iuh.fit.dtos.responses.ApiResponse;
 import vn.edu.iuh.fit.dtos.user.UserCreateRequest;
 import vn.edu.iuh.fit.dtos.user.UserResponse;
@@ -21,12 +23,8 @@ public class UserController {
         this.userService = userService;
     }
     @PostMapping
-    public ResponseEntity<UserResponse> create(@RequestBody UserCreateRequest user) {
+    public ResponseEntity<UserDto> create(@RequestBody UserCreateRequest user) {
         return ResponseEntity.status(HttpStatus.CREATED).body(userService.create(user));
-    }
-    @GetMapping("/{id}")
-    public ResponseEntity<UserResponse> get(@PathVariable String id) {
-        return ResponseEntity.ok(userService.getById(id));
     }
     @GetMapping
     public ResponseEntity<Page<UserResponse>> list(
@@ -34,9 +32,25 @@ public class UserController {
             @RequestParam(defaultValue="20") int size){
         return ResponseEntity.ok(userService.list(PageRequest.of(page,size)));
     }
-    @PutMapping("/{id}")
-    public ResponseEntity<UserResponse> update(@PathVariable String id, @RequestBody UserUpdateRequest user) {
-        return ResponseEntity.ok(userService.update(id, user));
+
+    /** Cập nhật hồ sơ của chính mình bằng UserDto (partial update) */
+    @PreAuthorize("isAuthenticated()")
+    @PutMapping("/profile")
+    public ResponseEntity<UserDto> updateMyProfile(@RequestBody UserDto dto) {
+        return ResponseEntity.ok(userService.updateMe(dto));
+    }
+
+    /** Lấy thông tin user bất kỳ theo id */
+    @GetMapping("{id}")
+    public ResponseEntity<UserDto> getById(@PathVariable String id) {
+        return ResponseEntity.ok(userService.getById(id));
+    }
+
+    /** Admin cập nhật user bất kỳ bằng UserDto (partial update) */
+    @PreAuthorize("hasRole('ADMIN')")
+    @PutMapping("{id}")
+    public ResponseEntity<UserDto> update(@PathVariable String id, @RequestBody UserDto dto) {
+        return ResponseEntity.ok(userService.update(id, dto));
     }
 
     @PostMapping("/request-delete")
