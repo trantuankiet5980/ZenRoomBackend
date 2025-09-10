@@ -78,10 +78,12 @@ public class PropertyController {
 
     /** Duyệt bài / đổi trạng thái (APPROVE/REJECTED//PENDING) */
     @PreAuthorize("hasRole('ADMIN')")
-    @PatchMapping("{id}/status")
-    public ResponseEntity<?> changeStatus(@PathVariable String id,
-                                          @RequestParam PostStatus status,
-                                          @RequestParam(required = false) String reason) {
+    @RequestMapping(value = "/{id}/status", method = {RequestMethod.POST, RequestMethod.PATCH})
+    public ResponseEntity<Void> changeStatus(
+            @PathVariable String id,
+            @RequestParam PostStatus status,
+            @RequestParam(required = false) String reason) {
+
         propertyService.changeStatus(id, status, reason);
         return ResponseEntity.noContent().build();
     }
