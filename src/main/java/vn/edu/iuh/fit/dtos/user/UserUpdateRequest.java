@@ -7,5 +7,8 @@ public record UserUpdateRequest(
         String newPassword,
         String roleId,
         String status,   // ACTIVE|INACTIVE|BANNED
-        String avatarUrl
+        String avatarUrl,
+        String gender,
+        String dateOfBirth, // yyyy-MM-dd
+        String bio
 ) {}
