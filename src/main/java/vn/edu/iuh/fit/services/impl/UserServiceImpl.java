@@ -1,6 +1,7 @@
 package vn.edu.iuh.fit.services.impl;
 
 import jakarta.persistence.EntityNotFoundException;
+import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -14,6 +15,7 @@ import vn.edu.iuh.fit.entities.User;
 import vn.edu.iuh.fit.entities.enums.UserStatus;
 import vn.edu.iuh.fit.repositories.RoleRepository;
 import vn.edu.iuh.fit.repositories.UserRepository;
+import vn.edu.iuh.fit.services.AuthService;
 import vn.edu.iuh.fit.services.UserService;
 
 import java.time.LocalDateTime;
@@ -22,19 +24,15 @@ import java.util.Locale;
 import java.util.UUID;
 
 @Service
+@RequiredArgsConstructor
 public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final PasswordEncoder encoder;
+    private final AuthService authService;
 
-    public UserServiceImpl(UserRepository userRepository,
-                           RoleRepository roleRepository,
-                           PasswordEncoder encoder) {
-        this.userRepository = userRepository;
-        this.roleRepository = roleRepository;
-        this.encoder = encoder;
-    }
+
     @Override
     public UserResponse create(UserCreateRequest req) {
         if (req == null) throw new IllegalArgumentException("Request is null");
@@ -82,7 +80,8 @@ public class UserServiceImpl implements UserService {
                 u.getRole()!=null? u.getRole().getRoleName():null,
                 u.getStatus()!=null? u.getStatus().name():null,
                 u.getAvatarUrl()
-        );    }
+        );
+    }
 
     @Override
     public Page<UserResponse> list(Pageable pageable) {
