@@ -18,6 +18,9 @@ public class UserMapper {
                 e.getAvatarUrl(),
                 e.getLastLogin(),
                 e.getStatus(),
+                e.getBanReason(),
+                e.getDeleteRequestedAt(),
+                e.getDeleteEffectiveAt(),
                 e.getCreatedAt(),
                 e.getUpdatedAt()
         );
@@ -34,6 +37,9 @@ public class UserMapper {
                 .avatarUrl(d.getAvatarUrl())
                 .lastLogin(d.getLastLogin())
                 .status(d.getStatus())
+                .banReason(d.getBanReason())
+                .deleteRequestedAt(d.getDeleteRequestedAt())
+                .deleteEffectiveAt(d.getDeleteEffectiveAt())
                 .createdAt(d.getCreatedAt())
                 .updatedAt(d.getUpdatedAt())
                 .build();

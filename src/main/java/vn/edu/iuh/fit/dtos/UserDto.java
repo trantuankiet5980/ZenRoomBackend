@@ -18,6 +18,9 @@ public class UserDto implements Serializable {
     String avatarUrl;
     LocalDateTime lastLogin;
     UserStatus status;
+    String banReason;
+    LocalDateTime deleteRequestedAt;  // khi user gửi yêu cầu
+    LocalDateTime deleteEffectiveAt;  // thời điểm sẽ xóa cứng (approve + 30 ngày)
     LocalDateTime createdAt;
     LocalDateTime updatedAt;
 }

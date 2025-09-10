@@ -46,6 +46,9 @@ public class User {
 
     @Enumerated(EnumType.STRING)
     private UserStatus status;
+    private String banReason; //Ly do bi khoa
+    private LocalDateTime deleteRequestedAt;  // khi user gửi yêu cầu
+    private LocalDateTime deleteEffectiveAt;  // thời điểm sẽ xóa cứng (approve + 30 ngày)
 
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
