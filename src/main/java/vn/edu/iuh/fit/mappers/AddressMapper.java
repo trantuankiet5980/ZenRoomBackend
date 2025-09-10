@@ -12,13 +12,11 @@ public class AddressMapper {
 
         return AddressDto.builder()
                 .addressId(entity.getAddressId())
-                .countryCode(entity.getCountryCode())
                 .province(entity.getProvince())
                 .district(entity.getDistrict())
                 .ward(entity.getWard())
                 .street(entity.getStreet())
                 .houseNumber(entity.getHouseNumber())
-                .postalCode(entity.getPostalCode())
                 .addressFull(entity.getAddressFull())
                 .latitude(entity.getLatitude())
                 .longitude(entity.getLongitude())
@@ -30,13 +28,11 @@ public class AddressMapper {
 
         Address address = new Address();
         address.setAddressId(dto.getAddressId());
-        address.setCountryCode(dto.getCountryCode());
         address.setProvince(dto.getProvince());
         address.setDistrict(dto.getDistrict());
         address.setWard(dto.getWard());
         address.setStreet(dto.getStreet());
         address.setHouseNumber(dto.getHouseNumber());
-        address.setPostalCode(dto.getPostalCode());
         address.setAddressFull(dto.getAddressFull());
         address.setLatitude(dto.getLatitude());
         address.setLongitude(dto.getLongitude());
@@ -46,13 +42,11 @@ public class AddressMapper {
     public void updateEntity(Address entity, AddressDto dto) {
         if (dto == null || entity == null) return;
 
-        if (dto.getCountryCode() != null) entity.setCountryCode(dto.getCountryCode());
         if (dto.getProvince() != null) entity.setProvince(dto.getProvince());
         if (dto.getDistrict() != null) entity.setDistrict(dto.getDistrict());
         if (dto.getWard() != null) entity.setWard(dto.getWard());
         if (dto.getStreet() != null) entity.setStreet(dto.getStreet());
         if (dto.getHouseNumber() != null) entity.setHouseNumber(dto.getHouseNumber());
-        if (dto.getPostalCode() != null) entity.setPostalCode(dto.getPostalCode());
         if (dto.getAddressFull() != null) entity.setAddressFull(dto.getAddressFull());
         if (dto.getLatitude() != null) entity.setLatitude(dto.getLatitude());
         if (dto.getLongitude() != null) entity.setLongitude(dto.getLongitude());

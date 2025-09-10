@@ -163,13 +163,11 @@ public class PropertyServiceImpl implements PropertyService {
                 } else {
                     // copy field đơn giản (tuỳ DTO AddressDto của bạn)
                     var a = dto.getAddress();
-                    if (a.getCountryCode() != null) addr.setCountryCode(a.getCountryCode());
                     if (a.getProvince() != null) addr.setProvince(a.getProvince());
                     if (a.getDistrict() != null) addr.setDistrict(a.getDistrict());
                     if (a.getWard() != null) addr.setWard(a.getWard());
                     if (a.getStreet() != null) addr.setStreet(a.getStreet());
                     if (a.getHouseNumber() != null) addr.setHouseNumber(a.getHouseNumber());
-                    if (a.getPostalCode() != null) addr.setPostalCode(a.getPostalCode());
                     if (a.getAddressFull() != null) addr.setAddressFull(a.getAddressFull());
                     if (a.getLatitude() != null) addr.setLatitude(a.getLatitude());
                     if (a.getLongitude() != null) addr.setLongitude(a.getLongitude());

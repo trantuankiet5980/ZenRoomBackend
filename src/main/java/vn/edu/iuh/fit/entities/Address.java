@@ -23,26 +23,23 @@ public class Address {
         }
     }
 
-    @Column(name = "country_code", length = 2)
-    private String countryCode; // VN, US, ...
-
+    // Cấp tỉnh/thành
     @Column(name = "province", length = 100)
     private String province;
 
+    // Cấp quận/huyện/thị xã
     @Column(name = "district", length = 100)
     private String district;
 
+    // Cấp phường/xã/thị trấn
     @Column(name = "ward", length = 100)
     private String ward;
 
+    // Đường & số nhà
     @Column(name = "street", length = 150)
     private String street;
-
     @Column(name = "house_number", length = 30)
     private String houseNumber;
-
-    @Column(name = "postal_code", length = 20)
-    private String postalCode;
 
     @Column(name = "address_full", length = 255)
     private String addressFull;

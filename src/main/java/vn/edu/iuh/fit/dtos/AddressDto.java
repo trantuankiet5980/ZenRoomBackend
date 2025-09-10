@@ -16,13 +16,11 @@ import java.math.BigDecimal;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class AddressDto implements Serializable {
     String addressId;
-    String countryCode;
     String province;
     String district;
     String ward;
     String street;
     String houseNumber;
-    String postalCode;
     String addressFull;
     BigDecimal latitude;
     BigDecimal longitude;
