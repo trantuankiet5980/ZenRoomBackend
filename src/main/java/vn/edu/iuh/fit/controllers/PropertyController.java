@@ -53,7 +53,7 @@ public class PropertyController {
     @GetMapping
     public ResponseEntity<?> list(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "12") int size,
+            @RequestParam(defaultValue = "10") int size,
             @RequestParam(defaultValue = "createdAt,DESC") String sort,
             @RequestParam(required = false) String landlordId,
             @RequestParam(required = false) String postStatus,   // PENDING|APPROVE|REJECTED

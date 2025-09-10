@@ -27,6 +27,7 @@ import vn.edu.iuh.fit.services.impl.SmsServiceImpl;
 import vn.edu.iuh.fit.utils.FormatPhoneNumber;
 import vn.edu.iuh.fit.utils.JwtUtil;
 
+import java.time.LocalDateTime;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
@@ -112,6 +113,9 @@ public class AuthController {
         String roleName = user.getRole() != null ? user.getRole().getRoleName() : "tenant";
         String token = jwtTokenUtil.generateToken(user.getUserId(), roleName);
         Date expiry = new Date(System.currentTimeMillis() + jwtTokenUtil.getExpiration());
+
+        user.setLastLogin(LocalDateTime.now());
+        userRepository.save(user);
 
         return ResponseEntity.ok(LoginResponse.ok(token, roleName, user.getUserId(), user.getFullName(), expiry.getTime()));
     }
