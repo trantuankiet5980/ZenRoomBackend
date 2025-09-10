@@ -22,7 +22,7 @@ public class PropertyMediaController {
     private final PropertyMediaService mediaService;
     private final PropertyMediaMapper mediaMapper;
 
-    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PostMapping
     public ResponseEntity<List<PropertyMediaDto>> upload(
             @PathVariable String propertyId,
             @RequestParam("files") List<MultipartFile> files,
