@@ -11,7 +11,7 @@ import java.util.Date;
 @Component
 public class JwtUtil {
     private final Key SECRET_KEY = Keys.hmacShaKeyFor("DHKTPM17ATRANTUANKIETNGOVANTOANKHOALUANTOTNGHIEP".getBytes());
-    private final long EXPIRATION_TIME = 1000 * 60 * 60; //1h
+    private final long EXPIRATION_TIME = 1000 * 60 * 60 * 6; //6h
 
     public String generateToken(String userId, String roleName){
         return Jwts.builder()
