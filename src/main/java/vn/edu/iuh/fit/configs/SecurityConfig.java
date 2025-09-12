@@ -76,6 +76,9 @@ public class SecurityConfig {
                         .requestMatchers("/landlord/**").hasAnyRole("LANDLORD", "ADMIN")
                         .requestMatchers("/tenant/**").hasAnyRole("TENANT", "ADMIN")
 
+                        //STATS
+                        .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
+
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
