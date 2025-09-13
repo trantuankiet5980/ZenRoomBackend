@@ -71,6 +71,12 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.PUT, "/api/v1/enums/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/v1/enums/**").hasRole("ADMIN")
 
+                        // FAVORITES
+                        .requestMatchers(HttpMethod.GET, "/api/v1/favorites/**").hasAnyRole( "TENANT", "ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/v1/favorites/**").hasAnyRole( "TENANT", "ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/v1/favorites/**").hasAnyRole( "TENANT", "ADMIN")
+
+
                         // Custom roles
                         .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
                         .requestMatchers("/landlord/**").hasAnyRole("LANDLORD", "ADMIN")
