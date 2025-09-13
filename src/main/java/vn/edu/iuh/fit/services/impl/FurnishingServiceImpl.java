@@ -6,12 +6,15 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import vn.edu.iuh.fit.dtos.FurnishingWithQuantityDto;
 import vn.edu.iuh.fit.dtos.FurnishingsDto;
 import vn.edu.iuh.fit.entities.Furnishings;
 import vn.edu.iuh.fit.mappers.FurnishingsMapper;
 import vn.edu.iuh.fit.repositories.FurnishingRepository;
+import vn.edu.iuh.fit.repositories.PropertyFurnishingRepository;
 import vn.edu.iuh.fit.services.FurnishingService;
 
+import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -20,6 +23,7 @@ public class FurnishingServiceImpl implements FurnishingService {
 
     private final FurnishingRepository repo;
     private final FurnishingsMapper mapper;
+    private final PropertyFurnishingRepository propertyFurnishingRepository;
 
     @Transactional(readOnly = true)
     @Override
@@ -77,5 +81,10 @@ public class FurnishingServiceImpl implements FurnishingService {
                 .orElseThrow(() -> new EntityNotFoundException("Furnishing not found: " + id));
 
         repo.delete(entity);
+    }
+
+    @Override
+    public List<FurnishingWithQuantityDto> getFurnishingsOfProperty(String propertyId) {
+        return propertyFurnishingRepository.findFurnishingsByPropertyId(propertyId);
     }
 }

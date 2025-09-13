@@ -4,8 +4,11 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.*;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import vn.edu.iuh.fit.dtos.FurnishingWithQuantityDto;
 import vn.edu.iuh.fit.dtos.FurnishingsDto;
 import vn.edu.iuh.fit.services.FurnishingService;
+
+import java.util.List;
 
 @RestController
 @RequiredArgsConstructor
@@ -55,6 +58,14 @@ public class FurnishingsController {
     public ResponseEntity<?> delete(@PathVariable String id) {
         service.delete(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/{propertyId}/furnishings")
+    public ResponseEntity<List<FurnishingWithQuantityDto>> getFurnishings(
+            @PathVariable String propertyId
+    ) {
+        List<FurnishingWithQuantityDto> items = service.getFurnishingsOfProperty(propertyId);
+        return ResponseEntity.ok(items);
     }
 
     private Sort parseSort(String sort) {
