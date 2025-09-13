@@ -15,6 +15,7 @@ public class PropertyFurnishingMapper {
         return new PropertyFurnishingDto(
                 entity.getId(),
                 fid,
+                fname,
                 entity.getQuantity()
         );
     }
