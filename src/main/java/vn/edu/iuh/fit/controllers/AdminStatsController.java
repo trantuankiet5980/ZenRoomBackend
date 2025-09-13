@@ -15,7 +15,7 @@ import vn.edu.iuh.fit.services.AdminStatsService;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/admin")
+@RequestMapping("/api/v1/admin")
 @RequiredArgsConstructor
 @PreAuthorize("hasRole('ADMIN')")
 public class AdminStatsController {
