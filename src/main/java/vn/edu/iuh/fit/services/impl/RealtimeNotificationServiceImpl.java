@@ -52,4 +52,37 @@ public class RealtimeNotificationServiceImpl implements RealtimeNotificationServ
             notificationRepository.saveAll(records);
         }
     }
+
+    @Override
+    public void notifyAdminsPropertyUpdated(PropertyDto p) {
+        // A) Broadcast lên topic admin
+        var payload = Map.of(
+                "type", "PROPERTY_UPDATED",
+                "propertyId", p.getPropertyId(),
+                "title", p.getTitle(),
+                "landlordName", p.getLandlord() != null ? p.getLandlord().getFullName() : null,
+                "createdAt", LocalDateTime.now().toString()
+        );
+        messaging.convertAndSend("/topic/admin.notifications", payload);
+
+        // B) (tuỳ chọn) Lưu DB cho từng admin
+        List<User> admins = userRepository.findAll() // hoặc findAllAdmins()
+                .stream().filter(u -> /* isAdmin */ true).toList();
+
+        if (!admins.isEmpty()) {
+            var now = LocalDateTime.now();
+            var records = admins.stream().map(a ->
+                    Notification.builder()
+                            .user(a)
+                            .title("Bài đăng vừa được cập nhật")
+                            .message(p.getTitle())
+                            .type(NotificationType.SYSTEM)
+                            .redirectUrl("/admin/properties/" + p.getPropertyId())
+                            .isRead(false)
+                            .createdAt(now)
+                            .build()
+            ).toList();
+            notificationRepository.saveAll(records);
+        }
+    }
 }
