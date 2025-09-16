@@ -7,9 +7,6 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
-import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
@@ -79,6 +76,15 @@ public class SecurityConfig {
                         //STATS
                         .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
 
+                        // NOTIFICATIONS
+                        .requestMatchers("/api/v1/notifications/**").authenticated()
+
+                        .requestMatchers("/ws/**").permitAll() // handshake
+                        .requestMatchers("/topic/**", "/queue/**", "/app/**").permitAll() // subscribe
+
+                        // DEV
+                        .requestMatchers("/api/dev/**").permitAll()
+
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
@@ -98,7 +104,7 @@ public class SecurityConfig {
         config.setAllowedMethods(List.of("GET","POST","PUT","DELETE","PATCH","OPTIONS"));
         config.setAllowedHeaders(List.of("*"));                      // hoặc liệt kê: Content-Type, Authorization, ...
         config.setExposedHeaders(List.of("Authorization"));          // nếu cần đọc header này
-        config.setAllowCredentials(false); // nếu dùng "*" phải false, còn nếu cần cookie thì true + không dùng "*"
+        config.setAllowCredentials(true); // nếu dùng "*" phải false, còn nếu cần cookie thì true + không dùng "*"
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);
         return source;

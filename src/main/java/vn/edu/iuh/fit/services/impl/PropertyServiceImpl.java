@@ -6,9 +6,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import vn.edu.iuh.fit.dtos.FurnishingsDto;
 import vn.edu.iuh.fit.dtos.PropertyDto;
 import vn.edu.iuh.fit.dtos.PropertyFurnishingDto;
 import vn.edu.iuh.fit.entities.*;
@@ -18,12 +18,10 @@ import vn.edu.iuh.fit.mappers.PropertyMapper;
 import vn.edu.iuh.fit.repositories.*;
 import vn.edu.iuh.fit.services.AuthService;
 import vn.edu.iuh.fit.services.PropertyService;
+import vn.edu.iuh.fit.services.RealtimeNotificationService;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Locale;
-import java.util.Optional;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
@@ -37,6 +35,8 @@ public class PropertyServiceImpl implements PropertyService {
     private final EntityManager em;
     private final UserManagementLogRepository userManagementLogRepository;
     private final AuthService authService;
+    private final RealtimeNotificationService realtimeNotificationService;
+//    private final SimpMessagingTemplate messaging;
 
     private void logAction(User admin, User target, String action){
         UserManagementLog log = UserManagementLog.builder()
@@ -57,7 +57,7 @@ public class PropertyServiceImpl implements PropertyService {
         if (dto.getLandlord() == null || dto.getLandlord().getUserId() == null)
             throw new IllegalArgumentException("landlord.userId is required");
         if (dto.getAddress() == null)
-            throw new IllegalArgumentException("address is required");
+            throw new IllegalArgumentException("Address is required");
 
         // Map cơ bản từ DTO sang Entity (nhờ mapper của bạn)
         Property entity = propertyMapper.toEntity(dto);
@@ -102,8 +102,12 @@ public class PropertyServiceImpl implements PropertyService {
         }
         entity.setFurnishings(fixed);
 
-        // validateByType() sẽ chạy trong @PrePersist của entity
-        return propertyRepository.save(entity);
+        Property saved = propertyRepository.save(entity);
+
+        // Gửi realtime + lưu DB
+        realtimeNotificationService.notifyAdminsPropertyCreated(propertyMapper.toDto(saved));
+
+        return saved;
     }
 
     /* =================== GET =================== */

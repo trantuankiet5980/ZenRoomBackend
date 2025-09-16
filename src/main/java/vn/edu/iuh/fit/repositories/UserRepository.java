@@ -24,4 +24,5 @@ public interface UserRepository extends JpaRepository<User, String> {
             "and u.deleteEffectiveAt <= :cutoff")
     List<User> findAllEligibleForHardDelete(LocalDateTime cutoff);
 
+    List<User> findByRole_RoleName(String roleName);
 }
