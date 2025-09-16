@@ -34,4 +34,12 @@ public class NotificationController {
         n.setIsRead(true);
         notificationRepository.save(n);
     }
+
+    @PostMapping("/read-all")
+    public void markReadAll(Authentication auth) {
+        String userId = auth.getName();
+        List<Notification> notifications = notificationRepository.findByUser_UserIdOrderByCreatedAtDesc(userId);
+        notifications.forEach(n -> n.setIsRead(true));
+        notificationRepository.saveAll(notifications);
+    }
 }
