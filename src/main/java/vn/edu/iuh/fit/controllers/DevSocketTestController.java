@@ -25,5 +25,16 @@ public class DevSocketTestController {
         messaging.convertAndSend("/topic/admin.notifications", payload);
         return payload;
     }
+    @PostMapping("/ping-user/{userId}")
+    public Map<String, String> pingUser(@PathVariable String userId) {
+        var payload = Map.of(
+                "type","PROPERTY_STATUS_CHANGED",
+                "title","Bài đăng demo",
+                "status","APPROVED",
+                "createdAt", java.time.LocalDateTime.now().toString()
+        );
+        messaging.convertAndSendToUser(userId, "/queue/notifications", payload);
+        return payload;
+    }
 }
 

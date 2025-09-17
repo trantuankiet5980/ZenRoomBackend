@@ -186,7 +186,10 @@ public class PropertyServiceImpl implements PropertyService {
         existing.setPublishedAt(null);
         existing.setUpdatedAt(LocalDateTime.now());
 
-        return propertyRepository.save(existing);
+        Property saved = propertyRepository.save(existing);
+        realtimeNotificationService.notifyAdminsPropertyUpdated(propertyMapper.toDto(saved));
+
+        return saved;
     }
 
     /* =================== CHANGE STATUS =================== */
@@ -213,6 +216,10 @@ public class PropertyServiceImpl implements PropertyService {
         User admin = authService.getCurrentUser();
         logAction(admin, p.getLandlord(), "CHANGE_PROPERTY_STATUS: " + status + (rejectedReason != null ? " REASON: " + rejectedReason : ""));
         propertyRepository.save(p);
+
+        PropertyDto dto = propertyMapper.toDto(p);
+
+        realtimeNotificationService.notifyAdminsPropertyStatusChanged(dto, status, rejectedReason);
     }
 
     /* =================== DELETE =================== */
