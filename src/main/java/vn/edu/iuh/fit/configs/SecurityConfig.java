@@ -85,10 +85,11 @@ public class SecurityConfig {
                         // NOTIFICATIONS
                         .requestMatchers("/api/v1/notifications/**").authenticated()
 
-                        .requestMatchers("/ws/**").permitAll() // handshake
+                        .requestMatchers("/ws/**", "/ws-native/**").permitAll() // handshake
                         .requestMatchers("/topic/**", "/queue/**", "/app/**").permitAll() // subscribe
 
                         // DEV
+
                         .requestMatchers("/api/dev/**").permitAll()
 
                         .anyRequest().authenticated()

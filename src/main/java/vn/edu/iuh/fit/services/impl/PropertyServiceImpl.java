@@ -216,6 +216,10 @@ public class PropertyServiceImpl implements PropertyService {
         User admin = authService.getCurrentUser();
         logAction(admin, p.getLandlord(), "CHANGE_PROPERTY_STATUS: " + status + (rejectedReason != null ? " REASON: " + rejectedReason : ""));
         propertyRepository.save(p);
+
+        PropertyDto dto = propertyMapper.toDto(p);
+
+        realtimeNotificationService.notifyAdminsPropertyStatusChanged(dto, status, rejectedReason);
     }
 
     /* =================== DELETE =================== */

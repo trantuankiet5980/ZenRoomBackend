@@ -1,15 +1,18 @@
+// StompAuthChannelInterceptor.java
 package vn.edu.iuh.fit.configs;
 
 import org.springframework.http.HttpHeaders;
 import org.springframework.lang.NonNull;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
+import org.springframework.messaging.simp.stomp.StompCommand;
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.messaging.support.ChannelInterceptor;
 import org.springframework.stereotype.Component;
 import vn.edu.iuh.fit.utils.JwtUtil;
 
 import java.security.Principal;
+import java.util.Optional;
 
 @Component
 public class StompAuthChannelInterceptor implements ChannelInterceptor {
@@ -21,15 +24,29 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
 
     @Override
     public Message<?> preSend(@NonNull Message<?> message, @NonNull MessageChannel channel) {
-        var accessor = StompHeaderAccessor.wrap(message);
-        if ("CONNECT".equals(accessor.getCommand()!=null?accessor.getCommand().name():null)) {
-            String auth = accessor.getFirstNativeHeader(HttpHeaders.AUTHORIZATION);
-            if (auth != null && auth.startsWith("Bearer ")) {
-                String token = auth.substring(7).trim();
-                if (jwt.validateToken(token)) {
-                    String userId = jwt.extractUserId(token);
-                    accessor.setUser(new Principal() { @Override public String getName() { return userId; }});
+        var acc = StompHeaderAccessor.wrap(message);
+        if (acc.getCommand() == StompCommand.CONNECT) {
+            // Lấy cả "Authorization" lẫn "authorization"
+            String auth = Optional.ofNullable(acc.getFirstNativeHeader(HttpHeaders.AUTHORIZATION))
+                    .orElseGet(() -> acc.getFirstNativeHeader("authorization"));
+
+            if (auth != null) {
+                String token = auth.startsWith("Bearer") ? auth.substring(6).trim() : auth.trim();
+                try {
+                    if (jwt.validateToken(token)) {
+                        String userId = jwt.extractUserId(token);
+                        acc.setUser(new Principal() { @Override public String getName() { return userId; }});
+                        // (khuyến nghị) set luôn login header để dễ debug
+                        acc.setLogin(userId);
+                        System.out.println("[WS][CONNECT] Principal set to userId=" + userId);
+                    } else {
+                        System.out.println("[WS][CONNECT] JWT invalid");
+                    }
+                } catch (Exception e) {
+                    System.out.println("[WS][CONNECT] JWT parse error: " + e.getMessage());
                 }
+            } else {
+                System.out.println("[WS][CONNECT] Missing Authorization header");
             }
         }
         return message;
