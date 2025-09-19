@@ -76,7 +76,7 @@ public class PropertyMediaServiceImpl implements PropertyMediaService {
     @Override
     public PropertyMedia upload(String propertyId, MultipartFile file, MediaType mediaType, Integer sortOrder, Boolean isCover) throws IOException {
         Property property = propertyRepo.findById(propertyId)
-                .orElseThrow(() -> new IllegalArgumentException("Property not found"));
+                .orElseThrow(() -> new IllegalArgumentException("Property not found" + propertyId));
 
         String key = buildKey(property, mediaType, file.getOriginalFilename());
 

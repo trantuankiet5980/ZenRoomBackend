@@ -13,7 +13,9 @@ import vn.edu.iuh.fit.services.PropertyMediaService;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/v1/properties/{propertyId}/media")
@@ -30,6 +32,12 @@ public class PropertyMediaController {
             @RequestParam(required = false) Integer startOrder,
             @RequestParam(defaultValue = "false") boolean firstAsCover
     ) throws IOException {
+        log.info("Upload {} files for property {} with mediaType {}",
+                files.size(), propertyId, mediaType);
+        files.forEach(f ->
+                log.info("File: {} size={} type={}",
+                        f.getOriginalFilename(), f.getSize(), f.getContentType())
+        );
 
         if (files == null || files.isEmpty()) {
             return ResponseEntity.badRequest().build();
