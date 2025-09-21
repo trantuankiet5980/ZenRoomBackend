@@ -124,7 +124,7 @@ public class RealtimeNotificationServiceImpl implements RealtimeNotificationServ
                             .user(userRepository.getReferenceById(landlordId))
                             .title(landlordTitle)
                             .message(landlordMsg)
-                            .type(vn.edu.iuh.fit.entities.enums.NotificationType.SYSTEM)
+                            .type(NotificationType.SYSTEM)
                             .redirectUrl("/landlord/properties/" + p.getPropertyId())
                             .isRead(false)
                             .createdAt(now)
