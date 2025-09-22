@@ -65,4 +65,9 @@ public class BookingController {
         return bookingRepo.findByProperty_Landlord_UserIdOrderByCreatedAtDesc(
                 principal.getName(), PageRequest.of(page, size)).map(bookingMapper::toDto);
     }
+
+    @GetMapping("/{bookingId}")
+    public BookingDto getOne(@PathVariable String bookingId, Principal principal) {
+        return bookingService.getOne(bookingId, principal.getName());
+    }
 }
