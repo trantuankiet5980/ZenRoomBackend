@@ -10,5 +10,6 @@ public interface BookingService {
     BookingDto reject(String bookingId, String landlordId);               // landlord từ chối
     BookingDto cancel(String bookingId, String tenantId);                 // tenant hủy
     BookingDto checkIn(String bookingId, String tenantId);                // check-in ngày nhận
+    BookingDto checkOut(String bookingId, String tenantId);               // check-out ngày trả
     void handlePaymentWebhook(PaymentWebhookPayload payload);
 }

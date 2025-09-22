@@ -45,6 +45,11 @@ public class BookingController {
         return bookingService.checkIn(bookingId, principal.getName());
     }
 
+    @PostMapping("/{bookingId}/check-out")
+    public BookingDto checkOut(@PathVariable String bookingId, Principal principal) {
+        return bookingService.checkOut(bookingId, principal.getName());
+    }
+
     @GetMapping("/me")
     public Page<BookingDto> myBookings(Principal principal,
                                        @RequestParam(defaultValue = "0") int page,

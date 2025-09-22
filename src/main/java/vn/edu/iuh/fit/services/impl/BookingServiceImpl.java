@@ -94,17 +94,28 @@ public class BookingServiceImpl implements BookingService {
         b.setBookingStatus(BookingStatus.APPROVED);
         b.setUpdatedAt(LocalDateTime.now());
 
-        BigDecimal deposit = b.getTotalPrice().multiply(new BigDecimal("0.5"));
+        BigDecimal total = b.getTotalPrice();
+        BigDecimal deposit = total.multiply(new BigDecimal("0.5")).setScale(2, BigDecimal.ROUND_HALF_UP);
 
-        Invoice inv = new Invoice();
-        inv.setInvoiceId(UUID.randomUUID().toString());
-        inv.setInvoiceNo(genInvoiceNo());
-        inv.setBooking(b);
-        inv.setTotal(deposit);
-        inv.setDueAmount(deposit);
+        Invoice inv = invoiceRepo.findByBooking_BookingId(bookingId).orElseGet(() -> {
+            Invoice i = new Invoice();
+            i.setInvoiceId(UUID.randomUUID().toString());
+            i.setBooking(b);
+            i.setInvoiceNo(genInvoiceNo()); // bắt buộc vì NOT NULL + UNIQUE
+            i.setCreatedAt(LocalDateTime.now());
+            return i;
+        });
         inv.setStatus(InvoiceStatus.ISSUED);
-        inv.setCreatedAt(LocalDateTime.now());
-        inv.setDueAt(LocalDateTime.now().plusDays(3));
+        inv.setIssuedAt(LocalDateTime.now());
+        inv.setDueAt(LocalDateTime.now().plusHours(24)); // hạn thanh toán cọc: 24h
+        // HÓA ĐƠN TỔNG cho booking:
+        inv.setTotal(total);
+        inv.setSubtotal(total);
+        if (inv.getTax() == null) inv.setTax(BigDecimal.ZERO);
+        if (inv.getDiscount() == null) inv.setDiscount(BigDecimal.ZERO);
+        // BAN ĐẦU chỉ thu 50%:
+        inv.setDueAmount(deposit);
+        inv.setUpdatedAt(LocalDateTime.now());
         invoiceRepo.save(inv);
 
         String payUrl = paymentGateway.createPayment(
@@ -123,6 +134,7 @@ public class BookingServiceImpl implements BookingService {
 //                "Vui lòng thanh toán 50% để giữ chỗ.", NotificationType.PAYMENT,
 //                "/bookings/" + b.getBookingId()
 //        );
+        bookingRepo.save(b);
         return bookingMapper.toDto(b);
     }
 
@@ -175,41 +187,97 @@ public class BookingServiceImpl implements BookingService {
         if (b.getBookingStatus() != BookingStatus.APPROVED)
             throw new IllegalStateException("Booking not approved");
 
-        boolean paid = !invoiceRepo.findPaidByBooking(bookingId).isEmpty();
-        if (!paid) throw new IllegalStateException("Deposit not paid");
-
-//        if (LocalDateTime.now().isBefore(b.getStartDate().minusHours(2)))
-//            throw new IllegalStateException("Too early to check-in");
+        // Cọc đã trả: hoặc kiểm tra invoice dueAmount đã giảm tương ứng
+        Invoice inv = invoiceRepo.findByBooking_BookingId(bookingId)
+                .orElseThrow(() -> new IllegalStateException("Invoice not found"));
+        BigDecimal total = inv.getTotal();
+        BigDecimal due = inv.getDueAmount();
+        if (due.compareTo(total.multiply(new BigDecimal("0.5"))) > 0) {
+            throw new IllegalStateException("Deposit not paid");
+        }
 
         b.setUpdatedAt(LocalDateTime.now());
         b.setBookingStatus(BookingStatus.CHECKED_IN);
+        return bookingMapper.toDto(bookingRepo.save(b));
+    }
 
-//        notificationService.createAndPush(
-//                b.getProperty().getLandlord(), "Khách đã check-in",
-//                b.getTenant().getFullName() + " đã nhận phòng.", NotificationType.BOOKING,
-//                "/landlord/bookings/" + b.getBookingId()
-//        );
+    @Transactional
+    @Override
+    public BookingDto checkOut(String bookingId, String tenantId) {
+        Booking b = bookingRepo.findById(bookingId).orElseThrow();
+        if (!b.getTenant().getUserId().equals(tenantId))
+            throw new SecurityException("Only tenant can check-out");
+        if (b.getBookingStatus() != BookingStatus.CHECKED_IN)
+            throw new IllegalStateException("Booking is not in CHECKED_IN status");
 
-        Booking saved = bookingRepo.save(b);
+        Invoice inv = invoiceRepo.findByBooking_BookingId(bookingId)
+                .orElseThrow(() -> new IllegalStateException("Invoice not found"));
 
-        return bookingMapper.toDto(saved);
+        BigDecimal remaining = inv.getDueAmount(); // phần còn lại cần thu
+        if (remaining.compareTo(BigDecimal.ZERO) <= 0) {
+            // đã thanh toán đủ
+            b.setBookingStatus(BookingStatus.COMPLETED);
+            b.setUpdatedAt(LocalDateTime.now());
+            return bookingMapper.toDto(bookingRepo.save(b));
+        }
+
+        // Cập nhật hạn thanh toán phần còn lại và phát link
+        inv.setStatus(InvoiceStatus.ISSUED);
+        inv.setDueAt(LocalDateTime.now().plusHours(2));
+        inv.setUpdatedAt(LocalDateTime.now());
+        invoiceRepo.save(inv);
+
+        String payUrl = paymentGateway.createPayment(
+                inv.getInvoiceId(),
+                remaining.longValue(),
+                "Thanh toán phần còn lại booking " + b.getBookingId(),
+                "https://yourapp/booking/return",
+                "https://yourapp/api/v1/payments/webhook"
+        );
+        b.setPaymentUrl(payUrl);
+        b.setUpdatedAt(LocalDateTime.now());
+        return bookingMapper.toDto(bookingRepo.save(b));
     }
 
     @Override
     public void handlePaymentWebhook(PaymentWebhookPayload payload) {
         Invoice inv = invoiceRepo.findById(payload.getInvoiceId()).orElseThrow();
-        if (inv.getStatus() == InvoiceStatus.PAID) return; // idempotent
 
-        inv.setStatus(payload.isSuccess() ? InvoiceStatus.PAID : InvoiceStatus.VOID);
+        // Tính số tiền ghi nhận: nếu gateway không gửi amount,
+        // cho fake = toàn bộ due hiện tại (tức trả đủ phần đã yêu cầu)
+        BigDecimal paidNow;
+        if (payload.getAmount() != 0) {
+            paidNow = new BigDecimal(payload.getAmount());
+        } else {
+            paidNow = inv.getDueAmount();
+        }
+
+        if (payload.isSuccess()) {
+            BigDecimal newDue = inv.getDueAmount().subtract(paidNow);
+            if (newDue.compareTo(BigDecimal.ZERO) < 0) newDue = BigDecimal.ZERO;
+
+            inv.setDueAmount(newDue);
+            inv.setPaidAt(LocalDateTime.now());
+            inv.setStatus(newDue.compareTo(BigDecimal.ZERO) == 0 ? InvoiceStatus.PAID : InvoiceStatus.ISSUED);
+        } else {
+            // thất bại: giữ nguyên dueAmount; có thể log, set status ISSUED
+            inv.setStatus(InvoiceStatus.ISSUED);
+        }
+        inv.setUpdatedAt(LocalDateTime.now());
         invoiceRepo.save(inv);
 
         Booking b = inv.getBooking();
-//        notificationService.createAndPush(
-//                b.getTenant(),
-//                payload.isSuccess() ? "Thanh toán thành công" : "Thanh toán thất bại",
-//                "Hóa đơn: " + inv.getInvoiceId(), NotificationType.PAYMENT,
-//                "/bookings/" + b.getBookingId()
-//        );
+        // Nếu đã check-in và đã thanh toán đủ, (tuỳ) chỉ hoàn tất khi đã tới hoặc qua end_date
+        if (payload.isSuccess()
+                && b.getBookingStatus() == BookingStatus.CHECKED_IN
+                && inv.getDueAmount().compareTo(BigDecimal.ZERO) == 0) {
+            // Nếu endDate là DATE thì so theo ngày; nếu LocalDateTime, giữ như dưới:
+            if (!LocalDateTime.now().isBefore(b.getEndDate())) {
+                b.setBookingStatus(BookingStatus.COMPLETED);
+                b.setUpdatedAt(LocalDateTime.now());
+                bookingRepo.save(b);
+            }
+        }
     }
 
     private String genInvoiceNo() {
