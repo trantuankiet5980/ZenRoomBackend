@@ -222,6 +222,19 @@ public class ChatRestController {
         return Map.of("conversationId", conversationId, "unread", cnt);
     }
 
+    //8 lấy tin nhắn mới nhất
+    @GetMapping("/conversations/{conversationId}/last-message")
+    public MessageDto lastMessage(@PathVariable String conversationId, Principal principal) {
+        String userId = principal.getName();
+        Conversation c = conversationRepository.findById(conversationId)
+                .orElseThrow(() -> new IllegalArgumentException("Conversation not found"));
+        ensureMember(c, userId);
+
+        Message m = messageRepository.findFirstByConversation_ConversationIdOrderByCreatedAtDesc(conversationId);
+        if (m == null) return null;
+        return messageMapper.toDto(m);
+    }
+
     private static void ensureMember(Conversation c, String userId) {
         boolean isMember = (c.getTenant()!=null && c.getTenant().getUserId().equals(userId))
                 || (c.getLandlord()!=null && c.getLandlord().getUserId().equals(userId));
