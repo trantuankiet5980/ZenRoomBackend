@@ -240,6 +240,23 @@ public class BookingServiceImpl implements BookingService {
     }
 
     @Override
+    public BookingDto getOne(String bookingId, String userId) {
+        Booking b = bookingRepo.findById(bookingId).orElseThrow();
+
+        // chỉ tenant hoặc landlord của booking mới được xem
+        boolean isTenant = b.getTenant() != null && b.getTenant().getUserId().equals(userId);
+        boolean isLandlord = b.getProperty() != null
+                && b.getProperty().getLandlord() != null
+                && b.getProperty().getLandlord().getUserId().equals(userId);
+
+        if (!isTenant && !isLandlord) {
+            throw new SecurityException("Not allowed to view this booking");
+        }
+
+        return bookingMapper.toDto(b);
+    }
+
+    @Override
     public void handlePaymentWebhook(PaymentWebhookPayload payload) {
         Invoice inv = invoiceRepo.findById(payload.getInvoiceId()).orElseThrow();
 
