@@ -16,10 +16,12 @@ public class BookingDto implements Serializable {
     String bookingId;
     PropertyDto property;
     UserDto tenant;
-    LocalDate startDate;
-    LocalDate endDate;
+    LocalDateTime startDate;
+    LocalDateTime endDate;
     BookingStatus bookingStatus;
     BigDecimal totalPrice;
+    String note;
+    String paymentUrl;
     DiscountCodeDto discountCode;
     LocalDateTime createdAt;
     LocalDateTime updatedAt;

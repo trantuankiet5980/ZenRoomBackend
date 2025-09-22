@@ -1,0 +1,63 @@
+package vn.edu.iuh.fit.controllers;
+
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.web.bind.annotation.*;
+import vn.edu.iuh.fit.dtos.BookingDto;
+import vn.edu.iuh.fit.dtos.requests.BookingCreateRequest;
+import vn.edu.iuh.fit.mappers.BookingMapper;
+import vn.edu.iuh.fit.repositories.BookingRepository;
+import vn.edu.iuh.fit.services.BookingService;
+
+import java.security.Principal;
+
+@RestController
+@RequestMapping("/api/v1/bookings")
+@RequiredArgsConstructor
+public class BookingController {
+    private final BookingService bookingService;
+    private final BookingRepository bookingRepo;
+    private final BookingMapper bookingMapper;
+
+    @PostMapping
+    public BookingDto create(@RequestBody BookingCreateRequest req, Principal principal) {
+        return bookingService.createDaily(principal.getName(), req);
+    }
+
+    @PostMapping("/{bookingId}/approve")
+    public BookingDto approve(@PathVariable String bookingId, Principal principal) {
+        return bookingService.approve(bookingId, principal.getName());
+    }
+
+    @PostMapping("/{bookingId}/reject")
+    public BookingDto reject(@PathVariable String bookingId, Principal principal) {
+        return bookingService.reject(bookingId, principal.getName());
+    }
+
+    @PostMapping("/{bookingId}/cancel")
+    public BookingDto cancel(@PathVariable String bookingId, Principal principal) {
+        return bookingService.cancel(bookingId, principal.getName());
+    }
+
+    @PostMapping("/{bookingId}/check-in")
+    public BookingDto checkIn(@PathVariable String bookingId, Principal principal) {
+        return bookingService.checkIn(bookingId, principal.getName());
+    }
+
+    @GetMapping("/me")
+    public Page<BookingDto> myBookings(Principal principal,
+                                       @RequestParam(defaultValue = "0") int page,
+                                       @RequestParam(defaultValue = "10") int size) {
+        return bookingRepo.findByTenant_UserIdOrderByCreatedAtDesc(
+                principal.getName(), PageRequest.of(page, size)).map(bookingMapper::toDto);
+    }
+
+    @GetMapping("/landlord")
+    public Page<BookingDto> landlordBookings(Principal principal,
+                                             @RequestParam(defaultValue = "0") int page,
+                                             @RequestParam(defaultValue = "10") int size) {
+        return bookingRepo.findByProperty_Landlord_UserIdOrderByCreatedAtDesc(
+                principal.getName(), PageRequest.of(page, size)).map(bookingMapper::toDto);
+    }
+}
