@@ -24,6 +24,8 @@ public class BookingMapper {
                 entity.getEndDate(),
                 entity.getBookingStatus(),
                 entity.getTotalPrice(),
+                entity.getNote(),
+                entity.getPaymentUrl(),
                 discountCodeMapper.toDto(entity.getDiscountCode()),
                 entity.getCreatedAt(),
                 entity.getUpdatedAt(),
@@ -39,6 +41,8 @@ public class BookingMapper {
         entity.setEndDate(dto.getEndDate());
         entity.setBookingStatus(dto.getBookingStatus());
         entity.setTotalPrice(dto.getTotalPrice());
+        entity.setNote(dto.getNote());
+        entity.setPaymentUrl(dto.getPaymentUrl());
         entity.setCreatedAt(dto.getCreatedAt());
         entity.setUpdatedAt(dto.getUpdatedAt());
 

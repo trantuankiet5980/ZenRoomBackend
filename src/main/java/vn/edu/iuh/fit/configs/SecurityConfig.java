@@ -97,6 +97,12 @@ public class SecurityConfig {
                         // SEARCH HISTORY
                         .requestMatchers("/api/v1/search-history/**").hasAnyRole("TENANT", "LANDLORD", "ADMIN")
 
+                        // BOOKING
+                        .requestMatchers("/api/v1/bookings/**").authenticated()
+
+                        //payment fake
+                        .requestMatchers("/api/v1/payments/fake/**").permitAll()
+
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
