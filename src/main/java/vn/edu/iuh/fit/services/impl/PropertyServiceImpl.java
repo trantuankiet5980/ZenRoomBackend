@@ -1,10 +1,15 @@
 package vn.edu.iuh.fit.services.impl;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityNotFoundException;
+import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
@@ -19,6 +24,7 @@ import vn.edu.iuh.fit.repositories.*;
 import vn.edu.iuh.fit.services.AuthService;
 import vn.edu.iuh.fit.services.PropertyService;
 import vn.edu.iuh.fit.services.RealtimeNotificationService;
+import vn.edu.iuh.fit.services.SearchHistoryService;
 
 import java.time.LocalDateTime;
 import java.util.*;
@@ -36,7 +42,8 @@ public class PropertyServiceImpl implements PropertyService {
     private final UserManagementLogRepository userManagementLogRepository;
     private final AuthService authService;
     private final RealtimeNotificationService realtimeNotificationService;
-//    private final SimpMessagingTemplate messaging;
+    private final ObjectMapper om = new ObjectMapper();
+    private final SearchHistoryService searchHistoryService;
 
     private void logAction(User admin, User target, String action){
         UserManagementLog log = UserManagementLog.builder()
@@ -232,6 +239,89 @@ public class PropertyServiceImpl implements PropertyService {
         propertyRepository.deleteById(id);
         // Nếu muốn xoá media S3: inject mediaRepo/mediaService và xoá trước
     }
+
+    /* =================== SEARCH =================== */
+    @Override
+    public Page<PropertyDto> search(String userId,
+                                    String keyword,
+                                    Integer priceMin, Integer priceMax,
+                                    Integer areaMin, Integer areaMax,
+                                    String apartmentCategory,
+                                    Integer floorNo,
+                                    String roomNumber,
+                                    Integer bathrooms, Integer bedrooms,
+                                    Integer capacity, Integer parkingSlots,
+                                    String buildingName, String propertyType,
+                                    int page, int size) {
+
+        Specification<Property> spec = (root, q, cb) -> {
+            List<Predicate> ps = new ArrayList<>();
+
+            if (keyword != null && !keyword.isBlank()) {
+                String like = "%" + keyword.trim().toLowerCase() + "%";
+                ps.add(cb.or(
+                        cb.like(cb.lower(root.get("title")), like),
+                        cb.like(cb.lower(root.get("description")), like),
+                        // nếu có field address.fullAddress: cb.like(cb.lower(root.get("address").get("fullAddress")), like)
+                        cb.like(cb.lower(root.get("buildingName")), like)
+                ));
+            }
+            if (priceMin != null) ps.add(cb.ge(root.get("price"), priceMin));
+            if (priceMax != null) ps.add(cb.le(root.get("price"), priceMax));
+
+            if (areaMin != null) ps.add(cb.ge(root.get("area"), areaMin));
+            if (areaMax != null) ps.add(cb.le(root.get("area"), areaMax));
+
+            if (apartmentCategory != null && !apartmentCategory.isBlank())
+                ps.add(cb.equal(root.get("apartmentCategory"), apartmentCategory)); // Enum/String tuỳ entity
+
+            if (floorNo != null) ps.add(cb.equal(root.get("floorNo"), floorNo));
+            if (roomNumber != null && !roomNumber.isBlank())
+                ps.add(cb.equal(cb.lower(root.get("roomNumber")), roomNumber.toLowerCase()));
+
+            if (bathrooms != null) ps.add(cb.equal(root.get("bathrooms"), bathrooms));
+            if (bedrooms  != null) ps.add(cb.equal(root.get("bedrooms"), bedrooms));
+            if (capacity  != null) ps.add(cb.ge(root.get("capacity"), capacity));
+            if (parkingSlots != null) ps.add(cb.ge(root.get("parkingSlots"), parkingSlots));
+
+            if (buildingName != null && !buildingName.isBlank())
+                ps.add(cb.like(cb.lower(root.get("buildingName")), "%" + buildingName.toLowerCase() + "%"));
+
+            if (propertyType != null && !propertyType.isBlank())
+                ps.add(cb.equal(root.get("propertyType"), propertyType)); // Enum/String tuỳ entity
+
+            return cb.and(ps.toArray(new Predicate[0]));
+        };
+
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        Page<Property> pageData = propertyRepository.findAll(spec, pageable);
+        Page<PropertyDto> result = pageData.map(propertyMapper::toDto);
+
+        // LƯU LỊCH SỬ
+        if (userId != null) {
+            ObjectNode filters = om.createObjectNode();
+            put(filters, "priceMin", priceMin);
+            put(filters, "priceMax", priceMax);
+            put(filters, "areaMin",  areaMin);
+            put(filters, "areaMax",  areaMax);
+            put(filters, "apartmentCategory", apartmentCategory);
+            put(filters, "floorNo",  floorNo);
+            put(filters, "roomNumber", roomNumber);
+            put(filters, "bathrooms", bathrooms);
+            put(filters, "bedrooms",  bedrooms);
+            put(filters, "capacity",  capacity);
+            put(filters, "parkingSlots", parkingSlots);
+            put(filters, "buildingName", buildingName);
+            put(filters, "propertyType", propertyType);
+
+            searchHistoryService.saveHistory(userId, keyword, filters);
+        }
+
+        return result;
+    }
+
+    private static void put(ObjectNode n, String k, Integer v) { if (v != null) n.put(k, v); }
+    private static void put(ObjectNode n, String k, String v)  { if (v != null && !v.isBlank()) n.put(k, v); }
 
     /* ===== Specs cho list() ===== */
     static class PropertySpecs {

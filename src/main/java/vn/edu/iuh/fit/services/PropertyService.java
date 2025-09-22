@@ -17,4 +17,18 @@ public interface PropertyService {
     Property update(String id, PropertyDto dto);             // luôn đưa về PENDING
     void changeStatus(String id, PostStatus status, String rejectedReason);
     void delete(String id);
+
+    Page<PropertyDto> search(
+            String userId,          // null nếu chưa đăng nhập → không lưu lịch sử
+            String keyword,
+            Integer priceMin, Integer priceMax,
+            Integer areaMin, Integer areaMax,
+            String apartmentCategory,  // CHUNG_CU | DUPLEX | PENTHOUSE ...
+            Integer floorNo,
+            String roomNumber,
+            Integer bathrooms, Integer bedrooms,
+            Integer capacity, Integer parkingSlots,
+            String buildingName, String propertyType, // nếu bạn có enum PropertyType
+            int page, int size
+    );
 }

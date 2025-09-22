@@ -94,6 +94,9 @@ public class SecurityConfig {
                         //CHAT
                         .requestMatchers("/api/v1/chat/**").authenticated()
 
+                        // SEARCH HISTORY
+                        .requestMatchers("/api/v1/search-history/**").hasAnyRole("TENANT", "LANDLORD", "ADMIN")
+
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
