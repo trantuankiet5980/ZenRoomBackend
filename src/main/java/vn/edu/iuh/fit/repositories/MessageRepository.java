@@ -11,4 +11,6 @@ public interface MessageRepository extends JpaRepository<Message, String> {
     Page<Message> findByConversation_ConversationId(String conversationId, Pageable pageable);
     List<Message> findByConversation_ConversationIdAndIsReadFalse(String conversationId);
     int countByConversation_ConversationIdAndSender_UserIdAndIsReadFalse(String conversationId, String notSenderId);
+    //get last message in conversation
+    Message findFirstByConversation_ConversationIdOrderByCreatedAtDesc(String conversationId);
 }
