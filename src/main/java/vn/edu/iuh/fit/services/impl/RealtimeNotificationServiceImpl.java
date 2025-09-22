@@ -5,11 +5,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
+import vn.edu.iuh.fit.dtos.NotificationDto;
 import vn.edu.iuh.fit.dtos.PropertyDto;
 import vn.edu.iuh.fit.entities.Notification;
 import vn.edu.iuh.fit.entities.User;
 import vn.edu.iuh.fit.entities.enums.NotificationType;
 import vn.edu.iuh.fit.entities.enums.PostStatus;
+import vn.edu.iuh.fit.mappers.NotificationMapper;
 import vn.edu.iuh.fit.repositories.NotificationRepository;
 import vn.edu.iuh.fit.repositories.UserRepository;
 import vn.edu.iuh.fit.services.RealtimeNotificationService;
@@ -17,6 +19,7 @@ import vn.edu.iuh.fit.services.RealtimeNotificationService;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -24,6 +27,7 @@ public class RealtimeNotificationServiceImpl implements RealtimeNotificationServ
     private static final Logger log = LoggerFactory.getLogger(RealtimeNotificationServiceImpl.class);
     private final SimpMessagingTemplate messaging;
     private final NotificationRepository notificationRepository;
+    private final NotificationMapper notificationMapper;
     private final UserRepository userRepository;
 
     public void notifyAdminsPropertyCreated(PropertyDto p) {
@@ -137,5 +141,29 @@ public class RealtimeNotificationServiceImpl implements RealtimeNotificationServ
             log.info("Sending WS notification to landlord {}: {}", landlordId, payloadLandlord);
             messaging.convertAndSendToUser(landlordId, "/queue/notifications", payloadLandlord);
         }
+    }
+
+    @Override
+    public NotificationDto createAndPush(User target, String title, String message,
+                                         NotificationType type, String redirectUrl) {
+        Notification entity = new Notification();
+        entity.setNotificationId(UUID.randomUUID().toString());
+        entity.setUser(target);
+        entity.setTitle(title);
+        entity.setMessage(message);
+        entity.setType(type);
+        entity.setRedirectUrl(redirectUrl);
+        entity.setIsRead(false);
+        entity.setCreatedAt(LocalDateTime.now());
+
+        Notification saved = notificationRepository.save(entity);
+        NotificationDto dto = notificationMapper.toDto(saved);
+
+        messaging.convertAndSendToUser(
+                target.getUserId(),            // Principal.getName() == userId
+                "/queue/notifications",
+                dto
+        );
+        return dto;
     }
 }

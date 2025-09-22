@@ -1,6 +1,9 @@
 package vn.edu.iuh.fit.services;
 
+import vn.edu.iuh.fit.dtos.NotificationDto;
 import vn.edu.iuh.fit.dtos.PropertyDto;
+import vn.edu.iuh.fit.entities.User;
+import vn.edu.iuh.fit.entities.enums.NotificationType;
 import vn.edu.iuh.fit.entities.enums.PostStatus;
 
 public interface RealtimeNotificationService {
@@ -11,4 +14,12 @@ public interface RealtimeNotificationService {
 
     // Thong bao khi bai dang thay doi trang thai
     void notifyAdminsPropertyStatusChanged(PropertyDto p, PostStatus status, String rejectedReason); // NEW
+
+    NotificationDto createAndPush(
+            User target,
+            String title,
+            String message,
+            NotificationType type,
+            String redirectUrl
+    );
 }

@@ -89,8 +89,10 @@ public class SecurityConfig {
                         .requestMatchers("/topic/**", "/queue/**", "/app/**").permitAll() // subscribe
 
                         // DEV
-
                         .requestMatchers("/api/dev/**").permitAll()
+
+                        //CHAT
+                        .requestMatchers("/api/v1/chat/**").authenticated()
 
                         .anyRequest().authenticated()
                 )
