@@ -19,6 +19,7 @@ import vn.edu.iuh.fit.mappers.PropertyMapper;
 import vn.edu.iuh.fit.services.PropertyService;
 
 import java.net.URI;
+import java.security.Principal;
 import java.util.Map;
 import java.util.Optional;
 
@@ -74,6 +75,40 @@ public class PropertyController {
                 "content", dtoPage.getContent()
 
         ));
+    }
+
+    @GetMapping("/search")
+    public Page<PropertyDto> search(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) Integer priceMin,
+            @RequestParam(required = false) Integer priceMax,
+            @RequestParam(required = false) Integer areaMin,
+            @RequestParam(required = false) Integer areaMax,
+            @RequestParam(required = false) String apartmentCategory,
+            @RequestParam(required = false) Integer floorNo,
+            @RequestParam(required = false) String roomNumber,
+            @RequestParam(required = false) Integer bathrooms,
+            @RequestParam(required = false) Integer bedrooms,
+            @RequestParam(required = false) Integer capacity,
+            @RequestParam(required = false) Integer parkingSlots,
+            @RequestParam(required = false) String buildingName,
+            @RequestParam(required = false) String propertyType,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "12") int size,
+            Principal principal
+    ) {
+        String userId = (principal != null) ? principal.getName() : null;
+        return propertyService.search(
+                userId, keyword,
+                priceMin, priceMax,
+                areaMin, areaMax,
+                apartmentCategory,
+                floorNo, roomNumber,
+                bathrooms, bedrooms,
+                capacity, parkingSlots,
+                buildingName, propertyType,
+                page, size
+        );
     }
 
     /** Duyệt bài / đổi trạng thái (APPROVE/REJECTED//PENDING) */
