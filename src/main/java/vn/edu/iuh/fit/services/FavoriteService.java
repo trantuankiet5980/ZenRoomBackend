@@ -9,4 +9,5 @@ public interface FavoriteService {
     FavoriteDto addFavorite(FavoriteRequest request);
     List<FavoriteDto> getFavorites();
     void removeFavorite(String propertyId);
+    void removeAllFavorites();
 }

@@ -70,5 +70,10 @@ public class FavoriteServiceImpl implements FavoriteService {
         String tenantId = getTenantIdFromAuth();
         favoriteRepository.deleteByTenant_UserIdAndProperty_PropertyId(tenantId, propertyId);
     }
+
+    @Override
+    public void removeAllFavorites() {
+        favoriteRepository.deleteAllByTenantUserId(getTenantIdFromAuth());
+    }
 }
 
