@@ -23,4 +23,5 @@ public class ReviewReply {
     @ManyToOne @JoinColumn(name="landlord_id") private User landlord;
     private String replyText;
     private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
 }
