@@ -9,4 +9,5 @@ public interface FavoriteRepository extends JpaRepository<Favorite, String> {
     List<Favorite> findByTenant_UserId(String tenantId);
     boolean existsByTenant_UserIdAndProperty_PropertyId(String tenantId, String propertyId);
     void deleteByTenant_UserIdAndProperty_PropertyId(String tenantId, String propertyId);
+    void deleteAllByTenantUserId(String userId);
 }
