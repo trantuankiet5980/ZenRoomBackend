@@ -6,14 +6,15 @@ import java.io.Serializable;
 import java.time.LocalDateTime;
 
 /**
- * DTO for {@link vn.edu.iuh.fit.entities.Review}
+ * DTO for {@link vn.edu.iuh.fit.entities.TenantReview}
  */
 @Value
-public class ReviewDto implements Serializable {
-    String reviewId;
+public class TenantReviewDto implements Serializable {
+    String tenantReviewId;
     BookingDto booking;
+    UserDto landlord;
     UserDto tenant;
-    int rating;
+    Integer rating;
     String comment;
     LocalDateTime createdAt;
     LocalDateTime updatedAt;

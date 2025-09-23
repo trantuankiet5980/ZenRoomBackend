@@ -103,6 +103,11 @@ public class SecurityConfig {
                         //payment fake
                         .requestMatchers("/api/v1/payments/fake/**").permitAll()
 
+                        // REVIEW
+                        .requestMatchers("/api/v1/reviews/**").authenticated()
+                        // TENANT REVIEW
+                        .requestMatchers("/api/v1/tenant-reviews/**").authenticated()
+
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);

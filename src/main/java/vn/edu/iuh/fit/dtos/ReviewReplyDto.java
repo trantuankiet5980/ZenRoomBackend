@@ -15,4 +15,5 @@ public class ReviewReplyDto implements Serializable {
     UserDto landlord;
     String replyText;
     LocalDateTime createdAt;
+    LocalDateTime updatedAt;
 }

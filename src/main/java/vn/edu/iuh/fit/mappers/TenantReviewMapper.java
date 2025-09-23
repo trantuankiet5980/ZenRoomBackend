@@ -1,25 +1,23 @@
 package vn.edu.iuh.fit.mappers;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
-import vn.edu.iuh.fit.dtos.ReviewDto;
-import vn.edu.iuh.fit.entities.Review;
+import vn.edu.iuh.fit.dtos.TenantReviewDto;
+import vn.edu.iuh.fit.entities.TenantReview;
 
 @Component
-public class ReviewMapper {
+@RequiredArgsConstructor
+public class TenantReviewMapper {
     private final BookingMapper bookingMapper;
     private final UserMapper userMapper;
 
-    public ReviewMapper(BookingMapper bookingMapper, UserMapper userMapper) {
-        this.bookingMapper = bookingMapper;
-        this.userMapper = userMapper;
-    }
-
     /** Entity -> DTO */
-    public ReviewDto toDto(Review e) {
+    public TenantReviewDto toDto(TenantReview e) {
         if (e == null) return null;
-        return new ReviewDto(
-                e.getReviewId(),
+        return new TenantReviewDto(
+                e.getTenantReviewId(),
                 bookingMapper.toDto(e.getBooking()),
+                userMapper.toDto(e.getLandlord()),
                 userMapper.toDto(e.getTenant()),
                 e.getRating(),
                 e.getComment(),
@@ -28,11 +26,11 @@ public class ReviewMapper {
         );
     }
 
-    /** DTO -> Entity (tenant & booking gán trong service qua getReference để tránh vòng lặp/lazy) */
-    public Review toEntity(ReviewDto d) {
+    /** DTO -> Entity */
+    public TenantReview toEntity(TenantReviewDto d) {
         if (d == null) return null;
-        return Review.builder()
-                .reviewId(d.getReviewId())
+        return TenantReview.builder()
+                .tenantReviewId(d.getTenantReviewId())
                 .rating(d.getRating())
                 .comment(d.getComment())
                 .createdAt(d.getCreatedAt())
