@@ -11,7 +11,15 @@ import vn.edu.iuh.fit.entities.enums.DiscountCodeStatus;
 import vn.edu.iuh.fit.entities.enums.DiscountType;
 
 @Data @NoArgsConstructor @AllArgsConstructor @Builder
-@Entity @Table(name = "DiscountCodes")
+@Entity
+@Table(
+        name = "discount_codes",
+        indexes = {
+                @Index(name = "idx_discount_code_code", columnList = "code", unique = true),
+                @Index(name = "idx_discount_code_status", columnList = "status"),
+                @Index(name = "idx_discount_code_valid", columnList = "valid_from, valid_to")
+        }
+)
 public class DiscountCode {
     @Id @Column(name="code_id", columnDefinition="CHAR(36)") String codeId;
     @PrePersist
