@@ -111,6 +111,9 @@ public class SecurityConfig {
                         // CONTRACT
                         .requestMatchers("/api/v1/contracts/**").authenticated()
 
+                        // DISCOUNT CODE
+                        .requestMatchers("/api/v1/discount-codes/preview").authenticated()
+
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
