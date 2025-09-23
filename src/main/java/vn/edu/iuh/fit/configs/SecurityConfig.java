@@ -108,6 +108,9 @@ public class SecurityConfig {
                         // TENANT REVIEW
                         .requestMatchers("/api/v1/tenant-reviews/**").authenticated()
 
+                        // CONTRACT
+                        .requestMatchers("/api/v1/contracts/**").authenticated()
+
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);

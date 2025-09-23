@@ -1,9 +1,11 @@
 package vn.edu.iuh.fit.mappers;
 
+import org.springframework.stereotype.Component;
 import vn.edu.iuh.fit.dtos.ContractServiceDto;
 import vn.edu.iuh.fit.entities.Contract;
 import vn.edu.iuh.fit.entities.ContractService;
 
+@Component
 public class ContractServiceMapper {
     public ContractServiceDto toDto(ContractService e) {
         if (e == null) return null;

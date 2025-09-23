@@ -6,6 +6,7 @@ import java.io.Serializable;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * DTO for {@link vn.edu.iuh.fit.entities.Contract}
@@ -13,6 +14,7 @@ import java.time.LocalDateTime;
 @Value
 public class ContractDto implements Serializable {
     String contractId;
+    BookingDto booking;
     String tenantName;
     String tenantPhone;
     String tenantCccdFront;
@@ -22,6 +24,7 @@ public class ContractDto implements Serializable {
     String buildingName;
     LocalDate startDate;
     LocalDate endDate;
+    List<ContractServiceDto> services;
     BigDecimal rentPrice;
     BigDecimal deposit;
     LocalDate billingStartDate;

@@ -12,7 +12,6 @@ public class BookingMapper {
     private final PropertyMapper propertyMapper;
     private final UserMapper userMapper;
     private final DiscountCodeMapper discountCodeMapper;
-    private final ContractMapper contractMapper;
 
     public BookingDto toDto(Booking entity) {
         if (entity == null) return null;
@@ -29,7 +28,7 @@ public class BookingMapper {
                 discountCodeMapper.toDto(entity.getDiscountCode()),
                 entity.getCreatedAt(),
                 entity.getUpdatedAt(),
-                contractMapper.toDto(entity.getContract())
+                null
         );
     }
 
