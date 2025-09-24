@@ -7,24 +7,34 @@ import java.util.*;
 
 
 @Data @NoArgsConstructor @AllArgsConstructor @Builder
-@Entity @Table(name = "Messages")
+@Entity @Table(name="Messages",
+        indexes = {@Index(name="idx_msg_conversation", columnList="conversation_id"),
+                @Index(name="idx_msg_property", columnList="property_id"),
+                @Index(name="idx_msg_created", columnList="created_at")}
+)
 public class Message {
     @Id @Column(name="message_id", columnDefinition="CHAR(36)") String messageId;
-    @PrePersist
-    private void prePersist() {
-        if (this.messageId == null) {
-            this.messageId = UUID.randomUUID().toString();
-        }
-        if (this.createdAt == null) {
-            this.createdAt = LocalDateTime.now();
-        }
-        if (this.isRead == null) {
-            this.isRead = false;
-        }
-    }
-    @ManyToOne @JoinColumn(name="conversation_id") private Conversation conversation;
-    @ManyToOne @JoinColumn(name="sender_id") private User sender;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name="conversation_id", nullable=false)
+    private Conversation conversation;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name="sender_id", nullable=false)
+    private User sender;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name="property_id")
+    private Property property;
+
     private String content;
-    private LocalDateTime createdAt;
     private Boolean isRead;
+    private LocalDateTime createdAt;
+
+    @PrePersist
+    void pre() {
+        if (messageId == null) messageId = java.util.UUID.randomUUID().toString();
+        if (createdAt == null) createdAt = java.time.LocalDateTime.now();
+        if (isRead == null) isRead = false;
+    }
 }
