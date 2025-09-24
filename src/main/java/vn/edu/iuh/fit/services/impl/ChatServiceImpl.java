@@ -44,84 +44,70 @@ public class ChatServiceImpl implements ChatService {
         if ((cmd.conversationId()==null || cmd.conversationId().isBlank())
                 && (cmd.peerId()==null || cmd.peerId().isBlank())
                 && (cmd.propertyId()==null || cmd.propertyId().isBlank())) {
-            throw new IllegalArgumentException("Provide conversationId or (peerId/propertyId)");
+            throw new IllegalArgumentException("Provide conversationId or peerId/propertyId");
         }
         if (cmd.content()==null || cmd.content().isBlank())
             throw new IllegalArgumentException("content is required");
 
-        Conversation conv;
         User me = userRepo.findById(currentUserId).orElseThrow();
 
+        Conversation conv;
         if (cmd.conversationId()!=null && !cmd.conversationId().isBlank()) {
             conv = conversationRepo.findById(cmd.conversationId()).orElseThrow();
             ensureMember(conv, currentUserId);
         } else {
-            // Tự tạo / lấy conversation theo peerId + propertyId
-            User other;
-            Property prop = null;
+            // Xác định landlord và tenant
+            User landlord;
+            User tenant;
 
             if (cmd.propertyId()!=null && !cmd.propertyId().isBlank()) {
-                prop = propertyRepo.findById(cmd.propertyId())
+                Property prop = propertyRepo.findById(cmd.propertyId())
                         .orElseThrow(() -> new IllegalArgumentException("Property not found"));
-                other = prop.getLandlord();
-                if (other==null) throw new IllegalStateException("Property has no landlord");
-                if (Objects.equals(other.getUserId(), currentUserId))
+                landlord = prop.getLandlord();
+                if (landlord == null) throw new IllegalStateException("Property has no landlord");
+                if (Objects.equals(landlord.getUserId(), me.getUserId()))
                     throw new IllegalStateException("Landlord cannot chat with themselves");
-                // current user = tenant, other = landlord
-                Property finalProp = prop;
-                conv = conversationRepo
-                        .findByTenant_UserIdAndLandlord_UserIdAndProperty_PropertyId(
-                                currentUserId, other.getUserId(), prop.getPropertyId()
-                        ).orElseGet(() -> {
-                            Conversation c = new Conversation();
-                            c.setConversationId(UUID.randomUUID().toString());
-                            c.setCreatedAt(LocalDateTime.now());
-                            c.setTenant(me);
-                            c.setLandlord(other);
-                            c.setProperty(finalProp);
-                            return conversationRepo.save(c);
-                        });
+                tenant = me;
             } else {
-                // 1-1 không gắn property
-                if (cmd.peerId()==null || cmd.peerId().isBlank())
-                    throw new IllegalArgumentException("peerId is required if propertyId is null");
-                other = userRepo.findById(cmd.peerId())
+                User peer = userRepo.findById(cmd.peerId())
                         .orElseThrow(() -> new IllegalArgumentException("Peer not found"));
-                if (Objects.equals(other.getUserId(), currentUserId))
+                if (Objects.equals(peer.getUserId(), me.getUserId()))
                     throw new IllegalStateException("Cannot chat with yourself");
 
-                Optional<Conversation> existed = conversationRepo
-                        .findByTenant_UserIdAndLandlord_UserIdAndProperty_PropertyId(currentUserId, other.getUserId(), null);
-                conv = existed.orElseGet(() -> {
-                    Optional<Conversation> reverse = conversationRepo
-                            .findByTenant_UserIdAndLandlord_UserIdAndProperty_PropertyId(other.getUserId(), currentUserId, null);
-                    return reverse.orElseGet(() -> {
-                        Conversation c = new Conversation();
-                        c.setConversationId(UUID.randomUUID().toString());
-                        c.setCreatedAt(LocalDateTime.now());
-                        c.setTenant(me);
-                        c.setLandlord(other);
-                        c.setProperty(null);
-                        return conversationRepo.save(c);
-                    });
-                });
+                Optional<Conversation> existed = conversationRepo.findByUsersAnyOrder(me.getUserId(), peer.getUserId());
+                if (existed.isPresent()) {
+                    conv = existed.get();
+                } else {
+                    tenant = me;
+                    landlord = peer;
+                    conv = createConversation(tenant, landlord);
+                }
+
+                Message saved = persistMessage(conv, me, cmd.content(), null /* no property */);
+                notify(conv, saved);
+                return messageMapper.toDto(saved);
             }
+
+            final String tenantId = tenant.getUserId();
+            final String landlordId = landlord.getUserId();
+
+            conv = conversationRepo.findByTenant_UserIdAndLandlord_UserId(tenantId, landlordId)
+                    .orElseGet(() -> createConversation(tenant, landlord));
+
+            Property prop = propertyRepo.getReferenceById(cmd.propertyId());
+
+            Message saved = persistMessage(conv, me, cmd.content(), prop);
+            notify(conv, saved);
+            return messageMapper.toDto(saved);
         }
 
-        Message m = new Message();
-        m.setMessageId(UUID.randomUUID().toString());
-        m.setConversation(conv);
-        m.setSender(me);
-        m.setContent(cmd.content());
-        m.setIsRead(false);
-        m.setCreatedAt(LocalDateTime.now());
-        Message saved = messageRepo.save(m);
+        Property prop = (cmd.propertyId()!=null && !cmd.propertyId().isBlank())
+                ? propertyRepo.findById(cmd.propertyId()).orElse(null)
+                : null;
 
-        MessageDto dto = messageMapper.toDto(saved);
-        messaging.convertAndSend(topic(conv.getConversationId()), dto);
-        emitInboxForBoth(conv);
-
-        return dto;
+        Message saved = persistMessage(conv, me, cmd.content(), prop);
+        notify(conv, saved);
+        return messageMapper.toDto(saved);
     }
 
         @Override
@@ -195,6 +181,33 @@ public class ChatServiceImpl implements ChatService {
         ensureMember(c, currentUserId);
         var m = messageRepo.findFirstByConversation_ConversationIdOrderByCreatedAtDesc(conversationId);
         return (m==null)? null : messageMapper.toDto(m);
+    }
+
+    private Conversation createConversation(User tenant, User landlord) {
+        Conversation c = new Conversation();
+        c.setConversationId(UUID.randomUUID().toString());
+        c.setCreatedAt(LocalDateTime.now());
+        c.setTenant(tenant);
+        c.setLandlord(landlord);
+        // KHÔNG đặt property ở đây nữa
+        return conversationRepo.save(c);
+    }
+
+    private Message persistMessage(Conversation conv, User sender, String content, Property prop) {
+        Message m = new Message();
+        m.setConversation(conv);
+        m.setSender(sender);
+        m.setProperty(prop);               // <— gắn phòng của tin nhắn
+        m.setContent(content);
+        m.setIsRead(false);
+        m.setCreatedAt(LocalDateTime.now());
+        return messageRepo.save(m);
+    }
+
+    private void notify(Conversation conv, Message saved) {
+        var dto = messageMapper.toDto(saved);
+        messaging.convertAndSend("/topic/chat." + conv.getConversationId(), dto);
+        emitInboxForBoth(conv); // giữ logic unread/last
     }
 
     private void ensureMember(Conversation c, String userId) {

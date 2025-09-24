@@ -16,4 +16,6 @@ public class MessageDto implements Serializable {
     String content;
     LocalDateTime createdAt;
     Boolean isRead;
+
+    PropertyMiniDto property;
 }
