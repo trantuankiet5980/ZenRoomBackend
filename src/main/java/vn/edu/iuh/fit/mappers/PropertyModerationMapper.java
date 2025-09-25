@@ -27,17 +27,18 @@ public class PropertyModerationMapper {
         );
     }
 
-    /** DTO -> Entity (ít dùng, thường chỉ cần toDto) */
+    /** DTO -> Entity (chỉ map các field cơ bản) */
     public PropertyModeration toEntity(PropertyModerationDto d) {
         if (d == null) return null;
+
         return PropertyModeration.builder()
                 .id(d.getId())
-                .property(propertyMapper.toEntity(d.getProperty()))
+                // Không map full Property ở đây, vì cần DB để load
                 .action(d.getAction())
                 .fromStatus(d.getFromStatus())
                 .toStatus(d.getToStatus())
                 .reason(d.getReason())
-                .actor(userMapper.toEntity(d.getActor()))
+                // Actor cũng nên load từ DB ở service thay vì map DTO -> Entity trực tiếp
                 .createdAt(d.getCreatedAt())
                 .build();
     }

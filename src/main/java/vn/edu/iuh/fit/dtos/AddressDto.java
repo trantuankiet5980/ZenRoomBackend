@@ -6,22 +6,28 @@ import lombok.*;
 import java.io.Serializable;
 import java.math.BigDecimal;
 
-/**
- * DTO for {@link vn.edu.iuh.fit.entities.Address}
- */
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class AddressDto implements Serializable {
-    String addressId;
-    String province;
-    String district;
-    String ward;
-    String street;
-    String houseNumber;
-    String addressFull;
-    BigDecimal latitude;
-    BigDecimal longitude;
+    private String addressId;
+
+    // Lưu cả id & name để FE dễ sử dụng
+    private String provinceId;
+    private String provinceName;
+
+    private String districtId;
+    private String districtName;
+
+    private String wardId;
+    private String wardName;
+
+    private String street;
+    private String houseNumber;
+    private String addressFull;
+
+    private BigDecimal latitude;
+    private BigDecimal longitude;
 }

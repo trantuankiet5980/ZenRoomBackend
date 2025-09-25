@@ -114,6 +114,13 @@ public class SecurityConfig {
                         // DISCOUNT CODE
                         .requestMatchers("/api/v1/discount-codes/preview").authenticated()
 
+                        // ADDRESS
+                        .requestMatchers("/api/v1/address/**").permitAll()
+
+                        // ADMINISTRATIVE
+                        .requestMatchers("/api/v1/administrative/**").permitAll()
+
+
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);

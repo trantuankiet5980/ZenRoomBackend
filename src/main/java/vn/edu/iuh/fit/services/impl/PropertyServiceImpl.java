@@ -36,6 +36,7 @@ public class PropertyServiceImpl implements PropertyService {
     private final PropertyRepository propertyRepository;
     private final UserRepository userRepository;
     private final AddressRepository addressRepository;
+    private final WardRepository wardRepository;
     private final FurnishingRepository furnishingRepository;
     private final PropertyMapper propertyMapper;
     private final EntityManager em;
@@ -63,57 +64,52 @@ public class PropertyServiceImpl implements PropertyService {
         if (dto.getPropertyType() == null) throw new IllegalArgumentException("propertyType is required");
         if (dto.getLandlord() == null || dto.getLandlord().getUserId() == null)
             throw new IllegalArgumentException("landlord.userId is required");
-        if (dto.getAddress() == null)
-            throw new IllegalArgumentException("Address is required");
+        if (dto.getAddress() == null) throw new IllegalArgumentException("Address is required");
 
-        // Map cơ bản từ DTO sang Entity (nhờ mapper của bạn)
-        Property entity = propertyMapper.toEntity(dto);
-
-        // Đảm bảo landlord & address là managed entity (tránh detached/transient)
-        User managedLandlord = userRepository.findById(dto.getLandlord().getUserId())
+        // Load landlord
+        User landlord = userRepository.findById(dto.getLandlord().getUserId())
                 .orElseThrow(() -> new EntityNotFoundException("Landlord not found: " + dto.getLandlord().getUserId()));
-        entity.setLandlord(managedLandlord);
 
-        // Address: nếu AddressDto có id thì dùng lại; nếu không, để cascade ALL của bạn persist
-        if (dto.getAddress().getAddressId() != null) {
-            Address managedAddress = addressRepository.findById(dto.getAddress().getAddressId())
-                    .orElseThrow(() -> new EntityNotFoundException("Address not found: " + dto.getAddress().getAddressId()));
-            entity.setAddress(managedAddress);
+        // Load ward (nếu có wardId)
+        Ward ward = null;
+        if (dto.getAddress().getWardId() != null) {
+            ward = wardRepository.findById(dto.getAddress().getWardId())
+                    .orElseThrow(() -> new EntityNotFoundException("Ward not found: " + dto.getAddress().getWardId()));
         }
 
-        // Trạng thái bài viết: luôn PENDING khi tạo mới
-        entity.setPostStatus(PostStatus.PENDING);
-        entity.setRejectedReason(null);
-        entity.setPublishedAt(null);
-        entity.setCreatedAt(LocalDateTime.now());
-        entity.setUpdatedAt(LocalDateTime.now());
+        // Chuyển AddressDto -> Address entity
+        Address address = propertyMapper.getAddressMapper().toEntity(dto.getAddress(), ward);
 
-        // ===== Build furnishings từ danh mục có sẵn =====
+        // Property entity
+        Property property = propertyMapper.toEntity(dto, address);
+        property.setLandlord(landlord);
+        property.setPostStatus(PostStatus.PENDING);
+        property.setRejectedReason(null);
+        property.setPublishedAt(null);
+        property.setCreatedAt(LocalDateTime.now());
+        property.setUpdatedAt(LocalDateTime.now());
+
+        // Furnishings
         List<PropertyFurnishing> fixed = new ArrayList<>();
         if (dto.getFurnishings() != null) {
             for (PropertyFurnishingDto fDto : dto.getFurnishings()) {
-                if (fDto.getFurnishingId() == null || fDto.getFurnishingId().isBlank()) {
+                if (fDto.getFurnishingId() == null || fDto.getFurnishingId().isBlank())
                     throw new IllegalArgumentException("Each furnishing must include furnishingId");
-                }
-                // Thay vì getReference (nổ khi id không tồn tại lúc flush), bạn có thể findById để báo lỗi sớm:
+
                 Furnishings furnishing = furnishingRepository.findById(fDto.getFurnishingId())
                         .orElseThrow(() -> new EntityNotFoundException("Furnishing not found: " + fDto.getFurnishingId()));
 
                 PropertyFurnishing pf = new PropertyFurnishing();
-                pf.setProperty(entity);
+                pf.setProperty(property);
                 pf.setFurnishing(furnishing);
                 pf.setQuantity(fDto.getQuantity() != null ? fDto.getQuantity() : 1);
-
                 fixed.add(pf);
             }
         }
-        entity.setFurnishings(fixed);
+        property.setFurnishings(fixed);
 
-        Property saved = propertyRepository.save(entity);
-
-        // Gửi realtime + lưu DB
+        Property saved = propertyRepository.save(property);
         realtimeNotificationService.notifyAdminsPropertyCreated(propertyMapper.toDto(saved));
-
         return saved;
     }
 
@@ -145,49 +141,36 @@ public class PropertyServiceImpl implements PropertyService {
         Property existing = propertyRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Property not found: " + id));
 
-        // Cập nhật các field được phép (không đổi landlord ở đây)
+        // Cập nhật các field cơ bản
         if (dto.getTitle() != null) existing.setTitle(dto.getTitle());
         if (dto.getDescription() != null) existing.setDescription(dto.getDescription());
         if (dto.getArea() != null) existing.setArea(dto.getArea());
         if (dto.getPrice() != null) existing.setPrice(dto.getPrice());
         if (dto.getDeposit() != null) existing.setDeposit(dto.getDeposit());
-
         if (dto.getBuildingName() != null) existing.setBuildingName(dto.getBuildingName());
         if (dto.getApartmentCategory() != null) existing.setApartmentCategory(dto.getApartmentCategory());
         if (dto.getBedrooms() != null) existing.setBedrooms(dto.getBedrooms());
         if (dto.getBathrooms() != null) existing.setBathrooms(dto.getBathrooms());
-
         if (dto.getRoomNumber() != null) existing.setRoomNumber(dto.getRoomNumber());
         if (dto.getFloorNo() != null) existing.setFloorNo(dto.getFloorNo());
 
-        // Address: nếu DTO có id → map sang managed entity; nếu không, có thể merge AddressDto (tuỳ bạn)
+        // Update Address
         if (dto.getAddress() != null) {
-            if (dto.getAddress().getAddressId() != null) {
-                Address managedAddress = addressRepository.findById(dto.getAddress().getAddressId())
-                        .orElseThrow(() -> new EntityNotFoundException("Address not found: " + dto.getAddress().getAddressId()));
-                existing.setAddress(managedAddress);
-            } else {
-                // merge từng field nếu bạn muốn cập nhật địa chỉ hiện hữu:
-                Address addr = existing.getAddress();
-                if (addr == null) {
-                    addr = propertyMapper.toEntity(dto).getAddress(); // lấy object mới từ mapper
-                } else {
-                    // copy field đơn giản (tuỳ DTO AddressDto của bạn)
-                    var a = dto.getAddress();
-                    if (a.getProvince() != null) addr.setProvince(a.getProvince());
-                    if (a.getDistrict() != null) addr.setDistrict(a.getDistrict());
-                    if (a.getWard() != null) addr.setWard(a.getWard());
-                    if (a.getStreet() != null) addr.setStreet(a.getStreet());
-                    if (a.getHouseNumber() != null) addr.setHouseNumber(a.getHouseNumber());
-                    if (a.getAddressFull() != null) addr.setAddressFull(a.getAddressFull());
-                    if (a.getLatitude() != null) addr.setLatitude(a.getLatitude());
-                    if (a.getLongitude() != null) addr.setLongitude(a.getLongitude());
-                }
-                existing.setAddress(addr);
+            Ward ward = null;
+            if (dto.getAddress().getWardId() != null) {
+                ward = wardRepository.findById(dto.getAddress().getWardId())
+                        .orElseThrow(() -> new EntityNotFoundException("Ward not found: " + dto.getAddress().getWardId()));
             }
+
+            Address addr = existing.getAddress();
+            if (addr == null) {
+                addr = propertyMapper.getAddressMapper().toEntity(dto.getAddress(), ward);
+            } else {
+                propertyMapper.getAddressMapper().updateEntity(addr, dto.getAddress(), ward);
+            }
+            existing.setAddress(addr);
         }
 
-        // Sau khi chỉnh, đưa về PENDING để duyệt lại
         existing.setPostStatus(PostStatus.PENDING);
         existing.setRejectedReason(null);
         existing.setPublishedAt(null);
@@ -195,7 +178,6 @@ public class PropertyServiceImpl implements PropertyService {
 
         Property saved = propertyRepository.save(existing);
         realtimeNotificationService.notifyAdminsPropertyUpdated(propertyMapper.toDto(saved));
-
         return saved;
     }
 

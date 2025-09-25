@@ -2,6 +2,7 @@ package vn.edu.iuh.fit.mappers;
 
 import org.springframework.stereotype.Component;
 import vn.edu.iuh.fit.dtos.*;
+import vn.edu.iuh.fit.entities.Address;
 import vn.edu.iuh.fit.entities.Property;
 
 import java.util.stream.Collectors;
@@ -12,7 +13,6 @@ public class PropertyMapper {
     private final UserMapper userMapper;
     private final AddressMapper addressMapper;
     private final PropertyFurnishingMapper furnishingMapper;
-
     private final PropertyMediaMapper mediaMapper;
 
     public PropertyMapper(UserMapper userMapper,
@@ -25,6 +25,10 @@ public class PropertyMapper {
         this.mediaMapper = mediaMapper;
     }
 
+    public AddressMapper getAddressMapper() {
+        return this.addressMapper;
+    }
+
     /** Entity -> DTO */
     public PropertyDto toDto(Property entity) {
         if (entity == null) return null;
@@ -33,7 +37,7 @@ public class PropertyMapper {
                 entity.getPropertyId(),
                 entity.getPropertyType(),
                 userMapper.toDto(entity.getLandlord()),
-                addressMapper.toDto(entity.getAddress()),
+                addressMapper.toDto(entity.getAddress()), // thông tin province/district/ward
                 entity.getTitle(),
                 entity.getDescription(),
                 entity.getArea(),
@@ -49,7 +53,6 @@ public class PropertyMapper {
                 entity.getFloorNo(),
                 entity.getFurnishings() != null ?
                         entity.getFurnishings().stream().map(furnishingMapper::toDto).collect(Collectors.toList()) : null,
-
                 entity.getMedia() != null ?
                         entity.getMedia().stream().map(mediaMapper::toDto).collect(Collectors.toList()) : null,
                 entity.getPostStatus(),
@@ -60,15 +63,17 @@ public class PropertyMapper {
         );
     }
 
-    /** DTO -> Entity */
-    public Property toEntity(PropertyDto dto) {
+    /** DTO -> Entity
+     * Address cần Ward được load từ DB ở service
+     */
+    public Property toEntity(PropertyDto dto, Address addressEntity) {
         if (dto == null) return null;
 
         Property entity = new Property();
         entity.setPropertyId(dto.getPropertyId());
         entity.setPropertyType(dto.getPropertyType());
         entity.setLandlord(userMapper.toEntity(dto.getLandlord()));
-        entity.setAddress(addressMapper.toEntity(dto.getAddress()));
+        entity.setAddress(addressEntity);
         entity.setTitle(dto.getTitle());
         entity.setDescription(dto.getDescription());
         entity.setArea(dto.getArea());
