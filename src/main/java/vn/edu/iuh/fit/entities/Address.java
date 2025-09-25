@@ -5,12 +5,9 @@ import lombok.*;
 
 import java.math.BigDecimal;
 
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
 @Entity
 @Table(name = "addresses")
+@Data @NoArgsConstructor @AllArgsConstructor @Builder
 public class Address {
     @Id
     @Column(name = "address_id", columnDefinition = "CHAR(36)")
@@ -23,21 +20,21 @@ public class Address {
         }
     }
 
-    // Cấp tỉnh/thành
-    @Column(name = "province", length = 100)
-    private String province;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "province_code")
+    private Province province;
 
-    // Cấp quận/huyện/thị xã
-    @Column(name = "district", length = 100)
-    private String district;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "district_code")
+    private District district;
 
-    // Cấp phường/xã/thị trấn
-    @Column(name = "ward", length = 100)
-    private String ward;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "ward_code")
+    private Ward ward;
 
-    // Đường & số nhà
     @Column(name = "street", length = 150)
     private String street;
+
     @Column(name = "house_number", length = 30)
     private String houseNumber;
 
@@ -49,4 +46,16 @@ public class Address {
 
     @Column(name = "longitude", precision = 11, scale = 8)
     private BigDecimal longitude;
+
+    public void generateAddressFull() {
+        StringBuilder full = new StringBuilder();
+        if (houseNumber != null && !houseNumber.isEmpty()) full.append(houseNumber).append(", ");
+        if (street != null && !street.isEmpty()) full.append(street).append(", ");
+        if (ward != null && ward.getName() != null) full.append(ward.getName()).append(", ");
+        if (district != null && district.getName() != null) full.append(district.getName()).append(", ");
+        if (province != null && province.getName() != null) full.append(province.getName());
+
+        // loại bỏ ", " thừa cuối cùng
+        this.addressFull = full.toString().replaceAll(", $", "");
+    }
 }
