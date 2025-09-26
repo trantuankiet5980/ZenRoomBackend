@@ -197,17 +197,37 @@ public class ChatServiceImpl implements ChatService {
         Message m = new Message();
         m.setConversation(conv);
         m.setSender(sender);
-        m.setProperty(prop);               // <— gắn phòng của tin nhắn
+        m.setProperty(prop);
         m.setContent(content);
         m.setIsRead(false);
         m.setCreatedAt(LocalDateTime.now());
         return messageRepo.save(m);
     }
-
+    private String topicNotify(String userId) {
+        return "/topic/notify." + userId;
+    }
     private void notify(Conversation conv, Message saved) {
         var dto = messageMapper.toDto(saved);
         messaging.convertAndSend("/topic/chat." + conv.getConversationId(), dto);
         emitInboxForBoth(conv); // giữ logic unread/last
+
+        // Xác định ai là người nhận (không phải người gửi)
+        String senderId = saved.getSender() != null ? saved.getSender().getUserId() : null;
+
+        if (conv.getTenant() != null && !conv.getTenant().getUserId().equals(senderId)) {
+            String uid = conv.getTenant().getUserId();
+            System.out.println("[WS][NOTIFY_TOPIC] to tenant=" + uid);
+            // gửi theo topic riêng
+            messaging.convertAndSend(topicNotify(uid), "Bạn có tin nhắn mới");
+            // (tuỳ chọn) vẫn gửi user-queue như cũ:
+            messaging.convertAndSendToUser(uid, "/queue/notify", "Bạn có tin nhắn mới");
+        }
+        if (conv.getLandlord() != null && !conv.getLandlord().getUserId().equals(senderId)) {
+            String uid = conv.getLandlord().getUserId();
+            System.out.println("[WS][NOTIFY_TOPIC] to landlord=" + uid);
+            messaging.convertAndSend(topicNotify(uid), "Bạn có tin nhắn mới");
+            messaging.convertAndSendToUser(uid, "/queue/notify", "Bạn có tin nhắn mới");
+        }
     }
 
     private void ensureMember(Conversation c, String userId) {

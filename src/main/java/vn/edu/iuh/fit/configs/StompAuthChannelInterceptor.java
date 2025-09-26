@@ -9,6 +9,7 @@ import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.simp.stomp.StompCommand;
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.messaging.support.ChannelInterceptor;
+import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.messaging.AbstractSubProtocolEvent;
 import vn.edu.iuh.fit.utils.JwtUtil;
@@ -26,14 +27,14 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
 
     @Override
     public Message<?> preSend(@NonNull Message<?> message, @NonNull MessageChannel channel) {
-        var acc = StompHeaderAccessor.wrap(message);
+        StompHeaderAccessor acc = StompHeaderAccessor.wrap(message);
         if (acc.getCommand() == StompCommand.CONNECT) {
             // Lấy cả "Authorization" lẫn "authorization"
-            String auth = Optional.ofNullable(acc.getFirstNativeHeader(HttpHeaders.AUTHORIZATION))
+            String raw = Optional.ofNullable(acc.getFirstNativeHeader(HttpHeaders.AUTHORIZATION))
                     .orElseGet(() -> acc.getFirstNativeHeader("authorization"));
 
-            if (auth != null && auth.startsWith("Bearer ")) {
-                String token = auth.startsWith("Bearer") ? auth.substring(6).trim() : auth.trim();
+            if (raw != null && raw.startsWith("Bearer ")) {
+                String token = raw.startsWith("Bearer") ? raw.substring(6).trim() : raw.trim();
                 try {
                     if (jwt.validateToken(token)) {
                         String userId = jwt.extractUserId(token);
@@ -51,7 +52,8 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
                 System.out.println("[WS][CONNECT] Missing Authorization header");
             }
         }
-        return message;
+        acc.setLeaveMutable(true);
+        return MessageBuilder.createMessage(message.getPayload(), acc.getMessageHeaders());
     }
     @Component
     public class WsEventsLogger implements ApplicationListener<AbstractSubProtocolEvent> {
