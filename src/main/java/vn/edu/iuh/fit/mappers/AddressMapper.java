@@ -32,16 +32,27 @@ public class AddressMapper {
     public Address toEntity(AddressDto dto, Ward ward) {
         if (dto == null) return null;
 
-        return Address.builder()
+        Address address = Address.builder()
                 .addressId(dto.getAddressId())
-                .ward(ward) // đã load từ DB ở service
+                .ward(ward)
                 .street(dto.getStreet())
                 .houseNumber(dto.getHouseNumber())
-                .addressFull(dto.getAddressFull())
                 .latitude(dto.getLatitude())
                 .longitude(dto.getLongitude())
                 .build();
+
+        // bổ sung district & province từ ward
+        if (ward != null) {
+            address.setDistrict(ward.getDistrict());
+            if (ward.getDistrict() != null) {
+                address.setProvince(ward.getDistrict().getProvince());
+            }
+        }
+
+        address.generateAddressFull();
+        return address;
     }
+
 
     public void updateEntity(Address entity, AddressDto dto, Ward ward) {
         if (dto == null || entity == null) return;

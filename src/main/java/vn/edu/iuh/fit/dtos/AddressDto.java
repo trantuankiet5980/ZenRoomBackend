@@ -13,8 +13,6 @@ import java.math.BigDecimal;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class AddressDto implements Serializable {
     private String addressId;
-
-    // Lưu cả id & name để FE dễ sử dụng
     private String provinceId;
     private String provinceName;
 
