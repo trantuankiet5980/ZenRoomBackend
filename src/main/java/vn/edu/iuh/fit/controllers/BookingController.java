@@ -6,6 +6,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.web.bind.annotation.*;
 import vn.edu.iuh.fit.dtos.BookingDto;
 import vn.edu.iuh.fit.dtos.requests.BookingCreateRequest;
+import vn.edu.iuh.fit.entities.enums.BookingStatus;
 import vn.edu.iuh.fit.mappers.BookingMapper;
 import vn.edu.iuh.fit.repositories.BookingRepository;
 import vn.edu.iuh.fit.services.BookingService;
@@ -70,4 +71,33 @@ public class BookingController {
     public BookingDto getOne(@PathVariable String bookingId, Principal principal) {
         return bookingService.getOne(bookingId, principal.getName());
     }
+
+
+    @GetMapping("/me/pending")
+    public Page<BookingDto> myPendingBookings(Principal principal,
+                                              @RequestParam(defaultValue = "0") int page,
+                                              @RequestParam(defaultValue = "10") int size) {
+        return bookingRepo.findByTenant_UserIdAndBookingStatusOrderByCreatedAtDesc(
+                        principal.getName(), BookingStatus.PENDING, PageRequest.of(page, size))
+                .map(bookingMapper::toDto);
+    }
+
+    @GetMapping("/me/approved")
+    public Page<BookingDto> myApprovedBookings(Principal principal,
+                                               @RequestParam(defaultValue = "0") int page,
+                                               @RequestParam(defaultValue = "10") int size) {
+        return bookingRepo.findByTenant_UserIdAndBookingStatusOrderByCreatedAtDesc(
+                        principal.getName(), BookingStatus.APPROVED, PageRequest.of(page, size))
+                .map(bookingMapper::toDto);
+    }
+
+    @GetMapping("/landlord/pending")
+    public Page<BookingDto> landlordPendingBookings(Principal principal,
+                                                    @RequestParam(defaultValue = "0") int page,
+                                                    @RequestParam(defaultValue = "10") int size) {
+        return bookingRepo.findByProperty_Landlord_UserIdAndBookingStatusOrderByCreatedAtDesc(
+                        principal.getName(), BookingStatus.PENDING, PageRequest.of(page, size))
+                .map(bookingMapper::toDto);
+    }
+
 }

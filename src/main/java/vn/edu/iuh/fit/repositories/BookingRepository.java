@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import vn.edu.iuh.fit.entities.Booking;
+import vn.edu.iuh.fit.entities.enums.BookingStatus;
 
 import java.time.LocalDateTime;
 
@@ -25,4 +26,16 @@ public interface BookingRepository extends JpaRepository<Booking, String> {
 
     Page<Booking> findByTenant_UserIdOrderByCreatedAtDesc(String userId, Pageable pageable);
     Page<Booking> findByProperty_Landlord_UserIdOrderByCreatedAtDesc(String landlordId, Pageable pageable);
+
+    Page<Booking> findByTenant_UserIdAndBookingStatusOrderByCreatedAtDesc(
+            String userId,
+            BookingStatus status,
+            Pageable pageable
+    );
+
+    Page<Booking> findByProperty_Landlord_UserIdAndBookingStatusOrderByCreatedAtDesc(
+            String landlordId,
+            BookingStatus status,
+            Pageable pageable
+    );
 }
