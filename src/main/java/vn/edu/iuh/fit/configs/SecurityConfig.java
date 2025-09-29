@@ -103,6 +103,9 @@ public class SecurityConfig {
                         //payment fake
                         .requestMatchers("/api/v1/payments/fake/**").permitAll()
 
+                        // PAYMENT
+                        .requestMatchers("/api/v1/payments/**").permitAll()
+
                         // REVIEW
                         .requestMatchers("/api/v1/reviews/**").authenticated()
                         // TENANT REVIEW

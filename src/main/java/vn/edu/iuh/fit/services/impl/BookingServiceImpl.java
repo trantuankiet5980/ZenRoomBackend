@@ -23,6 +23,7 @@ import vn.edu.iuh.fit.repositories.UserRepository;
 import vn.edu.iuh.fit.services.BookingService;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.EnumSet;
@@ -31,6 +32,8 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 public class BookingServiceImpl implements BookingService {
+    private static final BigDecimal DEPOSIT_RATE = new BigDecimal("0.5");
+
     private final BookingRepository bookingRepo;
     private final PropertyRepository propertyRepo;
     private final UserRepository userRepo;
@@ -95,8 +98,7 @@ public class BookingServiceImpl implements BookingService {
         b.setUpdatedAt(LocalDateTime.now());
 
         BigDecimal total = b.getTotalPrice();
-        BigDecimal deposit = total.multiply(new BigDecimal("0.5")).setScale(2, BigDecimal.ROUND_HALF_UP);
-
+        BigDecimal deposit = total.multiply(DEPOSIT_RATE).setScale(0, RoundingMode.HALF_UP);
         Invoice inv = invoiceRepo.findByBooking_BookingId(bookingId).orElseGet(() -> {
             Invoice i = new Invoice();
             i.setInvoiceId(UUID.randomUUID().toString());
@@ -190,9 +192,8 @@ public class BookingServiceImpl implements BookingService {
         // Cọc đã trả: hoặc kiểm tra invoice dueAmount đã giảm tương ứng
         Invoice inv = invoiceRepo.findByBooking_BookingId(bookingId)
                 .orElseThrow(() -> new IllegalStateException("Invoice not found"));
-        BigDecimal total = inv.getTotal();
-        BigDecimal due = inv.getDueAmount();
-        if (due.compareTo(total.multiply(new BigDecimal("0.5"))) > 0) {
+        BigDecimal due = inv.getDueAmount() == null ? BigDecimal.ZERO : inv.getDueAmount();
+        if (due.compareTo(BigDecimal.ZERO) > 0) {
             throw new IllegalStateException("Deposit not paid");
         }
 
@@ -213,9 +214,27 @@ public class BookingServiceImpl implements BookingService {
         Invoice inv = invoiceRepo.findByBooking_BookingId(bookingId)
                 .orElseThrow(() -> new IllegalStateException("Invoice not found"));
 
-        BigDecimal remaining = inv.getDueAmount(); // phần còn lại cần thu
+        BigDecimal currentDue = inv.getDueAmount() == null ? BigDecimal.ZERO : inv.getDueAmount();
+        if (currentDue.compareTo(BigDecimal.ZERO) > 0) {
+            throw new IllegalStateException("Deposit has not been fully paid");
+        }
+        BigDecimal total = inv.getTotal() != null ? inv.getTotal() : BigDecimal.ZERO;
+        BigDecimal deposit = total.multiply(DEPOSIT_RATE).setScale(0, RoundingMode.HALF_UP);
+        BigDecimal remaining = total.subtract(deposit);
+        if (remaining.compareTo(BigDecimal.ZERO) < 0) {
+            remaining = BigDecimal.ZERO;
+        }
+        remaining = remaining.setScale(0, RoundingMode.HALF_UP);
+
+        inv.setDueAmount(remaining);
+        inv.setUpdatedAt(LocalDateTime.now());
+
         if (remaining.compareTo(BigDecimal.ZERO) <= 0) {
-            // đã thanh toán đủ
+            inv.setStatus(InvoiceStatus.PAID);
+            if (inv.getPaidAt() == null) {
+                inv.setPaidAt(LocalDateTime.now());
+            }
+            invoiceRepo.save(inv);
             b.setBookingStatus(BookingStatus.COMPLETED);
             b.setUpdatedAt(LocalDateTime.now());
             return bookingMapper.toDto(bookingRepo.save(b));
@@ -223,8 +242,10 @@ public class BookingServiceImpl implements BookingService {
 
         // Cập nhật hạn thanh toán phần còn lại và phát link
         inv.setStatus(InvoiceStatus.ISSUED);
+        inv.setPaidAt(null);
+        inv.setPaymentMethod(null);
+        inv.setPaymentRef(null);
         inv.setDueAt(LocalDateTime.now().plusHours(2));
-        inv.setUpdatedAt(LocalDateTime.now());
         invoiceRepo.save(inv);
 
         String payUrl = paymentGateway.createPayment(
