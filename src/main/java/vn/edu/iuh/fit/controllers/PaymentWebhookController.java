@@ -27,6 +27,7 @@ public class PaymentWebhookController {
     @PostMapping("/webhook")
     public ResponseEntity<String> sepayWebhook(@RequestBody SepayWebhookPayload body) {
         try {
+            System.out.println("SEPAY WEBHOOK: " + body);
             if (!"in".equalsIgnoreCase(body.getTransferType())) {
                 return ResponseEntity.ok("IGNORED: NOT_IN");
             }

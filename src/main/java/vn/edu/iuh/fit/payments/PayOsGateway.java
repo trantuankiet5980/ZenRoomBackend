@@ -36,7 +36,7 @@ public class PayOsGateway implements PaymentGateway{
                     .build();
 
             CheckoutResponseData data = payOS.createPaymentLink(pd);
-            return new PaymentLink(data.getCheckoutUrl(), data.getQrCode());
+            return new PaymentLink(data.getCheckoutUrl(), data.getQrCode(), data.getOrderCode(), data.getPaymentLinkId());
         } catch (Exception e) {
             throw new RuntimeException("PayOS createPayment error: " + e.getMessage(), e);
         }
