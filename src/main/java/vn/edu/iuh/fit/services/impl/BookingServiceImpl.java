@@ -16,6 +16,7 @@ import vn.edu.iuh.fit.entities.enums.NotificationType;
 import vn.edu.iuh.fit.mappers.BookingMapper;
 import vn.edu.iuh.fit.mappers.InvoiceMapper;
 import vn.edu.iuh.fit.payments.PaymentGateway;
+import vn.edu.iuh.fit.payments.PaymentLink;
 import vn.edu.iuh.fit.repositories.BookingRepository;
 import vn.edu.iuh.fit.repositories.InvoiceRepository;
 import vn.edu.iuh.fit.repositories.PropertyRepository;
@@ -103,7 +104,7 @@ public class BookingServiceImpl implements BookingService {
             Invoice i = new Invoice();
             i.setInvoiceId(UUID.randomUUID().toString());
             i.setBooking(b);
-            i.setInvoiceNo(genInvoiceNo()); // bắt buộc vì NOT NULL + UNIQUE
+            i.setInvoiceNo(genInvoiceNo());
             i.setCreatedAt(LocalDateTime.now());
             return i;
         });
@@ -118,17 +119,19 @@ public class BookingServiceImpl implements BookingService {
         // BAN ĐẦU chỉ thu 50%:
         inv.setDueAmount(deposit);
         inv.setUpdatedAt(LocalDateTime.now());
+
+        PaymentLink link = paymentGateway.createPayment(
+                inv.getInvoiceId(),
+                deposit.longValue(),
+                "Coc 50% booking",
+                "https://your-frontend.com/payment/success",
+                "<your-public-domain>/api/v1/payments/webhook/payos"
+        );
+        inv.setPaymentUrl(link.getCheckoutUrl());
+        inv.setQrPayload(link.getQrPayload());
         invoiceRepo.save(inv);
 
-        String payUrl = paymentGateway.createPayment(
-                inv.getInvoiceId(),                // amount tham số long không còn cần thiết – nhưng interface vẫn ok, có thể truyền deposit.longValue()
-                deposit.longValue(),               // nếu muốn sửa interface, đổi sang BigDecimal
-                "Cọc 50% booking " + b.getBookingId(),
-                "https://yourapp/booking/return",
-                "https://yourapp/api/v1/payments/webhook"
-        );
-
-        b.setPaymentUrl(payUrl);
+        b.setPaymentUrl(link.getCheckoutUrl());
 
 //        realtime
 //        notificationService.createAndPush(
@@ -246,16 +249,19 @@ public class BookingServiceImpl implements BookingService {
         inv.setPaymentMethod(null);
         inv.setPaymentRef(null);
         inv.setDueAt(LocalDateTime.now().plusHours(2));
-        invoiceRepo.save(inv);
 
-        String payUrl = paymentGateway.createPayment(
+        PaymentLink link = paymentGateway.createPayment(
                 inv.getInvoiceId(),
                 remaining.longValue(),
-                "Thanh toán phần còn lại booking " + b.getBookingId(),
-                "https://yourapp/booking/return",
-                "https://yourapp/api/v1/payments/webhook"
+                "Thanh toán phần còn lại booking " + b.getBookingId() + " | inv=" + inv.getInvoiceId(),
+                "https://your-frontend.com/payment/success",
+                "<your-public-domain>/api/v1/payments/webhook/payos"
         );
-        b.setPaymentUrl(payUrl);
+        inv.setPaymentUrl(link.getCheckoutUrl());
+        inv.setQrPayload(link.getQrPayload());
+        invoiceRepo.save(inv);
+
+        b.setPaymentUrl(link.getCheckoutUrl());
         b.setUpdatedAt(LocalDateTime.now());
         return bookingMapper.toDto(bookingRepo.save(b));
     }

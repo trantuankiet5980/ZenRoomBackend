@@ -46,6 +46,7 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-websocket:3.5.3")
     // https://mvnrepository.com/artifact/org.springframework/spring-messaging
     implementation("org.springframework:spring-messaging:6.2.10")
+    implementation("vn.payos:payos-java:1.0.3")
 
     compileOnly 'org.projectlombok:lombok'
     developmentOnly 'org.springframework.boot:spring-boot-devtools'

@@ -73,6 +73,14 @@ public class Invoice {
     @Column(length = 32) private String paymentMethod; // "PAYOS", "CASH", ...
     @Column(length = 64) private String paymentRef;    // mã giao dịch từ PayOS / bank
     private LocalDateTime paidAt;
+    // Link thanh toán PayOS
+    @Column(length = 255)
+    private String paymentUrl;   // checkoutUrl trả về từ PayOS
+
+    // QR code payload
+    @Lob
+    @Column(columnDefinition = "TEXT")
+    private String qrPayload;    // data.getQrCode() từ PayOS
 
     private LocalDateTime issuedAt;
     private LocalDateTime dueAt;
