@@ -125,10 +125,11 @@ public class BookingServiceImpl implements BookingService {
                 deposit.longValue(),
                 "Coc 50% booking",
                 "https://your-frontend.com/payment/success",
-                "<your-public-domain>/api/v1/payments/webhook/payos"
+                "https://blackishly-unequalled-selina.ngrok-free.dev/api/v1/payments/webhook"
         );
         inv.setPaymentUrl(link.getCheckoutUrl());
         inv.setQrPayload(link.getQrPayload());
+        inv.setPaymentMethod("PAYOS");
         invoiceRepo.save(inv);
 
         b.setPaymentUrl(link.getCheckoutUrl());
@@ -246,16 +247,16 @@ public class BookingServiceImpl implements BookingService {
         // Cập nhật hạn thanh toán phần còn lại và phát link
         inv.setStatus(InvoiceStatus.ISSUED);
         inv.setPaidAt(null);
-        inv.setPaymentMethod(null);
+        inv.setPaymentMethod("PAYOS");
         inv.setPaymentRef(null);
-        inv.setDueAt(LocalDateTime.now().plusHours(2));
+        inv.setDueAt(LocalDateTime.now().plusHours(12));
 
         PaymentLink link = paymentGateway.createPayment(
                 inv.getInvoiceId(),
                 remaining.longValue(),
                 "Thanh toán phần còn lại booking " + b.getBookingId() + " | inv=" + inv.getInvoiceId(),
                 "https://your-frontend.com/payment/success",
-                "<your-public-domain>/api/v1/payments/webhook/payos"
+                "https://blackishly-unequalled-selina.ngrok-free.dev/api/v1/payments/webhook"
         );
         inv.setPaymentUrl(link.getCheckoutUrl());
         inv.setQrPayload(link.getQrPayload());

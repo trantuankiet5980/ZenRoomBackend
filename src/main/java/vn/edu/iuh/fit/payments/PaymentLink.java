@@ -8,4 +8,6 @@ import lombok.Data;
 public class PaymentLink {
     private String checkoutUrl;
     private String qrPayload;
+    private long orderCode;
+    private String paymentLinkId;
 }
