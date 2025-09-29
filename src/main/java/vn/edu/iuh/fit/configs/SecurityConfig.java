@@ -123,6 +123,8 @@ public class SecurityConfig {
                         // ADMINISTRATIVE
                         .requestMatchers("/api/v1/administrative/**").permitAll()
 
+                        // ORDERS
+                        .requestMatchers("/api/v1/orders/**").permitAll()
 
                         .anyRequest().authenticated()
                 )
