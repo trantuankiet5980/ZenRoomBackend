@@ -1,10 +1,10 @@
 package vn.edu.iuh.fit.entities.enums;
 
 public enum BookingStatus {
-    PENDING,      // Người thuê vừa tạo booking, chờ chủ nhà duyệt
-    APPROVED,     // Chủ nhà duyệt (sẵn sàng thanh toán / check-in)
-    REJECTED,     // Chủ nhà từ chối
-    CANCELLED,    // Người thuê hủy (có thể mất cọc hoặc hoàn tiền tùy rule)
-    CHECKED_IN,   // Người thuê đã check-in
-    COMPLETED     // Kết thúc lưu trú, checkout
+    PENDING_PAYMENT,            // Người thuê vừa tạo booking, đang chờ thanh toán
+    AWAITING_LANDLORD_APPROVAL, // Đã thanh toán, chờ chủ nhà duyệt hợp đồng
+    APPROVED,                   // Chủ nhà đã duyệt, hợp đồng có hiệu lực
+    CANCELLED,                  // Người thuê hoặc chủ nhà hủy
+    CHECKED_IN,                 // Người thuê đã check-in
+    COMPLETED                   // Kết thúc lưu trú, checkout
 }

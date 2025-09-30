@@ -6,329 +6,338 @@ import org.springframework.transaction.annotation.Transactional;
 import vn.edu.iuh.fit.dtos.BookingDto;
 import vn.edu.iuh.fit.dtos.requests.BookingCreateRequest;
 import vn.edu.iuh.fit.dtos.requests.PaymentWebhookPayload;
-import vn.edu.iuh.fit.entities.Booking;
-import vn.edu.iuh.fit.entities.Invoice;
-import vn.edu.iuh.fit.entities.Property;
-import vn.edu.iuh.fit.entities.User;
+import vn.edu.iuh.fit.entities.*;
 import vn.edu.iuh.fit.entities.enums.BookingStatus;
+import vn.edu.iuh.fit.entities.enums.ContractStatus;
 import vn.edu.iuh.fit.entities.enums.InvoiceStatus;
-import vn.edu.iuh.fit.entities.enums.NotificationType;
 import vn.edu.iuh.fit.mappers.BookingMapper;
-import vn.edu.iuh.fit.mappers.InvoiceMapper;
 import vn.edu.iuh.fit.payments.PaymentGateway;
 import vn.edu.iuh.fit.payments.PaymentLink;
-import vn.edu.iuh.fit.repositories.BookingRepository;
-import vn.edu.iuh.fit.repositories.InvoiceRepository;
-import vn.edu.iuh.fit.repositories.PropertyRepository;
-import vn.edu.iuh.fit.repositories.UserRepository;
+import vn.edu.iuh.fit.repositories.*;
 import vn.edu.iuh.fit.services.BookingService;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Duration;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
 public class BookingServiceImpl implements BookingService {
-    private static final BigDecimal DEPOSIT_RATE = new BigDecimal("0.5");
-
     private final BookingRepository bookingRepo;
     private final PropertyRepository propertyRepo;
     private final UserRepository userRepo;
     private final InvoiceRepository invoiceRepo;
-    private final BookingMapper bookingMapper;   // bạn đã có
-    private final InvoiceMapper invoiceMapper;   // nếu cần
-    private final PaymentGateway paymentGateway; // triển khai thực tế
-    private final RealtimeNotificationServiceImpl notificationService; // đã có createAndPush
+    private final ContractRepository contractRepo;
+    private final BookingMapper bookingMapper;
+    private final PaymentGateway paymentGateway;
 
     @Transactional
     @Override
     public BookingDto createDaily(String tenantId, BookingCreateRequest req) {
-        if (req.getPropertyId() == null || req.getCheckInAt() == null || req.getCheckOutAt() == null)
+        if(req.getPropertyId() == null || req.getCheckInAt() == null || req.getCheckOutAt() == null) {
             throw new IllegalArgumentException("propertyId, checkInAt, checkOutAt are required");
-        if (!req.getCheckOutAt().isAfter(req.getCheckInAt()))
+        }
+
+        LocalDate checkInDate = req.getCheckInAt();
+        LocalDate checkOutDate = req.getCheckOutAt();
+        if (!checkOutDate.isAfter(checkInDate)){
             throw new IllegalArgumentException("checkOutAt must be after checkInAt");
+        }
 
         Property property = propertyRepo.findById(req.getPropertyId()).orElseThrow();
         User tenant = userRepo.findById(tenantId).orElseThrow();
 
-        if (bookingRepo.existsOverlap(property.getPropertyId(), req.getCheckInAt(), req.getCheckOutAt()))
+        if (bookingRepo.existsOverlap(property.getPropertyId(), checkInDate, checkOutDate)) {
             throw new IllegalStateException("Property not available in selected dates");
+        }
+        long nights = ChronoUnit.DAYS.between(checkInDate, checkOutDate);
+        if (nights <= 0) {
+            throw new IllegalArgumentException("At least 1 night is required");
+        }
 
-        BigDecimal pricePerDay = property.getPrice();
-        long days = Duration.between(req.getCheckInAt(), req.getCheckOutAt()).toDays();
-        if (days <= 0) throw new IllegalArgumentException("At least 1 day");
-        BigDecimal total = pricePerDay.multiply(BigDecimal.valueOf(days));
+        BigDecimal pricePerNight = property.getPrice();
+        BigDecimal total = pricePerNight.multiply(BigDecimal.valueOf(nights));
+        LocalDateTime now = LocalDateTime.now();
 
-        Booking b = new Booking();
-        b.setBookingId(UUID.randomUUID().toString());
-        b.setProperty(property);
-        b.setTenant(tenant);
-        b.setStartDate(req.getCheckInAt());
-        b.setEndDate(req.getCheckOutAt());
-        b.setNote(req.getNote());
-        b.setTotalPrice(total);
-        b.setBookingStatus(BookingStatus.PENDING);
-        b.setCreatedAt(LocalDateTime.now());
+        Booking booking = new Booking();
+        booking.setBookingId(UUID.randomUUID().toString());
+        booking.setProperty(property);
+        booking.setTenant(tenant);
+        booking.setStartDate(checkInDate);
+        booking.setEndDate(checkOutDate);
+        booking.setNote(req.getNote());
+        booking.setTotalPrice(total);
+        booking.setBookingStatus(BookingStatus.PENDING_PAYMENT);
+        booking.setCreatedAt(now);
+        booking.setUpdatedAt(now);
 
-        Booking saved = bookingRepo.save(b);
+        Booking savedBooking = bookingRepo.save(booking);
 
-//        notificationService.createAndPush(
-//                property.getLandlord(),
-//                "Yêu cầu đặt phòng mới",
-//                tenant.getFullName() + " muốn đặt phòng " + property.getTitle(),
-//                NotificationType.BOOKING,
-//                "/landlord/bookings/" + saved.getBookingId()
-//        );
+        Invoice invoice = invoiceRepo.findByBooking_BookingId(savedBooking.getBookingId())
+                .orElseGet(() -> {
+                    Invoice inv = new Invoice();
+                    inv.setInvoiceId(UUID.randomUUID().toString());
+                    inv.setBooking(savedBooking);
+                    inv.setInvoiceNo(genInvoiceNo());
+                    inv.setCreatedAt(LocalDateTime.now());
+                    return inv;
+                });
+        invoice.setStatus(InvoiceStatus.ISSUED);
+        invoice.setIssuedAt(now);
+        invoice.setDueAt(now.plusHours(24)); // hạn thanh toán: 24h
+        invoice.setTotal(total);
+        invoice.setSubtotal(total);
+        if (invoice.getTax() == null){
+            invoice.setTax(BigDecimal.ZERO);
+        }
+        if (invoice.getDiscount() == null){
+            invoice.setDiscount(BigDecimal.ZERO);
+        }
+        invoice.setDueAmount(total);
+        invoice.setUpdatedAt(now);
+        invoice.setTenantName(tenant.getFullName());
+        invoice.setTenantEmail(tenant.getEmail());
+        invoice.setTenantPhone(tenant.getPhoneNumber());
+        invoice.setLandlordName(property.getLandlord() != null ? property.getLandlord().getFullName() : null);
+        invoice.setLandlordEmail(property.getLandlord() != null ? property.getLandlord().getEmail() : null);
+        invoice.setLandlordPhone(property.getLandlord() != null ? property.getLandlord().getPhoneNumber() : null);
+        invoice.setPropertyTitle(property.getTitle());
+        invoice.setPropertyAddressText(property.getAddress() != null ? property.getAddress().getAddressFull() : null);
 
-        return bookingMapper.toDto(saved);
+        BigDecimal roundedTotal = total.setScale(0, RoundingMode.HALF_UP);
+        long amount = roundedTotal.longValueExact();
+        PaymentLink link = paymentGateway.createPayment(
+                invoice.getInvoiceId(),
+                amount,
+                invoice.getInvoiceNo(),
+                "https://your-frontend.com/payment/success",
+                "https://blackishly-unequalled-selina.ngrok-free.dev/api/v1/payments/webhook"
+
+        );
+        invoice.setPaymentUrl(link.getCheckoutUrl());
+        invoice.setQrPayload(link.getQrPayload());
+        invoice.setPaymentMethod("PAYOS");
+        invoiceRepo.save(invoice);
+
+        savedBooking.setPaymentUrl(link.getCheckoutUrl());
+        savedBooking.setUpdatedAt(now);
+        bookingRepo.save(savedBooking);
+
+        //Contract auto
+        Contract contract = contractRepo.findByBooking_BookingId(savedBooking.getBookingId())
+                .orElseGet(() -> {
+                    Contract c = new Contract();
+                    c.setCreatedAt(now);
+                    return c;
+                });
+        contract.setBooking(savedBooking);
+        contract.setTenantName(tenant.getFullName());
+        contract.setTenantPhone(tenant.getPhoneNumber());
+        contract.setTitle("Hợp đồng thuê " + property.getTitle() + " - " + tenant.getFullName());
+        contract.setRoomNumber(property.getRoomNumber());
+        contract.setBuildingName(property.getBuildingName());
+        contract.setStartDate(checkInDate);
+        contract.setEndDate(checkOutDate);
+        contract.setRentPrice(property.getPrice());
+        contract.setDeposit(property.getDeposit());
+        contract.setBillingStartDate(LocalDate.now());
+        contract.setPaymentDueDay(null);
+        contract.setNotes(property.getDescription());
+        contract.setContractStatus(ContractStatus.PENDING_REVIEW);
+        contract.setUpdatedAt(now);
+
+        if (contract.getServices() != null) {
+            contract.getServices().clear();
+        } else {
+            contract.setServices(new ArrayList<>());
+        }
+        if (property.getServices() != null) {
+            for (PropertyServiceItem item : property.getServices()) {
+                ContractService contractService = ContractService.builder()
+                        .serviceName(item.getServiceName())
+                        .fee(item.getFee())
+                        .chargeBasis(item.getChargeBasis())
+                        .isIncluded(item.getIsIncluded())
+                        .note(item.getNote())
+                        .contract(contract)
+                        .build();
+                contract.getServices().add(contractService);
+            }
+        }
+
+        contractRepo.save(contract);
+        savedBooking.setContract(contract);
+
+        return bookingMapper.toDto(savedBooking);
     }
 
     @Override
     public BookingDto approve(String bookingId, String landlordId) {
-        Booking b = bookingRepo.findById(bookingId).orElseThrow();
-        if (!b.getProperty().getLandlord().getUserId().equals(landlordId))
-            throw new SecurityException("Only landlord can approve");
-        if (b.getBookingStatus() != BookingStatus.PENDING)
-            throw new IllegalStateException("Booking not in PENDING");
+        Booking booking = bookingRepo.findById(bookingId).orElseThrow();
+        if (booking.getProperty() == null || booking.getProperty().getLandlord() == null
+                || !booking.getProperty().getLandlord().getUserId().equals(landlordId)) {
+            throw new SecurityException("Only landlord can approve this booking");
+        }
+        if (booking.getBookingStatus() != BookingStatus.AWAITING_LANDLORD_APPROVAL) {
+            throw new IllegalStateException("Booking is not waiting for landlord approval");
+        }
 
-        b.setBookingStatus(BookingStatus.APPROVED);
-        b.setUpdatedAt(LocalDateTime.now());
-
-        BigDecimal total = b.getTotalPrice();
-        BigDecimal deposit = total.multiply(DEPOSIT_RATE).setScale(0, RoundingMode.HALF_UP);
-        Invoice inv = invoiceRepo.findByBooking_BookingId(bookingId).orElseGet(() -> {
-            Invoice i = new Invoice();
-            i.setInvoiceId(UUID.randomUUID().toString());
-            i.setBooking(b);
-            i.setInvoiceNo(genInvoiceNo());
-            i.setCreatedAt(LocalDateTime.now());
-            return i;
-        });
-        inv.setStatus(InvoiceStatus.ISSUED);
-        inv.setIssuedAt(LocalDateTime.now());
-        inv.setDueAt(LocalDateTime.now().plusHours(24)); // hạn thanh toán cọc: 24h
-        // HÓA ĐƠN TỔNG cho booking:
-        inv.setTotal(total);
-        inv.setSubtotal(total);
-        if (inv.getTax() == null) inv.setTax(BigDecimal.ZERO);
-        if (inv.getDiscount() == null) inv.setDiscount(BigDecimal.ZERO);
-        // BAN ĐẦU chỉ thu 50%:
-        inv.setDueAmount(deposit);
-        inv.setUpdatedAt(LocalDateTime.now());
-
-        PaymentLink link = paymentGateway.createPayment(
-                inv.getInvoiceId(),
-                deposit.longValue(),
-                "Coc 50% booking",
-                "https://your-frontend.com/payment/success",
-                "https://blackishly-unequalled-selina.ngrok-free.dev/api/v1/payments/webhook"
-        );
-        inv.setPaymentUrl(link.getCheckoutUrl());
-        inv.setQrPayload(link.getQrPayload());
-        inv.setPaymentMethod("PAYOS");
-        invoiceRepo.save(inv);
-
-        b.setPaymentUrl(link.getCheckoutUrl());
-
-//        realtime
-//        notificationService.createAndPush(
-//                b.getTenant(), "Yêu cầu được duyệt",
-//                "Vui lòng thanh toán 50% để giữ chỗ.", NotificationType.PAYMENT,
-//                "/bookings/" + b.getBookingId()
-//        );
-        bookingRepo.save(b);
-        return bookingMapper.toDto(b);
-    }
-
-    @Transactional
-    @Override
-    public BookingDto reject(String bookingId, String landlordId) {
-        Booking b = bookingRepo.findById(bookingId).orElseThrow();
-        if (!b.getProperty().getLandlord().getUserId().equals(landlordId))
-            throw new SecurityException("Only landlord can reject");
-        if (b.getBookingStatus() != BookingStatus.PENDING)
-            throw new IllegalStateException("Booking not in PENDING");
-
-        b.setUpdatedAt(LocalDateTime.now());
-        b.setBookingStatus(BookingStatus.REJECTED);
-
-//        thong bao realtime
-//        notificationService.createAndPush(
-//                b.getTenant(), "Yêu cầu bị từ chối",
-//                "Chủ nhà đã từ chối yêu cầu đặt của bạn.", NotificationType.BOOKING,
-//                "/bookings/" + b.getBookingId()
-//        );
-        return bookingMapper.toDto(b);
-    }
-
-    @Override
-    public BookingDto cancel(String bookingId, String tenantId) {
-        Booking b = bookingRepo.findById(bookingId).orElseThrow();
-        if (!b.getTenant().getUserId().equals(tenantId))
-            throw new SecurityException("Only tenant can cancel");
-        if (EnumSet.of(BookingStatus.REJECTED, BookingStatus.CANCELLED, BookingStatus.COMPLETED).contains(b.getBookingStatus()))
-            throw new IllegalStateException("Booking cannot be cancelled");
-
-        b.setUpdatedAt(LocalDateTime.now());
-        b.setBookingStatus(BookingStatus.CANCELLED);
-        Booking saved = bookingRepo.save(b);
-
-//        notificationService.createAndPush(
-//                b.getProperty().getLandlord(), "Khách hủy đặt phòng",
-//                b.getTenant().getFullName() + " đã hủy booking " + b.getBookingId(),
-//                NotificationType.BOOKING, "/landlord/bookings/" + b.getBookingId()
-//        );
-        return bookingMapper.toDto(saved);
-    }
-
-    @Override
-    public BookingDto checkIn(String bookingId, String tenantId) {
-        Booking b = bookingRepo.findById(bookingId).orElseThrow();
-        if (!b.getTenant().getUserId().equals(tenantId))
-            throw new SecurityException("Only tenant can check-in");
-        if (b.getBookingStatus() != BookingStatus.APPROVED)
-            throw new IllegalStateException("Booking not approved");
-
-        // Cọc đã trả: hoặc kiểm tra invoice dueAmount đã giảm tương ứng
-        Invoice inv = invoiceRepo.findByBooking_BookingId(bookingId)
+        Invoice invoice = invoiceRepo.findByBooking_BookingId(bookingId)
                 .orElseThrow(() -> new IllegalStateException("Invoice not found"));
-        BigDecimal due = inv.getDueAmount() == null ? BigDecimal.ZERO : inv.getDueAmount();
+        BigDecimal due = invoice.getDueAmount() == null ? BigDecimal.ZERO : invoice.getDueAmount();
         if (due.compareTo(BigDecimal.ZERO) > 0) {
             throw new IllegalStateException("Deposit not paid");
         }
 
-        b.setUpdatedAt(LocalDateTime.now());
-        b.setBookingStatus(BookingStatus.CHECKED_IN);
-        return bookingMapper.toDto(bookingRepo.save(b));
+        booking.setBookingStatus(BookingStatus.APPROVED);
+        booking.setUpdatedAt(LocalDateTime.now());
+        Booking saved = bookingRepo.save(booking);
+
+        contractRepo.findByBooking_BookingId(bookingId).ifPresent(contract -> {
+            contract.setContractStatus(ContractStatus.ACTIVE);
+            contract.setUpdatedAt(LocalDateTime.now());
+            contractRepo.save(contract);
+        });
+        return bookingMapper.toDto(saved);
+    }
+
+    @Override
+    public BookingDto cancel(String bookingId, String tenantId) {
+        Booking booking = bookingRepo.findById(bookingId).orElseThrow();
+        if (!booking.getTenant().getUserId().equals(tenantId)) {
+            throw new SecurityException("Only tenant can cancel");
+        }
+        if (EnumSet.of(BookingStatus.CANCELLED, BookingStatus.CHECKED_IN, BookingStatus.COMPLETED, BookingStatus.APPROVED)
+                .contains(booking.getBookingStatus())) {
+            throw new IllegalStateException("Booking cannot be cancelled at this stage");
+        }
+        booking.setBookingStatus(BookingStatus.CANCELLED);
+        booking.setUpdatedAt(LocalDateTime.now());
+        bookingRepo.save(booking);
+
+        contractRepo.findByBooking_BookingId(bookingId).ifPresent(contract -> {
+            contract.setContractStatus(ContractStatus.CANCELLED);
+            contract.setUpdatedAt(LocalDateTime.now());
+            contractRepo.save(contract);
+        });
+
+        invoiceRepo.findByBooking_BookingId(bookingId).ifPresent(inv -> {
+            inv.setStatus(InvoiceStatus.VOID);
+            inv.setUpdatedAt(LocalDateTime.now());
+            invoiceRepo.save(inv);
+        });
+
+        return bookingMapper.toDto(booking);
+    }
+
+    @Override
+    public BookingDto checkIn(String bookingId, String tenantId) {
+        Booking booking = bookingRepo.findById(bookingId).orElseThrow();
+        if (!booking.getTenant().getUserId().equals(tenantId)) {
+            throw new SecurityException("Only tenant can check-in");
+        }
+        if (booking.getBookingStatus() != BookingStatus.APPROVED) {
+            throw new IllegalStateException("Booking has not been approved");
+        }
+
+        Invoice invoice = invoiceRepo.findByBooking_BookingId(bookingId)
+                .orElseThrow(() -> new IllegalStateException("Invoice not found"));
+        BigDecimal due = invoice.getDueAmount() == null ? BigDecimal.ZERO : invoice.getDueAmount();
+        if (due.compareTo(BigDecimal.ZERO) > 0) {
+            throw new IllegalStateException("Booking still has outstanding balance");
+        }
+
+        booking.setBookingStatus(BookingStatus.CHECKED_IN);
+        booking.setUpdatedAt(LocalDateTime.now());
+        return bookingMapper.toDto(bookingRepo.save(booking));
     }
 
     @Transactional
     @Override
     public BookingDto checkOut(String bookingId, String tenantId) {
-        Booking b = bookingRepo.findById(bookingId).orElseThrow();
-        if (!b.getTenant().getUserId().equals(tenantId))
+        Booking booking = bookingRepo.findById(bookingId).orElseThrow();
+        if (!booking.getTenant().getUserId().equals(tenantId)) {
             throw new SecurityException("Only tenant can check-out");
-        if (b.getBookingStatus() != BookingStatus.CHECKED_IN)
+        }
+        if (booking.getBookingStatus() != BookingStatus.CHECKED_IN) {
             throw new IllegalStateException("Booking is not in CHECKED_IN status");
-
-        Invoice inv = invoiceRepo.findByBooking_BookingId(bookingId)
+        }
+        Invoice invoice = invoiceRepo.findByBooking_BookingId(bookingId)
                 .orElseThrow(() -> new IllegalStateException("Invoice not found"));
-
-        BigDecimal currentDue = inv.getDueAmount() == null ? BigDecimal.ZERO : inv.getDueAmount();
-        if (currentDue.compareTo(BigDecimal.ZERO) > 0) {
-            throw new IllegalStateException("Deposit has not been fully paid");
-        }
-        BigDecimal total = inv.getTotal() != null ? inv.getTotal() : BigDecimal.ZERO;
-        BigDecimal deposit = total.multiply(DEPOSIT_RATE).setScale(0, RoundingMode.HALF_UP);
-        BigDecimal remaining = total.subtract(deposit);
-        if (remaining.compareTo(BigDecimal.ZERO) < 0) {
-            remaining = BigDecimal.ZERO;
-        }
-        remaining = remaining.setScale(0, RoundingMode.HALF_UP);
-
-        inv.setDueAmount(remaining);
-        inv.setUpdatedAt(LocalDateTime.now());
-
-        if (remaining.compareTo(BigDecimal.ZERO) <= 0) {
-            inv.setStatus(InvoiceStatus.PAID);
-            if (inv.getPaidAt() == null) {
-                inv.setPaidAt(LocalDateTime.now());
-            }
-            invoiceRepo.save(inv);
-            b.setBookingStatus(BookingStatus.COMPLETED);
-            b.setUpdatedAt(LocalDateTime.now());
-            return bookingMapper.toDto(bookingRepo.save(b));
+        BigDecimal due = invoice.getDueAmount() == null ? BigDecimal.ZERO : invoice.getDueAmount();
+        if (due.compareTo(BigDecimal.ZERO) > 0) {
+            throw new IllegalStateException("Booking still has outstanding balance");
         }
 
-        // Cập nhật hạn thanh toán phần còn lại và phát link
-        inv.setStatus(InvoiceStatus.ISSUED);
-        inv.setPaidAt(null);
-        inv.setPaymentMethod("PAYOS");
-        inv.setPaymentRef(null);
-        inv.setDueAt(LocalDateTime.now().plusHours(12));
-
-        PaymentLink link = paymentGateway.createPayment(
-                inv.getInvoiceId(),
-                remaining.longValue(),
-                "Thanh toán phần còn lại booking " + b.getBookingId() + " | inv=" + inv.getInvoiceId(),
-                "https://your-frontend.com/payment/success",
-                "https://blackishly-unequalled-selina.ngrok-free.dev/api/v1/payments/webhook"
-        );
-        inv.setPaymentUrl(link.getCheckoutUrl());
-        inv.setQrPayload(link.getQrPayload());
-        invoiceRepo.save(inv);
-
-        b.setPaymentUrl(link.getCheckoutUrl());
-        b.setUpdatedAt(LocalDateTime.now());
-        return bookingMapper.toDto(bookingRepo.save(b));
+        booking.setBookingStatus(BookingStatus.COMPLETED);
+        booking.setUpdatedAt(LocalDateTime.now());
+        return bookingMapper.toDto(bookingRepo.save(booking));
     }
 
     @Override
     public BookingDto getOne(String bookingId, String userId) {
-        Booking b = bookingRepo.findById(bookingId).orElseThrow();
-
+        Booking booking = bookingRepo.findById(bookingId).orElseThrow();
         // chỉ tenant hoặc landlord của booking mới được xem
-        boolean isTenant = b.getTenant() != null && b.getTenant().getUserId().equals(userId);
-        boolean isLandlord = b.getProperty() != null
-                && b.getProperty().getLandlord() != null
-                && b.getProperty().getLandlord().getUserId().equals(userId);
+        boolean isTenant = booking.getTenant() != null && booking.getTenant().getUserId().equals(userId);
+        boolean isLandlord = booking.getProperty() != null
+                && booking.getProperty().getLandlord() != null
+                && booking.getProperty().getLandlord().getUserId().equals(userId);
 
         if (!isTenant && !isLandlord) {
             throw new SecurityException("Not allowed to view this booking");
         }
 
-        return bookingMapper.toDto(b);
+        return bookingMapper.toDto(booking);
     }
 
     @Override
     public void handlePaymentWebhook(PaymentWebhookPayload payload) {
-        Invoice inv = invoiceRepo.findById(payload.getInvoiceId()).orElseThrow();
+        Invoice invoice = invoiceRepo.findById(payload.getInvoiceId()).orElseThrow();
 
-        // Tính số tiền ghi nhận: nếu gateway không gửi amount,
-        // cho fake = toàn bộ due hiện tại (tức trả đủ phần đã yêu cầu)
-        BigDecimal paidNow;
-        if (payload.getAmount() != 0) {
-            paidNow = new BigDecimal(payload.getAmount());
-        } else {
-            paidNow = inv.getDueAmount();
-        }
+        BigDecimal paidNow = payload.getAmount() != 0
+                ? new BigDecimal(payload.getAmount())
+                : invoice.getDueAmount();
 
         if (payload.isSuccess()) {
-            BigDecimal newDue = inv.getDueAmount().subtract(paidNow);
-            if (newDue.compareTo(BigDecimal.ZERO) < 0) newDue = BigDecimal.ZERO;
-
-            inv.setDueAmount(newDue);
-            inv.setPaidAt(LocalDateTime.now());
-            inv.setStatus(newDue.compareTo(BigDecimal.ZERO) == 0 ? InvoiceStatus.PAID : InvoiceStatus.ISSUED);
-        } else {
-            // thất bại: giữ nguyên dueAmount; có thể log, set status ISSUED
-            inv.setStatus(InvoiceStatus.ISSUED);
-        }
-        inv.setUpdatedAt(LocalDateTime.now());
-        invoiceRepo.save(inv);
-
-        Booking b = inv.getBooking();
-        // Nếu đã check-in và đã thanh toán đủ, (tuỳ) chỉ hoàn tất khi đã tới hoặc qua end_date
-        if (payload.isSuccess()
-                && b.getBookingStatus() == BookingStatus.CHECKED_IN
-                && inv.getDueAmount().compareTo(BigDecimal.ZERO) == 0) {
-            // Nếu endDate là DATE thì so theo ngày; nếu LocalDateTime, giữ như dưới:
-            if (!LocalDateTime.now().isBefore(b.getEndDate())) {
-                b.setBookingStatus(BookingStatus.COMPLETED);
-                b.setUpdatedAt(LocalDateTime.now());
-                bookingRepo.save(b);
+            BigDecimal newDue = invoice.getDueAmount().subtract(paidNow);
+            if (newDue.compareTo(BigDecimal.ZERO) < 0) {
+                newDue = BigDecimal.ZERO;
             }
+            invoice.setDueAmount(newDue);
+            invoice.setPaidAt(LocalDateTime.now());
+            invoice.setStatus(newDue.compareTo(BigDecimal.ZERO) == 0 ? InvoiceStatus.PAID : InvoiceStatus.ISSUED);
+        } else {
+            invoice.setStatus(InvoiceStatus.ISSUED);
+        }
+        invoice.setUpdatedAt(LocalDateTime.now());
+        invoiceRepo.save(invoice);
+
+        Booking booking = invoice.getBooking();
+        if (payload.isSuccess() && invoice.getDueAmount().compareTo(BigDecimal.ZERO) == 0) {
+            booking.setBookingStatus(BookingStatus.AWAITING_LANDLORD_APPROVAL);
+            booking.setPaymentUrl(null);
+            booking.setUpdatedAt(LocalDateTime.now());
+            bookingRepo.save(booking);
+            contractRepo.findByBooking_BookingId(booking.getBookingId()).ifPresent(contract -> {
+                if (contract.getContractStatus() == ContractStatus.CANCELLED) {
+                    contract.setContractStatus(ContractStatus.PENDING_REVIEW);
+                }
+                contract.setUpdatedAt(LocalDateTime.now());
+                contractRepo.save(contract);
+            });
         }
     }
 
     private String genInvoiceNo() {
-        // Ví dụ: INV-20250922-ABCDEFG (ngẫu nhiên 7 ký tự)
-        String date = java.time.LocalDate.now().toString().replace("-", "");
-        String rand = java.util.UUID.randomUUID().toString().substring(0, 7).toUpperCase();
+        //INV-LocalDateT.Now()-ABCDEFG (ngẫu nhiên 7 ký tự)
+        String date = LocalDate.now().toString().replace("-", "");
+        String rand = UUID.randomUUID().toString().substring(0, 7).toUpperCase();
         return "INV-" + date + "-" + rand;
     }
 }

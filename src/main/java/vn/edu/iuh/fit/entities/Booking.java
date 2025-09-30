@@ -4,7 +4,8 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.math.BigDecimal;
-import java.time.*;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.*;
 
 import vn.edu.iuh.fit.entities.enums.BookingStatus;
@@ -23,8 +24,8 @@ public class Booking {
 
     @ManyToOne @JoinColumn(name="property_id") private Property property;
     @ManyToOne @JoinColumn(name="tenant_id") private User tenant;
-    private LocalDateTime startDate;
-    private LocalDateTime endDate;
+    private LocalDate startDate;
+    private LocalDate endDate;
     @Enumerated(EnumType.STRING) private BookingStatus bookingStatus;
     private BigDecimal totalPrice;
     private String note;

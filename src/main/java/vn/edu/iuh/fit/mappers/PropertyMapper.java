@@ -1,5 +1,6 @@
 package vn.edu.iuh.fit.mappers;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import vn.edu.iuh.fit.dtos.*;
 import vn.edu.iuh.fit.entities.Address;
@@ -8,25 +9,20 @@ import vn.edu.iuh.fit.entities.Property;
 import java.util.stream.Collectors;
 
 @Component
+@RequiredArgsConstructor
 public class PropertyMapper {
 
     private final UserMapper userMapper;
     private final AddressMapper addressMapper;
     private final PropertyFurnishingMapper furnishingMapper;
     private final PropertyMediaMapper mediaMapper;
-
-    public PropertyMapper(UserMapper userMapper,
-                          AddressMapper addressMapper,
-                          PropertyFurnishingMapper furnishingMapper,
-                          PropertyMediaMapper mediaMapper) {
-        this.userMapper = userMapper;
-        this.addressMapper = addressMapper;
-        this.furnishingMapper = furnishingMapper;
-        this.mediaMapper = mediaMapper;
-    }
+    private final PropertyServiceItemMapper serviceItemMapper;
 
     public AddressMapper getAddressMapper() {
         return this.addressMapper;
+    }
+    public PropertyServiceItemMapper getServiceItemMapper() {
+        return this.serviceItemMapper;
     }
 
     /** Entity -> DTO */
@@ -53,13 +49,16 @@ public class PropertyMapper {
                 entity.getFloorNo(),
                 entity.getFurnishings() != null ?
                         entity.getFurnishings().stream().map(furnishingMapper::toDto).collect(Collectors.toList()) : null,
+                entity.getServices() != null ?
+                        entity.getServices().stream().map(serviceItemMapper::toDto).collect(Collectors.toList()) : null,
                 entity.getMedia() != null ?
                         entity.getMedia().stream().map(mediaMapper::toDto).collect(Collectors.toList()) : null,
                 entity.getPostStatus(),
                 entity.getRejectedReason(),
                 entity.getPublishedAt(),
                 entity.getCreatedAt(),
-                entity.getUpdatedAt()
+                entity.getUpdatedAt(),
+                entity.getStatus()
         );
     }
 
@@ -92,11 +91,19 @@ public class PropertyMapper {
         entity.setPublishedAt(dto.getPublishedAt());
         entity.setCreatedAt(dto.getCreatedAt());
         entity.setUpdatedAt(dto.getUpdatedAt());
+        entity.setStatus(dto.getStatus());
 
         // Furnishings
         if (dto.getFurnishings() != null) {
             entity.setFurnishings(dto.getFurnishings().stream()
                     .map(furnishingMapper::toEntity)
+                    .collect(Collectors.toList()));
+        }
+
+        // Services
+        if (dto.getServices() != null){
+            entity.setServices(dto.getServices().stream()
+                    .map(serviceItemMapper::toEntity)
                     .collect(Collectors.toList()));
         }
 

@@ -2,6 +2,7 @@ package vn.edu.iuh.fit.entities;
 
 import jakarta.persistence.*;
 import lombok.*;
+import vn.edu.iuh.fit.entities.enums.ContractStatus;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -25,7 +26,7 @@ public class Contract {
     void prePersist() {
         if (contractId == null) contractId = java.util.UUID.randomUUID().toString();
         if (createdAt == null) createdAt = LocalDateTime.now();
-        if (updatedAt == null) updatedAt = LocalDateTime.now();
+        if (contractStatus == null) contractStatus = ContractStatus.PENDING_REVIEW;
     }
 
     // Quan hệ 1–1 với Booking
@@ -59,6 +60,10 @@ public class Contract {
 
     @Column(name = "end_date")
     private LocalDate endDate;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "contract_status", length = 30)
+    private ContractStatus contractStatus;
 
     @OneToMany(mappedBy = "contract", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ContractService> services = new ArrayList<>();

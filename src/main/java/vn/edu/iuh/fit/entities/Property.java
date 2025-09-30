@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.*;
 import vn.edu.iuh.fit.entities.enums.ApartmentCategory;
 import vn.edu.iuh.fit.entities.enums.PostStatus;
+import vn.edu.iuh.fit.entities.enums.PropertyStatus;
 import vn.edu.iuh.fit.entities.enums.PropertyType;
 
 import java.math.BigDecimal;
@@ -31,6 +32,7 @@ public class Property {
         if (createdAt == null) createdAt = LocalDateTime.now();
         if (updatedAt == null) updatedAt = LocalDateTime.now();
         if (postStatus == null) postStatus = PostStatus.PENDING;
+        if (status == null) status = PropertyStatus.AVAILABLE;
         validateByType();
     }
 
@@ -80,7 +82,7 @@ public class Property {
     /* ===== Riêng cho BUILDING (căn hộ/tòa) ===== */
     private String buildingName;        // tên tòa/căn hộ
     @Enumerated(EnumType.STRING)
-    private ApartmentCategory apartmentCategory; // CHUNG_CU | DUPLEX | PENTHOUSE
+    private ApartmentCategory apartmentCategory; // CHUNG_CU | DUPLEX | PENTHOUSE | HOMESTAY
     private Integer bedrooms;           // số phòng ngủ (nếu bạn áp cho building)
     private Integer bathrooms;          // số phòng vệ sinh (nếu bạn áp cho building)
 
@@ -91,6 +93,8 @@ public class Property {
     @OneToMany(mappedBy = "property", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
     private List<PropertyFurnishing> furnishings = new ArrayList<>();
 
+    @OneToMany(mappedBy = "property", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<PropertyServiceItem> services = new ArrayList<>();
 
     /* ===== Media: ảnh/video (S3 URLs) ===== */
     @OneToMany(mappedBy = "property", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
@@ -109,6 +113,10 @@ public class Property {
     /* ===== Audit ===== */
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+
+    @Enumerated(EnumType.STRING)
+    @Column(length = 16, nullable = false)
+    private PropertyStatus status = PropertyStatus.AVAILABLE;
 
     /* ===== Ràng buộc theo loại ===== */
     private void validateByType() {

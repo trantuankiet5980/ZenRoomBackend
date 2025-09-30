@@ -16,8 +16,8 @@ public class BookingDto implements Serializable {
     String bookingId;
     PropertyDto property;
     UserDto tenant;
-    LocalDateTime startDate;
-    LocalDateTime endDate;
+    LocalDate startDate;
+    LocalDate endDate;
     BookingStatus bookingStatus;
     BigDecimal totalPrice;
     String note;

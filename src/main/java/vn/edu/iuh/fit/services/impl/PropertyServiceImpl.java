@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vn.edu.iuh.fit.dtos.PropertyDto;
 import vn.edu.iuh.fit.dtos.PropertyFurnishingDto;
+import vn.edu.iuh.fit.dtos.PropertyServiceItemDto;
 import vn.edu.iuh.fit.entities.*;
 import vn.edu.iuh.fit.entities.enums.PostStatus;
 import vn.edu.iuh.fit.entities.enums.PropertyType;
@@ -108,6 +109,16 @@ public class PropertyServiceImpl implements PropertyService {
         }
         property.setFurnishings(fixed);
 
+        List<PropertyServiceItem> serviceItems = new ArrayList<>();
+        if (dto.getServices() != null) {
+            for (PropertyServiceItemDto sDto : dto.getServices()) {
+                PropertyServiceItem item = propertyMapper.getServiceItemMapper().toEntity(sDto);
+                item.setProperty(property);
+                serviceItems.add(item);
+            }
+        }
+        property.setServices(serviceItems);
+
         Property saved = propertyRepository.save(property);
         realtimeNotificationService.notifyAdminsPropertyCreated(propertyMapper.toDto(saved));
         return saved;
@@ -169,6 +180,19 @@ public class PropertyServiceImpl implements PropertyService {
                 propertyMapper.getAddressMapper().updateEntity(addr, dto.getAddress(), ward);
             }
             existing.setAddress(addr);
+        }
+
+        if (dto.getServices() != null) {
+            if (existing.getServices() == null) {
+                existing.setServices(new ArrayList<>());
+            } else {
+                existing.getServices().clear();
+            }
+            for (PropertyServiceItemDto sDto : dto.getServices()) {
+                PropertyServiceItem item = propertyMapper.getServiceItemMapper().toEntity(sDto);
+                item.setProperty(existing);
+                existing.getServices().add(item);
+            }
         }
 
         existing.setPostStatus(PostStatus.PENDING);

@@ -35,6 +35,7 @@ public class ContractMapper {
                 e.getBuildingName(),
                 e.getStartDate(),
                 e.getEndDate(),
+                e.getContractStatus(),
                 services,
                 e.getRentPrice(),
                 e.getDeposit(),
@@ -60,6 +61,7 @@ public class ContractMapper {
         c.setBuildingName(d.getBuildingName());
         c.setStartDate(d.getStartDate());
         c.setEndDate(d.getEndDate());
+        c.setContractStatus(d.getContractStatus());
         c.setRentPrice(d.getRentPrice());
         c.setDeposit(d.getDeposit());
         c.setBillingStartDate(d.getBillingStartDate());
