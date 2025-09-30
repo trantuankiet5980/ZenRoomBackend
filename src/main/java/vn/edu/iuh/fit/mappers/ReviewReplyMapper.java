@@ -8,7 +8,6 @@ import vn.edu.iuh.fit.entities.ReviewReply;
 @Component
 @RequiredArgsConstructor
 public class ReviewReplyMapper {
-    private final ReviewMapper reviewMapper;
     private final UserMapper userMapper;
 
     /** Entity -> DTO */
@@ -16,7 +15,7 @@ public class ReviewReplyMapper {
         if (e == null) return null;
         return new vn.edu.iuh.fit.dtos.ReviewReplyDto(
                 e.getReplyId(),
-                reviewMapper.toDto(e.getReview()),
+                e.getReview() != null ? e.getReview().getReviewId() : null,
                 userMapper.toDto(e.getLandlord()),
                 e.getReplyText(),
                 e.getCreatedAt(),

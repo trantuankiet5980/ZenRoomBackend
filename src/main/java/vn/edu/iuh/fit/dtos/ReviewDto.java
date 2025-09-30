@@ -15,6 +15,7 @@ public class ReviewDto implements Serializable {
     UserDto tenant;
     int rating;
     String comment;
+    ReviewReplyDto reply;
     LocalDateTime createdAt;
     LocalDateTime updatedAt;
 }
