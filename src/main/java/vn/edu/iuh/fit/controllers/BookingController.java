@@ -31,11 +31,6 @@ public class BookingController {
         return bookingService.approve(bookingId, principal.getName());
     }
 
-    @PostMapping("/{bookingId}/reject")
-    public BookingDto reject(@PathVariable String bookingId, Principal principal) {
-        return bookingService.reject(bookingId, principal.getName());
-    }
-
     @PostMapping("/{bookingId}/cancel")
     public BookingDto cancel(@PathVariable String bookingId, Principal principal) {
         return bookingService.cancel(bookingId, principal.getName());
@@ -78,7 +73,7 @@ public class BookingController {
                                               @RequestParam(defaultValue = "0") int page,
                                               @RequestParam(defaultValue = "10") int size) {
         return bookingRepo.findByTenant_UserIdAndBookingStatusOrderByCreatedAtDesc(
-                        principal.getName(), BookingStatus.PENDING, PageRequest.of(page, size))
+                        principal.getName(), BookingStatus.PENDING_PAYMENT, PageRequest.of(page, size))
                 .map(bookingMapper::toDto);
     }
 
@@ -96,7 +91,7 @@ public class BookingController {
                                                     @RequestParam(defaultValue = "0") int page,
                                                     @RequestParam(defaultValue = "10") int size) {
         return bookingRepo.findByProperty_Landlord_UserIdAndBookingStatusOrderByCreatedAtDesc(
-                        principal.getName(), BookingStatus.PENDING, PageRequest.of(page, size))
+                        principal.getName(), BookingStatus.AWAITING_LANDLORD_APPROVAL, PageRequest.of(page, size))
                 .map(bookingMapper::toDto);
     }
 

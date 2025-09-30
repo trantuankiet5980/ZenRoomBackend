@@ -3,6 +3,7 @@ package vn.edu.iuh.fit.dtos;
 import lombok.Value;
 import vn.edu.iuh.fit.entities.enums.ApartmentCategory;
 import vn.edu.iuh.fit.entities.enums.PostStatus;
+import vn.edu.iuh.fit.entities.enums.PropertyStatus;
 import vn.edu.iuh.fit.entities.enums.PropertyType;
 
 import java.io.Serializable;
@@ -33,10 +34,12 @@ public class PropertyDto implements Serializable {
     String roomNumber;
     Integer floorNo;
     List<PropertyFurnishingDto> furnishings;
+    List<PropertyServiceItemDto> services;
     List<PropertyMediaDto> media;
     PostStatus postStatus;
     String rejectedReason;
     LocalDateTime publishedAt;
     LocalDateTime createdAt;
     LocalDateTime updatedAt;
+    PropertyStatus status;
 }
