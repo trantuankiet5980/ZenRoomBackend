@@ -5,6 +5,9 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import vn.edu.iuh.fit.dtos.ContractDto;
 import vn.edu.iuh.fit.services.ContractService;
@@ -65,5 +68,15 @@ public class ContractController {
         String[] p = sort.split(",");
         if (p.length == 2) return Sort.by("DESC".equalsIgnoreCase(p[1]) ? Sort.Direction.DESC : Sort.Direction.ASC, p[0]);
         return Sort.by(Sort.Direction.DESC, "createdAt");
+    }
+
+    /** Xuất hợp đồng thành file PDF cho landlord/tenant của booking */
+    @GetMapping(value = "/{contractId}/pdf", produces = MediaType.APPLICATION_PDF_VALUE)
+    public ResponseEntity<byte[]> exportPdf(@PathVariable String contractId, Principal principal) {
+        byte[] pdf = contractService.exportPdf(contractId, principal.getName());
+        String filename = "contract-" + contractId + ".pdf";
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
+                .body(pdf);
     }
 }

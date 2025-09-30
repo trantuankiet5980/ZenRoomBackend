@@ -15,6 +15,7 @@ import vn.edu.iuh.fit.mappers.ContractServiceMapper;
 import vn.edu.iuh.fit.repositories.BookingRepository;
 import vn.edu.iuh.fit.repositories.ContractRepository;
 import vn.edu.iuh.fit.services.ContractService;
+import vn.edu.iuh.fit.services.pdf.ContractPdfRenderer;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -27,6 +28,7 @@ public class ContractServiceImpl implements ContractService {
     private final BookingRepository bookingRepo;
     private final ContractMapper contractMapper;
     private final ContractServiceMapper serviceMapper;
+    private final ContractPdfRenderer contractPdfRenderer;
 
     @Transactional
     @Override
@@ -156,5 +158,24 @@ public class ContractServiceImpl implements ContractService {
         }
 
         return contractMapper.toDto(contractRepo.save(c));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public byte[] exportPdf(String contractId, String requesterId) {
+        Contract contract = contractRepo.findById(contractId).orElseThrow();
+        Booking booking = contract.getBooking();
+        if (booking == null) {
+            throw new IllegalStateException("Contract missing booking");
+        }
+        boolean isTenant = booking.getTenant() != null && booking.getTenant().getUserId().equals(requesterId);
+        boolean isLandlord = booking.getProperty() != null && booking.getProperty().getLandlord() != null
+                && booking.getProperty().getLandlord().getUserId().equals(requesterId);
+        if (!isTenant && !isLandlord) {
+            throw new SecurityException("Not allowed");
+        }
+
+        ContractDto dto = contractMapper.toDto(contract);
+        return contractPdfRenderer.render(dto);
     }
 }
