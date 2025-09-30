@@ -16,6 +16,7 @@ import vn.edu.iuh.fit.dtos.*;
 import java.awt.*;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.math.BigDecimal;
 import java.text.NumberFormat;
 import java.time.LocalDate;
@@ -42,9 +43,10 @@ public class ContractPdfRenderer {
             PdfWriter.getInstance(document, out);
             document.open();
 
-            Font titleFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 18);
-            Font subtitleFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 13);
-            Font normalFont = FontFactory.getFont(FontFactory.HELVETICA, 11);
+            VnFonts fonts = loadVnFonts();
+            Font titleFont = fonts.title;
+            Font subtitleFont = fonts.subtitle;
+            Font normalFont = fonts.normal;
 
             addTitle(document, contract, titleFont, normalFont);
             addPartySection(document, contract, subtitleFont, normalFont);
@@ -131,17 +133,25 @@ public class ContractPdfRenderer {
             throws DocumentException {
         document.add(new Paragraph("4. Điều khoản thanh toán", subtitleFont));
 
+        long numberOfNights = 0;
+        if (contract.getStartDate() != null && contract.getEndDate() != null) {
+            numberOfNights = java.time.temporal.ChronoUnit.DAYS.between(
+                    contract.getStartDate(),
+                    contract.getEndDate()
+            );
+            if (numberOfNights < 0) numberOfNights = 0; // tránh lỗi nếu dữ liệu ngược
+        }
+        BigDecimal total = BigDecimal.ZERO;
+        if (contract.getRentPrice() != null && numberOfNights > 0) {
+            total = contract.getRentPrice().multiply(BigDecimal.valueOf(numberOfNights));
+        }
+
         StringBuilder sb = new StringBuilder();
         sb.append("Giá thuê: ").append(formatMoney(contract.getRentPrice())).append('\n');
-        sb.append("Tiền cọc: ").append(formatMoney(contract.getDeposit())).append('\n');
+        sb.append("Số đêm: ").append(numberOfNights).append('\n');
+        sb.append("Tổng tiền: ").append(formatMoney(total)).append('\n');
         sb.append("Ngày bắt đầu: ").append(formatDate(contract.getStartDate())).append('\n');
         sb.append("Ngày kết thúc: ").append(formatDate(contract.getEndDate())).append('\n');
-        if (contract.getBillingStartDate() != null) {
-            sb.append("Chu kỳ thanh toán bắt đầu từ: ").append(formatDate(contract.getBillingStartDate())).append('\n');
-        }
-        if (contract.getPaymentDueDay() != null) {
-            sb.append("Ngày đến hạn mỗi kỳ: ngày ").append(contract.getPaymentDueDay()).append(" hàng tháng");
-        }
 
         Paragraph paragraph = new Paragraph(sb.toString(), normalFont);
         paragraph.setSpacingBefore(6f);
@@ -295,11 +305,22 @@ public class ContractPdfRenderer {
         }
     }
     private static class VnFonts {
-        final Font title;
-        final Font subtitle;
-        final Font normal;
-        VnFonts(Font title, Font subtitle, Font normal) {
-            this.title = title; this.subtitle = subtitle; this.normal = normal;
+        final Font title, subtitle, normal;
+        VnFonts(Font t, Font s, Font n){ this.title=t; this.subtitle=s; this.normal=n; }
+    }
+
+    private VnFonts loadVnFonts() throws IOException, DocumentException {
+        try (InputStream is = getClass().getResourceAsStream("/fonts/DejaVuSans.ttf")) {
+            if (is == null) throw new IOException("Missing /fonts/DejaVuSans.ttf on classpath");
+            byte[] bytes = is.readAllBytes();
+            BaseFont bf = BaseFont.createFont(
+                    "DejaVuSans.ttf", BaseFont.IDENTITY_H, BaseFont.EMBEDDED,  // Unicode + embed
+                    false, bytes, null                                         // đọc từ byte[]
+            );
+            Font normal   = new Font(bf, 11);
+            Font subtitle = new Font(bf, 13, Font.BOLD);
+            Font title    = new Font(bf, 18, Font.BOLD);
+            return new VnFonts(title, subtitle, normal);
         }
     }
     private void addGeneralTermsSection(Document document, Font subtitleFont, Font normalFont, ContractDto contract)
@@ -349,19 +370,5 @@ public class ContractPdfRenderer {
 
         // Đẩy số thứ tự các mục sau lên +1 so với trước đó
         document.add(Chunk.NEWLINE);
-    }
-
-    private VnFonts loadVnFonts() throws IOException, DocumentException {
-        // nạp từ classpath
-        var fontRes = new ClassPathResource("fonts/DejaVuSans.ttf");
-        BaseFont bf = BaseFont.createFont(
-                fontRes.getPath(), // nếu null trên JAR, dùng getInputStream() -> lưu tạm thành byte[] rồi createFont với "Identity-H"
-                BaseFont.IDENTITY_H,
-                BaseFont.EMBEDDED
-        );
-        Font normal = new Font(bf, 11);
-        Font subtitle = new Font(bf, 13, Font.BOLD);
-        Font title = new Font(bf, 18, Font.BOLD);
-        return new VnFonts(title, subtitle, normal);
     }
 }
