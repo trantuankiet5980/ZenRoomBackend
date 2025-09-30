@@ -1,18 +1,16 @@
 package vn.edu.iuh.fit.mappers;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import vn.edu.iuh.fit.dtos.ReviewDto;
 import vn.edu.iuh.fit.entities.Review;
 
 @Component
+@RequiredArgsConstructor
 public class ReviewMapper {
     private final BookingMapper bookingMapper;
     private final UserMapper userMapper;
-
-    public ReviewMapper(BookingMapper bookingMapper, UserMapper userMapper) {
-        this.bookingMapper = bookingMapper;
-        this.userMapper = userMapper;
-    }
+    private final ReviewReplyMapper replyMapper;
 
     /** Entity -> DTO */
     public ReviewDto toDto(Review e) {
@@ -23,6 +21,7 @@ public class ReviewMapper {
                 userMapper.toDto(e.getTenant()),
                 e.getRating(),
                 e.getComment(),
+                replyMapper.toDto(e.getReply()),
                 e.getCreatedAt(),
                 e.getUpdatedAt()
         );

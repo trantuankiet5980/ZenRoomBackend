@@ -19,7 +19,11 @@ public class ReviewReply {
             this.createdAt = LocalDateTime.now();
         }
     }
-    @ManyToOne @JoinColumn(name="review_id") private Review review;
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    @OneToOne
+    @JoinColumn(name="review_id", unique = true)
+    private Review review;
     @ManyToOne @JoinColumn(name="landlord_id") private User landlord;
     private String replyText;
     private LocalDateTime createdAt;

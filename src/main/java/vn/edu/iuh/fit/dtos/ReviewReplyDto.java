@@ -11,7 +11,7 @@ import java.time.LocalDateTime;
 @Value
 public class ReviewReplyDto implements Serializable {
     String replyId;
-    ReviewDto review;
+    String reviewId;
     UserDto landlord;
     String replyText;
     LocalDateTime createdAt;

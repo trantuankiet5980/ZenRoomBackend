@@ -93,10 +93,10 @@ public class ReviewServiceImpl implements ReviewService {
     public ReviewReplyDto upsertLandlordReply(String landlordId, ReviewReplyDto dto) {
         if (dto.getReplyId() == null) {
             // CREATE
-            if (dto.getReview() == null || dto.getReview().getReviewId() == null)
-                throw new IllegalArgumentException("review (reviewId) is required");
+            if (dto.getReviewId() == null)
+                throw new IllegalArgumentException("reviewId is required");
 
-            Review r = reviewRepo.findById(dto.getReview().getReviewId()).orElseThrow();
+            Review r = reviewRepo.findById(dto.getReviewId()).orElseThrow();
             User landlord = r.getBooking().getProperty().getLandlord();
             if (!landlord.getUserId().equals(landlordId))
                 throw new SecurityException("Only property's landlord can reply");
@@ -110,8 +110,10 @@ public class ReviewServiceImpl implements ReviewService {
             rp.setReplyText(dto.getReplyText());
             rp.setCreatedAt(LocalDateTime.now());
             rp.setUpdatedAt(null);
+            ReviewReply saved = replyRepo.save(rp);
+            r.setReply(saved); // set reply cho review
 
-            return replyMapper.toDto(replyRepo.save(rp));
+            return replyMapper.toDto(saved);
         } else {
             // UPDATE (24h)
             ReviewReply rp = replyRepo.findById(dto.getReplyId()).orElseThrow();
@@ -121,7 +123,11 @@ public class ReviewServiceImpl implements ReviewService {
 
             rp.setReplyText(dto.getReplyText());
             rp.setUpdatedAt(LocalDateTime.now());
-            return replyMapper.toDto(replyRepo.save(rp));
+            ReviewReply updated = replyRepo.save(rp);
+            if (updated.getReview() != null) {
+                updated.getReview().setReply(updated);
+            }
+            return replyMapper.toDto(updated);
         }
     }
 

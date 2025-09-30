@@ -19,8 +19,17 @@ public class Review {
             this.createdAt = LocalDateTime.now();
         }
     }
-    @ManyToOne @JoinColumn(name="booking_id") private Booking booking;
-    @ManyToOne @JoinColumn(name="tenant_id") private User tenant;
+    @ManyToOne
+    @JoinColumn(name="booking_id")
+    private Booking booking;
+    @ManyToOne
+    @JoinColumn(name="tenant_id")
+    private User tenant;
+
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    @OneToOne(mappedBy = "review", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private ReviewReply reply;
     private int rating;
     private String comment;
     private LocalDateTime createdAt;
