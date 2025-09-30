@@ -14,4 +14,7 @@ public interface ContractService {
 
     // tuỳ chọn: cập nhật hợp đồng (thay lỗi chính tả, ghi chú, thay services…)
     ContractDto replace(String landlordId, ContractDto dto);
+
+    //Export contract to PDF
+    byte[] exportPdf(String contractId, String requesterId);
 }

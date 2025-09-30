@@ -47,6 +47,8 @@ dependencies {
     // https://mvnrepository.com/artifact/org.springframework/spring-messaging
     implementation("org.springframework:spring-messaging:6.2.10")
     implementation("vn.payos:payos-java:1.0.3")
+    // https://mvnrepository.com/artifact/com.github.librepdf/openpdf
+    implementation("com.github.librepdf:openpdf:1.3.39")
 
     compileOnly 'org.projectlombok:lombok'
     developmentOnly 'org.springframework.boot:spring-boot-devtools'
