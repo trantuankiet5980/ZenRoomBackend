@@ -12,6 +12,8 @@ import vn.edu.iuh.fit.repositories.BookingRepository;
 import vn.edu.iuh.fit.services.BookingService;
 
 import java.security.Principal;
+import java.time.LocalDate;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/bookings")
@@ -67,6 +69,10 @@ public class BookingController {
         return bookingService.getOne(bookingId, principal.getName());
     }
 
+    @GetMapping("/property/{propertyId}/booked-dates")
+    public List<LocalDate> getBookedDates(@PathVariable String propertyId) {
+        return bookingService.getBookedDates(propertyId);
+    }
 
     @GetMapping("/me/pending")
     public Page<BookingDto> myPendingBookings(Principal principal,
