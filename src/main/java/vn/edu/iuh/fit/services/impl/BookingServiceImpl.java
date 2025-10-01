@@ -24,7 +24,9 @@ import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.EnumSet;
+import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -332,6 +334,22 @@ public class BookingServiceImpl implements BookingService {
                 contractRepo.save(contract);
             });
         }
+    }
+
+    @Transactional(readOnly = true)
+    @Override
+    public List<LocalDate> getBookedDates(String propertyId) {
+        if (propertyId == null || propertyId.isBlank()) {
+            throw new IllegalArgumentException("propertyId is required");
+        }
+
+        return bookingRepo.findByProperty_PropertyIdAndBookingStatusNot(propertyId, BookingStatus.CANCELLED)
+                .stream()
+                .filter(booking -> booking.getStartDate() != null && booking.getEndDate() != null)
+                .flatMap(booking -> booking.getStartDate().datesUntil(booking.getEndDate()))
+                .distinct()
+                .sorted()
+                .collect(Collectors.toList());
     }
 
     private String genInvoiceNo() {

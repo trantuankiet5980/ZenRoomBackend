@@ -9,6 +9,7 @@ import vn.edu.iuh.fit.entities.Booking;
 import vn.edu.iuh.fit.entities.enums.BookingStatus;
 
 import java.time.LocalDate;
+import java.util.List;
 
 public interface BookingRepository extends JpaRepository<Booking, String> {
     // Kiểm tra overlap khi thuê theo ngày (các booking chưa bị hủy/hoàn tất)
@@ -36,4 +37,6 @@ public interface BookingRepository extends JpaRepository<Booking, String> {
             BookingStatus status,
             Pageable pageable
     );
+
+    List<Booking> findByProperty_PropertyIdAndBookingStatusNot(String propertyId, BookingStatus status);
 }
