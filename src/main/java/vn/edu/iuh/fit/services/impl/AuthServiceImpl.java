@@ -320,4 +320,24 @@ public class AuthServiceImpl implements AuthService {
         userRepository.save(user);
     }
 
+    @Override
+    public void changePassword(String currentPassword, String newPassword) {
+        User user = getCurrentUser(); // lấy user đang login từ context
+
+        // Kiểm tra mật khẩu hiện tại
+        if (!passwordEncoder.matches(currentPassword, user.getPasswordHash())) {
+            throw new IllegalArgumentException("Current password is incorrect");
+        }
+
+        // Kiểm tra mật khẩu mới hợp lệ
+        if (!newPassword.matches("^(?=.*[A-Za-z])(?=.*\\d)[A-Za-z\\d]{8,}$")) {
+            throw new IllegalArgumentException("Mật khẩu mới phải dài ít nhất 8 ký tự và bao gồm chữ cái và số");
+        }
+
+        // Cập nhật mật khẩu
+        user.setPasswordHash(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
+    }
+
+
 }

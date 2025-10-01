@@ -14,4 +14,5 @@
         void logout(String token);
         RefreshTokenResponse refreshToken(String refreshToken);
         void resetPassword(String phoneNumber, String newPassword);
+        void changePassword(String currentPassword, String newPassword);
     }
