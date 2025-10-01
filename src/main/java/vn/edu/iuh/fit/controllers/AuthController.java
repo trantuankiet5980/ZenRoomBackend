@@ -416,4 +416,41 @@ public class AuthController {
         }
     }
 
+    @PostMapping("/change-password")
+    public ResponseEntity<ApiResponse<?>> changePassword(@RequestBody Map<String, String> request) {
+        String currentPassword = request.get("currentPassword");
+        String newPassword = request.get("newPassword");
+
+        if (currentPassword == null || currentPassword.trim().isEmpty() ||
+                newPassword == null || newPassword.trim().isEmpty()) {
+            return ResponseEntity.badRequest().body(ApiResponse.builder()
+                    .success(false)
+                    .message("Current password and new password cannot be empty")
+                    .data(null)
+                    .build());
+        }
+
+        try {
+            authService.changePassword(currentPassword, newPassword);
+            return ResponseEntity.ok(ApiResponse.builder()
+                    .success(true)
+                    .message("Password changed successfully")
+                    .data(null)
+                    .build());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.builder()
+                    .success(false)
+                    .message(e.getMessage())
+                    .data(null)
+                    .build());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.builder()
+                    .success(false)
+                    .message("Failed to change password: " + e.getMessage())
+                    .data(null)
+                    .build());
+        }
+    }
+
+
 }
