@@ -12,6 +12,7 @@ import vn.edu.iuh.fit.dtos.responses.ApiResponse;
 import vn.edu.iuh.fit.dtos.user.UserCreateRequest;
 import vn.edu.iuh.fit.dtos.user.UserResponse;
 import vn.edu.iuh.fit.dtos.user.UserUpdateRequest;
+import vn.edu.iuh.fit.services.AuthService;
 import vn.edu.iuh.fit.services.FollowService;
 import vn.edu.iuh.fit.services.UserService;
 
@@ -24,6 +25,7 @@ public class UserController {
 
     private final UserService userService;
     private final FollowService followService;
+    private final AuthService authService;
 
     @PostMapping
     public ResponseEntity<UserDto> create(@RequestBody UserCreateRequest user) {
@@ -99,4 +101,11 @@ public class UserController {
                 "following", followService.countFollowing(id)
         ));
     }
+
+    @PreAuthorize("isAuthenticated()")
+    @GetMapping("/profile")
+    public ResponseEntity<UserDto> getMyProfile() {
+        return ResponseEntity.ok(userService.getById(authService.getCurrentUser().getUserId()));
+    }
+
 }
