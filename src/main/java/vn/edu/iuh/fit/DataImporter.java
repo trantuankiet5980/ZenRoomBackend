@@ -43,7 +43,7 @@ public class DataImporter implements CommandLineRunner {
 //                new TypeReference<Map<String, ProvinceJson>>() {});
 //
 //        for (ProvinceJson p : provincesMap.values()) {
-//            Province province = new Province(p.getCode(), p.getName());
+//            Province province = new Province(p.getCode(), p.getName_with_type());
 //            provinceRepository.save(province);
 //        }
 //    }
@@ -58,7 +58,7 @@ public class DataImporter implements CommandLineRunner {
 //        for (DistrictJson d : districtsMap.values()) {
 //            Province province = provinceRepository.findById(d.getParent_code()).orElse(null);
 //            if (province == null) continue;
-//            District district = new District(d.getCode(), d.getName(), province);
+//            District district = new District(d.getCode(), d.getName_with_type(), province);
 //            districtRepository.save(district);
 //        }
 //    }
@@ -73,7 +73,7 @@ public class DataImporter implements CommandLineRunner {
 //        for (WardJson w : wardsMap.values()) {
 //            District district = districtRepository.findById(w.getParent_code()).orElse(null);
 //            if (district == null) continue;
-//            Ward ward = new Ward(w.getCode(), w.getName(), district);
+//            Ward ward = new Ward(w.getCode(), w.getName_with_type(), district);
 //            wardRepository.save(ward);
 //        }
 //    }

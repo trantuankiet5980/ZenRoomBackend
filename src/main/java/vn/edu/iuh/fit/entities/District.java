@@ -10,7 +10,7 @@ import java.util.List;
 public class District {
     @Id
     private String code; // VD: 760
-    private String name; // Quận 1
+    private String name_with_type; // Quận 1
 
     @ManyToOne
     @JoinColumn(name = "province_code")
@@ -19,9 +19,9 @@ public class District {
     @OneToMany(mappedBy = "district", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Ward> wards;
 
-    public District(String code, String name, Province province) {
+    public District(String code, String name_with_type, Province province) {
         this.code = code;
-        this.name = name;
+        this.name_with_type = name_with_type;
         this.province = province;
     }
 }
