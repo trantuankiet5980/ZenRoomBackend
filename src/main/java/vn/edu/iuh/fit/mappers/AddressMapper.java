@@ -57,12 +57,23 @@ public class AddressMapper {
     public void updateEntity(Address entity, AddressDto dto, Ward ward) {
         if (dto == null || entity == null) return;
 
-        if (ward != null) entity.setWard(ward);
+        if (ward != null) {
+            entity.setWard(ward);
+            entity.setDistrict(ward.getDistrict());
+            if (ward.getDistrict() != null) {
+                entity.setProvince(ward.getDistrict().getProvince());
+            }
+        }
         if (dto.getStreet() != null) entity.setStreet(dto.getStreet());
         if (dto.getHouseNumber() != null) entity.setHouseNumber(dto.getHouseNumber());
-        if (dto.getAddressFull() != null) entity.setAddressFull(dto.getAddressFull());
         if (dto.getLatitude() != null) entity.setLatitude(dto.getLatitude());
         if (dto.getLongitude() != null) entity.setLongitude(dto.getLongitude());
+
+        if (dto.getAddressFull() != null && !dto.getAddressFull().isBlank()) {
+            entity.setAddressFull(dto.getAddressFull());
+        } else {
+            entity.generateAddressFull();
+        }
     }
 
     public Address toEntity(AddressDto dto) {
