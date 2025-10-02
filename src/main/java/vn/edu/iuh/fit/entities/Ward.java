@@ -8,7 +8,7 @@ import lombok.*;
 public class Ward {
     @Id
     private String code;
-    private String name;
+    private String name_with_type;
 
     @ManyToOne
     @JoinColumn(name = "district_code")

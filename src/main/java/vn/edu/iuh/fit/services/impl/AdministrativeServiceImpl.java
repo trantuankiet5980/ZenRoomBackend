@@ -20,21 +20,21 @@ public class AdministrativeServiceImpl implements AdministrativeService {
     @Override
     public List<ProvinceDto> getAllProvinces() {
         return provinceRepo.findAll().stream()
-                .map(p -> new ProvinceDto(p.getCode(), p.getName()))
+                .map(p -> new ProvinceDto(p.getCode(), p.getName_with_type()))
                 .collect(Collectors.toList());
     }
 
     @Override
     public List<DistrictDto> getDistrictsByProvince(String provinceCode) {
         return districtRepo.findByProvince_Code(provinceCode).stream()
-                .map(d -> new DistrictDto(d.getCode(), d.getName(), d.getProvince().getCode()))
+                .map(d -> new DistrictDto(d.getCode(), d.getName_with_type(), d.getProvince().getCode()))
                 .collect(Collectors.toList());
     }
 
     @Override
     public List<WardDto> getWardsByDistrict(String districtCode) {
         return wardRepo.findByDistrict_Code(districtCode).stream()
-                .map(w -> new WardDto(w.getCode(), w.getName(), w.getDistrict().getCode()))
+                .map(w -> new WardDto(w.getCode(), w.getName_with_type(), w.getDistrict().getCode()))
                 .collect(Collectors.toList());
     }
 }

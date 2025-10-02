@@ -27,6 +27,7 @@ import vn.edu.iuh.fit.services.PropertyService;
 import vn.edu.iuh.fit.services.RealtimeNotificationService;
 import vn.edu.iuh.fit.services.SearchHistoryService;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.*;
 
@@ -46,6 +47,7 @@ public class PropertyServiceImpl implements PropertyService {
     private final RealtimeNotificationService realtimeNotificationService;
     private final ObjectMapper om = new ObjectMapper();
     private final SearchHistoryService searchHistoryService;
+    private final GeocodingServiceImpl geocodingService;
 
     private void logAction(User admin, User target, String action){
         UserManagementLog log = UserManagementLog.builder()
@@ -71,15 +73,27 @@ public class PropertyServiceImpl implements PropertyService {
         User landlord = userRepository.findById(dto.getLandlord().getUserId())
                 .orElseThrow(() -> new EntityNotFoundException("Landlord not found: " + dto.getLandlord().getUserId()));
 
-        // Load ward (nếu có wardId)
+        // Load ward
         Ward ward = null;
         if (dto.getAddress().getWardId() != null) {
             ward = wardRepository.findById(dto.getAddress().getWardId())
                     .orElseThrow(() -> new EntityNotFoundException("Ward not found: " + dto.getAddress().getWardId()));
         }
 
-        // Chuyển AddressDto -> Address entity
+        // Address entity
         Address address = propertyMapper.getAddressMapper().toEntity(dto.getAddress(), ward);
+
+        // 👉 Gọi Google Maps API để sinh tọa độ
+        String fullAddress = dto.getAddress().getStreet() + ", "
+                + (ward != null ? ward.getName_with_type() + ", " : "")
+                + dto.getAddress().getDistrictName() + ", "
+                + dto.getAddress().getProvinceName() + ", Vietnam";
+
+        double[] latLng = geocodingService.getLatLngFromAddress(fullAddress);
+        if (latLng != null) {
+            address.setLatitude(BigDecimal.valueOf(latLng[0]));
+            address.setLongitude(BigDecimal.valueOf(latLng[1]));
+        }
 
         // Property entity
         Property property = propertyMapper.toEntity(dto, address);
@@ -94,12 +108,8 @@ public class PropertyServiceImpl implements PropertyService {
         List<PropertyFurnishing> fixed = new ArrayList<>();
         if (dto.getFurnishings() != null) {
             for (PropertyFurnishingDto fDto : dto.getFurnishings()) {
-                if (fDto.getFurnishingId() == null || fDto.getFurnishingId().isBlank())
-                    throw new IllegalArgumentException("Each furnishing must include furnishingId");
-
                 Furnishings furnishing = furnishingRepository.findById(fDto.getFurnishingId())
                         .orElseThrow(() -> new EntityNotFoundException("Furnishing not found: " + fDto.getFurnishingId()));
-
                 PropertyFurnishing pf = new PropertyFurnishing();
                 pf.setProperty(property);
                 pf.setFurnishing(furnishing);
@@ -109,6 +119,7 @@ public class PropertyServiceImpl implements PropertyService {
         }
         property.setFurnishings(fixed);
 
+        // Services
         List<PropertyServiceItem> serviceItems = new ArrayList<>();
         if (dto.getServices() != null) {
             for (PropertyServiceItemDto sDto : dto.getServices()) {
@@ -123,6 +134,7 @@ public class PropertyServiceImpl implements PropertyService {
         realtimeNotificationService.notifyAdminsPropertyCreated(propertyMapper.toDto(saved));
         return saved;
     }
+
 
     /* =================== GET =================== */
     @Transactional(readOnly = true)
