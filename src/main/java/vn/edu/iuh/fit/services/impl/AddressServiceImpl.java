@@ -10,13 +10,9 @@ import org.springframework.web.client.RestTemplate;
 import vn.edu.iuh.fit.dtos.AddressDto;
 import vn.edu.iuh.fit.dtos.CoordinatesDTO;
 import vn.edu.iuh.fit.entities.Address;
-import vn.edu.iuh.fit.entities.District;
-import vn.edu.iuh.fit.entities.Province;
 import vn.edu.iuh.fit.entities.Ward;
 import vn.edu.iuh.fit.mappers.AddressMapper;
 import vn.edu.iuh.fit.repositories.AddressRepository;
-import vn.edu.iuh.fit.repositories.DistrictRepository;
-import vn.edu.iuh.fit.repositories.ProvinceRepository;
 import vn.edu.iuh.fit.repositories.WardRepository;
 import vn.edu.iuh.fit.services.AddressService;
 
@@ -37,15 +33,13 @@ public class AddressServiceImpl implements AddressService {
     private final AddressMapper addressMapper;
     private final RestTemplate restTemplate = new RestTemplate();
     private final WardRepository wardRepository;
-    private final DistrictRepository districtRepository;
-    private final ProvinceRepository provinceRepository;
 
     @Override
     public CoordinatesDTO getCoordinatesFromFullAddress(String fullAddress) {
         try {
             if (fullAddress == null || fullAddress.isEmpty()) return null;
 
-            // URL Google Maps API
+            // Google Maps API
             String url = "https://maps.googleapis.com/maps/api/geocode/json?address="
                     + URLEncoder.encode(fullAddress, StandardCharsets.UTF_8)
                     + "&key=" + apiKey;
@@ -62,12 +56,11 @@ public class AddressServiceImpl implements AddressService {
 
                     double lat = location.getDouble("lat");
                     double lng = location.getDouble("lng");
-
                     return new CoordinatesDTO(lat, lng);
                 }
             }
 
-            // Fallback sang OSM nếu Google fail
+            // Fallback sang OSM
             String osmUrl = "https://nominatim.openstreetmap.org/search?format=json&q="
                     + URLEncoder.encode(fullAddress, StandardCharsets.UTF_8);
 
@@ -83,10 +76,8 @@ public class AddressServiceImpl implements AddressService {
         } catch (Exception e) {
             e.printStackTrace();
         }
-
         return null;
     }
-
 
     @Override
     public String getAddressFromCoordinates(double lat, double lng) {
@@ -106,7 +97,7 @@ public class AddressServiceImpl implements AddressService {
                 }
             }
 
-            // Nếu Google fail thì fallback sang OSM
+            // Fallback sang OSM
             String osmUrl = "https://nominatim.openstreetmap.org/reverse?format=json&lat="
                     + lat + "&lon=" + lng;
 
@@ -123,58 +114,42 @@ public class AddressServiceImpl implements AddressService {
         return null;
     }
 
-
     @Override
     public AddressDto save(AddressDto dto) {
         try {
-            // 1. Tìm Ward
             if (dto.getWardId() == null) {
                 throw new RuntimeException("Ward ID is required.");
             }
 
             Ward ward = wardRepository.findById(dto.getWardId())
                     .orElseThrow(() -> new RuntimeException("Ward not found"));
-            District district = ward.getDistrict();
-            Province province = district.getProvince();
 
-            // 2. Tạo addressFull nếu chưa có
-            String addressFull = String.join(", ",
-                    dto.getHouseNumber() != null ? dto.getHouseNumber() : "",
-                    dto.getStreet() != null ? dto.getStreet() : "",
-                    ward.getName(),
-                    district.getName(),
-                    province.getName()
-            );
-            dto.setAddressFull(addressFull);
+            // Build addressFull nếu DTO chưa có
+            String fullAddress = dto.getAddressFull();
+            if (fullAddress == null || fullAddress.isBlank()) {
+                fullAddress = String.join(", ",
+                        dto.getHouseNumber() != null ? dto.getHouseNumber() : "",
+                        dto.getStreet() != null ? dto.getStreet() : "",
+                        ward.getName_with_type(),
+                        ward.getDistrict().getName_with_type(),
+                        ward.getDistrict().getProvince().getName_with_type()
+                );
+                dto.setAddressFull(fullAddress);
+            }
 
-            // 3. Lấy tọa độ nếu chưa có
             if (dto.getLatitude() == null || dto.getLongitude() == null) {
-                CoordinatesDTO coords = getCoordinatesFromFullAddress(addressFull);
+                CoordinatesDTO coords = getCoordinatesFromFullAddress(fullAddress);
                 if (coords != null) {
                     dto.setLatitude(BigDecimal.valueOf(coords.getLatitude()));
                     dto.setLongitude(BigDecimal.valueOf(coords.getLongitude()));
-
-                    // Debug
-                    System.out.println("Address: " + addressFull);
-                    System.out.println("Latitude: " + coords.getLatitude() + ", Longitude: " + coords.getLongitude());
                 }
             }
 
-            // 4. Map DTO -> Entity
-            Address entity = addressMapper.toEntity(dto);
-            entity.setWard(ward);
-            entity.setDistrict(district);
-            entity.setProvince(province);
 
-            // 5. Gán tọa độ vào entity
-            entity.setLatitude(dto.getLatitude());
-            entity.setLongitude(dto.getLongitude());
+            // Map DTO -> Entity
+            Address entity = addressMapper.toEntity(dto, ward);
 
-            // 6. Tạo addressFull cho entity nếu chưa có
-            if (entity.getAddressFull() == null || entity.getAddressFull().isEmpty()) {
-                entity.generateAddressFull();
-            }
-
+            // Save DB
             Address saved = addressRepository.save(entity);
 
             return addressMapper.toDto(saved);
@@ -185,15 +160,32 @@ public class AddressServiceImpl implements AddressService {
         }
     }
 
-
-
     @Override
     public AddressDto update(String id, AddressDto dto) {
         Address entity = addressRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Address not found"));
 
-        addressMapper.updateEntity(entity, dto);
-        return addressMapper.toDto(addressRepository.save(entity));
+        // Nếu đổi wardId thì load ward mới
+        Ward ward = dto.getWardId() != null
+                ? wardRepository.findById(dto.getWardId())
+                .orElseThrow(() -> new RuntimeException("Ward not found"))
+                : entity.getWard();
+
+        // Update entity từ DTO
+        addressMapper.updateEntity(entity, dto, ward);
+
+        // Nếu chưa có lat/lng thì gọi API để bổ sung
+        if ((entity.getLatitude() == null || entity.getLongitude() == null)
+                && entity.getAddressFull() != null) {
+            CoordinatesDTO coords = getCoordinatesFromFullAddress(entity.getAddressFull());
+            if (coords != null) {
+                entity.setLatitude(BigDecimal.valueOf(coords.getLatitude()));
+                entity.setLongitude(BigDecimal.valueOf(coords.getLongitude()));
+            }
+        }
+
+        Address saved = addressRepository.save(entity);
+        return addressMapper.toDto(saved);
     }
 
     @Override

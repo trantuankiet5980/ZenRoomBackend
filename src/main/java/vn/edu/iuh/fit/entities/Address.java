@@ -51,9 +51,9 @@ public class Address {
         StringBuilder full = new StringBuilder();
         if (houseNumber != null && !houseNumber.isEmpty()) full.append(houseNumber).append(", ");
         if (street != null && !street.isEmpty()) full.append(street).append(", ");
-        if (ward != null && ward.getName() != null) full.append(ward.getName()).append(", ");
-        if (district != null && district.getName() != null) full.append(district.getName()).append(", ");
-        if (province != null && province.getName() != null) full.append(province.getName());
+        if (ward != null && ward.getName_with_type() != null) full.append(ward.getName_with_type()).append(", ");
+        if (district != null && district.getName_with_type() != null) full.append(district.getName_with_type()).append(", ");
+        if (province != null && province.getName_with_type() != null) full.append(province.getName_with_type());
 
         // loại bỏ ", " thừa cuối cùng
         this.addressFull = full.toString().replaceAll(", $", "");

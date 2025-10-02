@@ -16,11 +16,13 @@ public class AddressMapper {
         return AddressDto.builder()
                 .addressId(entity.getAddressId())
                 .wardId(ward != null ? ward.getCode() : null)
-                .wardName(ward != null ? ward.getName() : null)
-                .districtId(ward != null ? ward.getDistrict().getCode() : null)
-                .districtName(ward != null ? ward.getDistrict().getName() : null)
-                .provinceId(ward != null ? ward.getDistrict().getProvince().getCode() : null)
-                .provinceName(ward != null ? ward.getDistrict().getProvince().getName() : null)
+                .wardName(ward != null ? ward.getName_with_type() : null)
+                .districtId((ward != null && ward.getDistrict() != null) ? ward.getDistrict().getCode() : null)
+                .districtName((ward != null && ward.getDistrict() != null) ? ward.getDistrict().getName_with_type() : null)
+                .provinceId((ward != null && ward.getDistrict() != null && ward.getDistrict().getProvince() != null)
+                        ? ward.getDistrict().getProvince().getCode() : null)
+                .provinceName((ward != null && ward.getDistrict() != null && ward.getDistrict().getProvince() != null)
+                        ? ward.getDistrict().getProvince().getName_with_type() : null)
                 .street(entity.getStreet())
                 .houseNumber(entity.getHouseNumber())
                 .addressFull(entity.getAddressFull())
@@ -41,7 +43,7 @@ public class AddressMapper {
                 .longitude(dto.getLongitude())
                 .build();
 
-        // bổ sung district & province từ ward
+        // Bổ sung district & province từ ward
         if (ward != null) {
             address.setDistrict(ward.getDistrict());
             if (ward.getDistrict() != null) {
@@ -49,10 +51,19 @@ public class AddressMapper {
             }
         }
 
-        address.generateAddressFull();
+        // Luôn generate full address
+        if (dto.getAddressFull() != null) {
+            address.setAddressFull(dto.getAddressFull());
+        } else {
+            address.generateAddressFull();
+        }
+
         return address;
     }
 
+    public Address toEntity(AddressDto dto) {
+        return toEntity(dto, null);
+    }
 
     public void updateEntity(Address entity, AddressDto dto, Ward ward) {
         if (dto == null || entity == null) return;
@@ -64,6 +75,7 @@ public class AddressMapper {
                 entity.setProvince(ward.getDistrict().getProvince());
             }
         }
+
         if (dto.getStreet() != null) entity.setStreet(dto.getStreet());
         if (dto.getHouseNumber() != null) entity.setHouseNumber(dto.getHouseNumber());
         if (dto.getLatitude() != null) entity.setLatitude(dto.getLatitude());
@@ -76,12 +88,8 @@ public class AddressMapper {
         }
     }
 
-    public Address toEntity(AddressDto dto) {
-        return toEntity(dto, null);
-    }
-
     public void updateEntity(Address entity, AddressDto dto) {
-        updateEntity(entity, dto, null);
+        // fallback ward từ entity
+        updateEntity(entity, dto, entity.getWard());
     }
-
 }

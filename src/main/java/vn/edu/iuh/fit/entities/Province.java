@@ -10,13 +10,13 @@ import java.util.List;
 public class Province {
     @Id
     private String code;
-    private String name;
+    private String name_with_type;
 
     @OneToMany(mappedBy = "province", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<District> districts;
 
-    public Province(String code, String name) {
+    public Province(String code, String name_with_type) {
         this.code = code;
-        this.name = name;
+        this.name_with_type = name_with_type;
     }
 }

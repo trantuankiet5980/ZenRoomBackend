@@ -5,6 +5,6 @@ import lombok.Data;
 @Data
 public class WardJson {
     private String code;
-    private String name;
+    private String name_with_type;
     private String parent_code;
 }
