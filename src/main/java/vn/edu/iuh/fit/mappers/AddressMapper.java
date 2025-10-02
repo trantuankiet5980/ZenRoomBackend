@@ -81,13 +81,11 @@ public class AddressMapper {
         if (dto.getLatitude() != null) entity.setLatitude(dto.getLatitude());
         if (dto.getLongitude() != null) entity.setLongitude(dto.getLongitude());
 
-        // regenerate addressFull nếu có thay đổi liên quan
-        if (dto.getAddressFull() != null) {
+        if (dto.getAddressFull() != null && !dto.getAddressFull().isBlank()) {
             entity.setAddressFull(dto.getAddressFull());
         } else {
             entity.generateAddressFull();
         }
-
     }
 
     public void updateEntity(Address entity, AddressDto dto) {
