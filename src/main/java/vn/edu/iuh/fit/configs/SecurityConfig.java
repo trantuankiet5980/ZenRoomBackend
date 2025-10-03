@@ -130,6 +130,12 @@ public class SecurityConfig {
                         // ORDERS
                         .requestMatchers("/api/v1/orders/**").permitAll()
 
+                        // EVENTS
+                        .requestMatchers("/api/v1/events/**").permitAll()
+
+                        // RECOMMENDATIONS
+                        .requestMatchers("/api/v1/recommendations/**").permitAll()
+
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);

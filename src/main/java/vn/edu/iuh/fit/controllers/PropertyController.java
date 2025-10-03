@@ -50,6 +50,15 @@ public class PropertyController {
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
+    /** Danh sách không phân trang (dành cho AI Recommendation) */
+    @GetMapping("{id}/recommendations")
+    public ResponseEntity<List<PropertyDto>> getRecommendations(
+            @PathVariable String id,
+            @RequestParam(name = "limit", defaultValue = "6") int limit
+    ) {
+        return ResponseEntity.ok(propertyService.recommendProperties(id, limit));
+    }
+
     /** Danh sách có phân trang + lọc */
     @GetMapping
     public ResponseEntity<?> list(
