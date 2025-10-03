@@ -1,11 +1,13 @@
 package vn.edu.iuh.fit.services.impl;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -26,6 +28,7 @@ import vn.edu.iuh.fit.services.AuthService;
 import vn.edu.iuh.fit.services.PropertyService;
 import vn.edu.iuh.fit.services.RealtimeNotificationService;
 import vn.edu.iuh.fit.services.SearchHistoryService;
+import vn.edu.iuh.fit.services.embedding.PropertyEmbeddingGenerator;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -34,6 +37,7 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class PropertyServiceImpl implements PropertyService {
 
     private final PropertyRepository propertyRepository;
@@ -49,6 +53,7 @@ public class PropertyServiceImpl implements PropertyService {
     private final ObjectMapper om = new ObjectMapper();
     private final SearchHistoryService searchHistoryService;
     private final GeocodingServiceImpl geocodingService;
+    private final PropertyEmbeddingGenerator propertyEmbeddingGenerator;
 
     private void logAction(User admin, User target, String action){
         UserManagementLog log = UserManagementLog.builder()
@@ -131,6 +136,7 @@ public class PropertyServiceImpl implements PropertyService {
         }
         property.setServices(serviceItems);
 
+        applyEmbedding(property);
         Property saved = propertyRepository.save(property);
         realtimeNotificationService.notifyAdminsPropertyCreated(propertyMapper.toDto(saved));
         return saved;
@@ -213,9 +219,27 @@ public class PropertyServiceImpl implements PropertyService {
         existing.setPublishedAt(null);
         existing.setUpdatedAt(LocalDateTime.now());
 
+        applyEmbedding(existing);
         Property saved = propertyRepository.save(existing);
         realtimeNotificationService.notifyAdminsPropertyUpdated(propertyMapper.toDto(saved));
         return saved;
+    }
+
+    private void applyEmbedding(Property property) {
+        try {
+            propertyEmbeddingGenerator.generate(property)
+                    .ifPresentOrElse(embedding -> {
+                        try {
+                            property.setEmbedding(om.writeValueAsString(embedding));
+                        } catch (JsonProcessingException ex) {
+                            log.warn("Failed to serialize embedding for property {}: {}", property.getPropertyId(), ex.getMessage());
+                            property.setEmbedding(null);
+                        }
+                    }, () -> property.setEmbedding(null));
+        } catch (Exception ex) {
+            log.warn("Failed to generate embedding for property {}: {}", property.getPropertyId(), ex.getMessage());
+            property.setEmbedding(null);
+        }
     }
 
     /* =================== CHANGE STATUS =================== */

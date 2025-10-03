@@ -2,23 +2,6 @@
 
 ## Property embedding generator
 
-The scheduled `PropertyEmbeddingJob` now shells out to `scripts/generate_property_embedding.py`,
-which relies on the [`sentence-transformers`](https://www.sbert.net/) Python package to create
-real transformer-based embeddings. Install the dependency and ensure the script is available on
-the application host:
+`HeuristicPropertyEmbeddingGenerator` extracts the key attributes of a property (such as area, price, deposit, capacity, number of rooms, number of floors, parking slots, title, description, list of services/furnishings, address, and whether it is a BUILDING or ROOM). Each value is then normalized to the [0, 1] range using fixed scaling functions. The final result is a 15-dimensional vector. If all elements are zero (i.e., there is no meaningful signal), the generator returns `Optional.empty()` o avoid storing empty vectors.
 
-```
-pip install sentence-transformers
-```
-
-You can override the Python command, script path, and timeout via the following application
-properties:
-
-```
-embedding.python.command=python3
-embedding.python.script=./scripts/generate_property_embedding.py
-embedding.python.timeout-seconds=120
-```
-
-Set the `PROPERTY_EMBEDDING_MODEL` environment variable if you want to use a different
-SentenceTransformer model (defaults to `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2`).
+The `embedding` column in the `Property` entity is declared as a JSON string, which is used to store the serialized version of this vector.
