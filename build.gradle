@@ -60,6 +60,11 @@ dependencies {
 
     // AWS SNS
     implementation 'software.amazon.awssdk:sns:2.31.9'
+
+    // https://mvnrepository.com/artifact/junit/junit
+    testImplementation("junit:junit:4.13.2")
+    // https://mvnrepository.com/artifact/org.junit.jupiter/junit-jupiter-engine
+    testImplementation("org.junit.jupiter:junit-jupiter-engine:6.0.0")
 }
 
 tasks.named('test') {
