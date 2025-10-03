@@ -69,6 +69,9 @@ public class Property {
     @Column(name = "description", columnDefinition = "TEXT")
     private String description;         // mô tả đăng
 
+    @Column(name = "embedding", columnDefinition = "vector(384)")
+    private String embedding;           // vector pgvector (được cập nhật bởi batch job)
+
     /* ===== Thông tin chung (có thể dùng cho cả 2) ===== */
     private Double area;                // m2
     private BigDecimal price;           // giá thuê / tháng

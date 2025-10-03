@@ -6,6 +6,7 @@ import vn.edu.iuh.fit.dtos.PropertyDto;
 import vn.edu.iuh.fit.entities.Property;
 import vn.edu.iuh.fit.entities.enums.PostStatus;
 
+import java.util.List;
 import java.util.Optional;
 
 public interface PropertyService {
@@ -31,4 +32,7 @@ public interface PropertyService {
             String buildingName, String propertyType, // nếu bạn có enum PropertyType
             int page, int size
     );
+
+    //AI Recommendation
+    List<PropertyDto> recommendProperties(String propertyId, int limit);
 }

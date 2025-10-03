@@ -30,6 +30,7 @@ import vn.edu.iuh.fit.services.SearchHistoryService;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -336,6 +337,90 @@ public class PropertyServiceImpl implements PropertyService {
         }
 
         return result;
+    }
+
+    @Override
+    public List<PropertyDto> recommendProperties(String propertyId, int limit) {
+        Property base = propertyRepository.findById(propertyId)
+                .orElseThrow(() -> new EntityNotFoundException("Property not found: " + propertyId));
+
+        int sanitizedLimit = Math.max(1, Math.min(limit, 20));
+
+        List<Property> candidates = propertyRepository
+                .findTop200ByPostStatusAndPropertyTypeAndPropertyIdNotOrderByCreatedAtDesc(
+                        PostStatus.APPROVED,
+                        base.getPropertyType(),
+                        propertyId
+                );
+
+        if (candidates.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        return candidates.stream()
+                .map(candidate -> Map.entry(candidate, computeSimilarityScore(base, candidate)))
+                .sorted(Map.Entry.<Property, Double>comparingByValue(Comparator.reverseOrder()))
+                .limit(sanitizedLimit)
+                .map(entry -> propertyMapper.toDto(entry.getKey()))
+                .collect(Collectors.toList());
+    }
+
+    private double computeSimilarityScore(Property base, Property candidate) {
+        WeightedScore score = new WeightedScore();
+
+        score.add(0.25, base.getPropertyType() == candidate.getPropertyType() ? 1.0 : 0.0);
+        score.addIfPresent(0.2, similarity(base.getPrice(), candidate.getPrice()));
+        score.addIfPresent(0.15, similarity(base.getArea(), candidate.getArea()));
+        score.addIfPresent(0.1, similarity(base.getDeposit(), candidate.getDeposit()));
+        score.addIfPresent(0.1, similarity(base.getBedrooms(), candidate.getBedrooms()));
+        score.addIfPresent(0.1, similarity(base.getBathrooms(), candidate.getBathrooms()));
+        score.addIfPresent(0.1, similarity(base.getCapacity(), candidate.getCapacity()));
+        score.addIfPresent(0.1, categorySimilarity(base.getApartmentCategory(), candidate.getApartmentCategory()));
+
+        return score.finish();
+    }
+
+    private static double similarity(BigDecimal a, BigDecimal b) {
+        if (a == null || b == null) return WeightedScore.SKIPPED_VALUE;
+        return similarity(a.doubleValue(), b.doubleValue());
+    }
+
+    private static double similarity(Number a, Number b) {
+        if (a == null || b == null) return WeightedScore.SKIPPED_VALUE;
+        return similarity(a.doubleValue(), b.doubleValue());
+    }
+
+    private static double similarity(double a, double b) {
+        double max = Math.max(Math.abs(a), Math.abs(b));
+        if (max == 0d) return 1d;
+        double diff = Math.abs(a - b);
+        return Math.max(0d, 1d - (diff / max));
+    }
+
+    private static double categorySimilarity(Enum<?> a, Enum<?> b) {
+        if (a == null || b == null) return WeightedScore.SKIPPED_VALUE;
+        return Objects.equals(a, b) ? 1d : 0d;
+    }
+
+    private static class WeightedScore {
+        private double totalWeight = 0d;
+        private double weightedValue = 0d;
+        static final double SKIPPED_VALUE = -1d;
+
+        void add(double weight, double value) {
+            totalWeight += weight;
+            weightedValue += weight * value;
+        }
+
+        void addIfPresent(double weight, double value) {
+            if (value == SKIPPED_VALUE) return;
+            add(weight, value);
+        }
+
+        double finish() {
+            if (totalWeight == 0d) return 0d;
+            return weightedValue / totalWeight;
+        }
     }
 
     private static void put(ObjectNode n, String k, Integer v) { if (v != null) n.put(k, v); }
