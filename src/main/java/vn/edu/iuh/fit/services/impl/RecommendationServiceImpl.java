@@ -1,7 +1,9 @@
 package vn.edu.iuh.fit.services.impl;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -22,6 +24,7 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class RecommendationServiceImpl implements RecommendationService {
@@ -31,10 +34,13 @@ public class RecommendationServiceImpl implements RecommendationService {
     private static final Duration POPULAR_WINDOW = Duration.ofDays(14);
     private static final Duration COVISIT_WINDOW = Duration.ofDays(30);
     private static final List<EventType> SIGNAL_EVENTS = List.of(EventType.VIEW, EventType.CLICK, EventType.FAVORITE, EventType.BOOKING);
+    private static final int EMBEDDING_POOL_MIN = 200;
+    private static final double COSINE_EPSILON = 1e-9;
 
     private final PropertyRepository propertyRepository;
     private final UserEventRepository userEventRepository;
     private final PropertyMapper propertyMapper;
+    private final ObjectMapper objectMapper;
 
     @Override
     @Transactional(readOnly = true)
@@ -146,10 +152,45 @@ public class RecommendationServiceImpl implements RecommendationService {
         Property base = propertyRepository.findById(roomId)
                 .orElseThrow(() -> new EntityNotFoundException("Property not found: " + roomId));
 
-        LinkedHashMap<String, Double> scored = propertyRepository
-                .findSimilarByEmbedding(roomId, limit)
-                .stream()
-                .collect(Collectors.toMap(Property::getPropertyId, p -> 1d, Double::sum, LinkedHashMap::new));
+        LinkedHashMap<String, Double> scored = new LinkedHashMap<>();
+
+        double[] baseEmbedding = decodeEmbedding(base.getEmbedding());
+        if (baseEmbedding != null) {
+            int poolSize = Math.max(limit * 5, EMBEDDING_POOL_MIN);
+            Pageable embeddingPage = PageRequest.of(0, poolSize);
+            List<Property> embeddingCandidates = propertyRepository
+                    .findByPropertyIdNotAndPostStatusAndEmbeddingIsNotNull(
+                            roomId,
+                            PostStatus.APPROVED,
+                            embeddingPage
+                    );
+
+            List<Map.Entry<String, Double>> embeddingScores = embeddingCandidates.stream()
+                    .map(candidate -> {
+                        double[] candidateEmbedding = decodeEmbedding(candidate.getEmbedding());
+                        if (candidateEmbedding == null) {
+                            return null;
+                        }
+                        double cosine = cosineSimilarity(baseEmbedding, candidateEmbedding);
+                        if (Double.isNaN(cosine)) {
+                            return null;
+                        }
+                        double normalized = normalizeCosine(cosine);
+                        return Map.entry(candidate.getPropertyId(), normalized);
+                    })
+                    .filter(Objects::nonNull)
+                    .sorted(Map.Entry.<String, Double>comparingByValue(Comparator.reverseOrder()))
+                    .limit(poolSize)
+                    .toList();
+
+            for (Map.Entry<String, Double> entry : embeddingScores) {
+                if (entry.getValue() <= 0d) continue;
+                scored.putIfAbsent(entry.getKey(), entry.getValue());
+                if (scored.size() >= limit) {
+                    break;
+                }
+            }
+        }
 
         if (scored.size() >= limit) {
             return scored;
@@ -174,6 +215,67 @@ public class RecommendationServiceImpl implements RecommendationService {
         }
 
         return scored;
+    }
+
+    private double[] decodeEmbedding(String rawEmbedding) {
+        if (rawEmbedding == null) {
+            return null;
+        }
+
+        String trimmed = rawEmbedding.trim();
+        if (trimmed.isEmpty()) {
+            return null;
+        }
+
+        if (trimmed.startsWith("\"") && trimmed.endsWith("\"") && trimmed.length() > 1) {
+            trimmed = trimmed.substring(1, trimmed.length() - 1);
+        }
+
+        if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
+            trimmed = "[" + trimmed.substring(1, trimmed.length() - 1) + "]";
+        }
+
+        if (!trimmed.startsWith("[")) {
+            trimmed = "[" + trimmed + "]";
+        }
+
+        try {
+            return objectMapper.readValue(trimmed, double[].class);
+        } catch (Exception ex) {
+            log.debug("Failed to decode embedding: {}", ex.getMessage());
+            return null;
+        }
+    }
+
+    private double cosineSimilarity(double[] vectorA, double[] vectorB) {
+        if (vectorA == null || vectorB == null) {
+            return Double.NaN;
+        }
+        int length = Math.min(vectorA.length, vectorB.length);
+        if (length == 0) {
+            return Double.NaN;
+        }
+
+        double dot = 0d;
+        double magA = 0d;
+        double magB = 0d;
+        for (int i = 0; i < length; i++) {
+            double a = vectorA[i];
+            double b = vectorB[i];
+            dot += a * b;
+            magA += a * a;
+            magB += b * b;
+        }
+
+        double denominator = Math.sqrt(magA) * Math.sqrt(magB);
+        if (denominator < COSINE_EPSILON) {
+            return Double.NaN;
+        }
+        return dot / denominator;
+    }
+
+    private double normalizeCosine(double cosine) {
+        return (cosine + 1d) / 2d;
     }
 
     private LinkedHashMap<String, Double> fetchCoVisitationCandidates(String roomId, int limit) {
