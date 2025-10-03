@@ -31,16 +31,11 @@ public interface PropertyRepository extends JpaRepository<Property, String>, Jpa
             String propertyId
     );
 
-    @Query(value = """
-            select p.* from properties p
-            where p.property_id <> :propertyId
-              and p.post_status = 'APPROVED'
-              and p.embedding is not null
-              and (select embedding from properties where property_id = :propertyId) is not null
-            order by p.embedding <-> (select embedding from properties where property_id = :propertyId)
-            limit :limit
-            """, nativeQuery = true)
-    List<Property> findSimilarByEmbedding(@Param("propertyId") String propertyId, @Param("limit") int limit);
+    List<Property> findByPropertyIdNotAndPostStatusAndEmbeddingIsNotNull(
+            String propertyId,
+            PostStatus postStatus,
+            Pageable pageable
+    );
 
     List<Property> findByPostStatusOrderByPublishedAtDesc(PostStatus status, Pageable pageable);
 
