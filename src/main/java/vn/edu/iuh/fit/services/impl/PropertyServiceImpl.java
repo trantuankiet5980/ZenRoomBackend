@@ -24,10 +24,7 @@ import vn.edu.iuh.fit.entities.enums.PostStatus;
 import vn.edu.iuh.fit.entities.enums.PropertyType;
 import vn.edu.iuh.fit.mappers.PropertyMapper;
 import vn.edu.iuh.fit.repositories.*;
-import vn.edu.iuh.fit.services.AuthService;
-import vn.edu.iuh.fit.services.PropertyService;
-import vn.edu.iuh.fit.services.RealtimeNotificationService;
-import vn.edu.iuh.fit.services.SearchHistoryService;
+import vn.edu.iuh.fit.services.*;
 import vn.edu.iuh.fit.services.embedding.PropertyEmbeddingGenerator;
 
 import java.math.BigDecimal;
@@ -54,6 +51,7 @@ public class PropertyServiceImpl implements PropertyService {
     private final SearchHistoryService searchHistoryService;
     private final GeocodingServiceImpl geocodingService;
     private final PropertyEmbeddingGenerator propertyEmbeddingGenerator;
+    private final SearchSuggestionService searchSuggestionService;
 
     private void logAction(User admin, User target, String action){
         UserManagementLog log = UserManagementLog.builder()
@@ -138,6 +136,7 @@ public class PropertyServiceImpl implements PropertyService {
 
         applyEmbedding(property);
         Property saved = propertyRepository.save(property);
+        searchSuggestionService.upsertPropertySuggestion(saved);
         realtimeNotificationService.notifyAdminsPropertyCreated(propertyMapper.toDto(saved));
         return saved;
     }
@@ -221,6 +220,7 @@ public class PropertyServiceImpl implements PropertyService {
 
         applyEmbedding(existing);
         Property saved = propertyRepository.save(existing);
+        searchSuggestionService.upsertPropertySuggestion(saved);
         realtimeNotificationService.notifyAdminsPropertyUpdated(propertyMapper.toDto(saved));
         return saved;
     }
@@ -266,6 +266,7 @@ public class PropertyServiceImpl implements PropertyService {
         User admin = authService.getCurrentUser();
         logAction(admin, p.getLandlord(), "CHANGE_PROPERTY_STATUS: " + status + (rejectedReason != null ? " REASON: " + rejectedReason : ""));
         propertyRepository.save(p);
+        searchSuggestionService.upsertPropertySuggestion(p);
 
         PropertyDto dto = propertyMapper.toDto(p);
 
@@ -280,6 +281,7 @@ public class PropertyServiceImpl implements PropertyService {
             throw new EntityNotFoundException("Property not found: " + id);
         }
         propertyRepository.deleteById(id);
+        searchSuggestionService.removePropertySuggestion(id);
         // Nếu muốn xoá media S3: inject mediaRepo/mediaService và xoá trước
     }
 
