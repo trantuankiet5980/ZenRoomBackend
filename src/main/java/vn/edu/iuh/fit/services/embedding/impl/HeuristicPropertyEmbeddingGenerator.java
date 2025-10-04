@@ -18,14 +18,14 @@ import java.util.Optional;
 @Component
 public class HeuristicPropertyEmbeddingGenerator implements PropertyEmbeddingGenerator {
 
-    private static final double MAX_AREA = 300.0;            // Giới hạn chuẩn hóa diện tích (m2)
-    private static final double MAX_PRICE = 50_000_000.0;     // Giới hạn chuẩn hóa giá thuê (VND)
-    private static final double MAX_DEPOSIT = 100_000_000.0;  // Giới hạn chuẩn hóa tiền cọc (VND)
-    private static final double MAX_CAPACITY = 10.0;          // Giới hạn chuẩn hóa sức chứa
-    private static final double MAX_ROOM_COUNT = 10.0;        // Giới hạn chuẩn hóa số phòng ngủ/vệ sinh
-    private static final double MAX_FLOOR = 20.0;             // Giới hạn chuẩn hóa số tầng
-    private static final double MAX_PARKING = 10.0;           // Giới hạn chuẩn hóa số chỗ đậu xe
-    private static final double MAX_TEXT_LENGTH = 500.0;      // Giới hạn chuẩn hóa chiều dài mô tả
+    private static final double MAX_AREA = 300.0; // Giới hạn chuẩn hóa diện tích (m2)
+    private static final double MAX_PRICE = 50_000_000.0; // Giới hạn chuẩn hóa giá thuê (VND)
+    private static final double MAX_DEPOSIT = 100_000_000.0; // Giới hạn chuẩn hóa tiền cọc (VND)
+    private static final double MAX_CAPACITY = 10.0; // Giới hạn chuẩn hóa sức chứa
+    private static final double MAX_ROOM_COUNT = 10.0; // Giới hạn chuẩn hóa số phòng ngủ/vệ sinh
+    private static final double MAX_FLOOR = 20.0; // Giới hạn chuẩn hóa số tầng
+    private static final double MAX_PARKING = 10.0; // Giới hạn chuẩn hóa số chỗ đậu xe
+    private static final double MAX_TEXT_LENGTH = 500.0; // Giới hạn chuẩn hóa chiều dài mô tả
 
     @Override
     public Optional<double[]> generate(Property property) {
@@ -34,22 +34,22 @@ public class HeuristicPropertyEmbeddingGenerator implements PropertyEmbeddingGen
             return Optional.empty();
         }
 
-        double areaScore = normalize(property.getArea(), MAX_AREA);                                   // Điểm diện tích
-        double priceScore = normalize(property.getPrice(), MAX_PRICE);                                // Điểm giá thuê
-        double depositScore = normalize(property.getDeposit(), MAX_DEPOSIT);                          // Điểm tiền cọc
-        double capacityScore = normalize(property.getCapacity(), MAX_CAPACITY);                       // Điểm sức chứa
-        double bedroomScore = normalize(property.getBedrooms(), MAX_ROOM_COUNT);                      // Điểm số phòng ngủ
-        double bathroomScore = normalize(property.getBathrooms(), MAX_ROOM_COUNT);                    // Điểm số phòng vệ sinh
-        double floorScore = normalize(property.getFloorNo(), MAX_FLOOR);                              // Điểm số tầng
-        double parkingScore = normalize(property.getParkingSlots(), MAX_PARKING);                     // Điểm chỗ đậu xe
+        double areaScore = normalize(property.getArea(), MAX_AREA); // Điểm diện tích
+        double priceScore = normalize(property.getPrice(), MAX_PRICE); // Điểm giá thuê
+        double depositScore = normalize(property.getDeposit(), MAX_DEPOSIT); // Điểm tiền cọc
+        double capacityScore = normalize(property.getCapacity(), MAX_CAPACITY); // Điểm sức chứa
+        double bedroomScore = normalize(property.getBedrooms(), MAX_ROOM_COUNT); // Điểm số phòng ngủ
+        double bathroomScore = normalize(property.getBathrooms(), MAX_ROOM_COUNT); // Điểm số phòng vệ sinh
+        double floorScore = normalize(property.getFloorNo(), MAX_FLOOR); // Điểm số tầng
+        double parkingScore = normalize(property.getParkingSlots(), MAX_PARKING); // Điểm chỗ đậu xe
 
-        double titleScore = encodeText(property.getTitle(), 120);                                     // Điểm tiêu đề
-        double descriptionScore = encodeText(property.getDescription(), MAX_TEXT_LENGTH);             // Điểm mô tả
-        double serviceScore = encodeCollection(property.getServices());                               // Điểm tiện ích đi kèm
-        double furnishingScore = encodeCollection(property.getFurnishings());                         // Điểm nội thất đi kèm
-        double addressScore = property.getAddress() != null ? 1.0 : 0.0;                              // Điểm có địa chỉ
-        double typeScore = property.getPropertyType() == PropertyType.BUILDING ? 1.0 : 0.0;           // Điểm loại BUILDING
-        double roomFlag = property.getPropertyType() == PropertyType.ROOM ? 1.0 : 0.0;                // Điểm loại ROOM
+        double titleScore = encodeText(property.getTitle(), 120); // Điểm tiêu đề
+        double descriptionScore = encodeText(property.getDescription(), MAX_TEXT_LENGTH); // Điểm mô tả
+        double serviceScore = encodeCollection(property.getServices()); // Điểm tiện ích đi kèm
+        double furnishingScore = encodeCollection(property.getFurnishings()); // Điểm nội thất đi kèm
+        double addressScore = property.getAddress() != null ? 1.0 : 0.0; // Điểm có địa chỉ
+        double typeScore = property.getPropertyType() == PropertyType.BUILDING ? 1.0 : 0.0; // Điểm loại BUILDING
+        double roomFlag = property.getPropertyType() == PropertyType.ROOM ? 1.0 : 0.0; // Điểm loại ROOM
 
         double[] vector = new double[] {
                 areaScore,
@@ -69,7 +69,7 @@ public class HeuristicPropertyEmbeddingGenerator implements PropertyEmbeddingGen
                 roomFlag
         };
 
-        boolean hasSignal = false;                                                                    // Kiểm tra vector có dữ liệu
+        boolean hasSignal = false; // Kiểm tra vector có dữ liệu
         for (double value : vector) {
             if (value > 0.0) {
                 hasSignal = true;
@@ -78,11 +78,11 @@ public class HeuristicPropertyEmbeddingGenerator implements PropertyEmbeddingGen
         }
 
         if (!hasSignal) {
-            log.debug("No heuristic signal for property {}", property.getPropertyId());               // Ghi log khi thiếu dữ liệu
+            log.debug("No heuristic signal for property {}", property.getPropertyId()); // Ghi log khi thiếu dữ liệu
             return Optional.empty();
         }
 
-        return Optional.of(vector);                                                                   // Trả về vector đã tính
+        return Optional.of(vector); // Trả về vector đã tính
     }
 
     private double normalize(Double value, double max) {
@@ -90,7 +90,7 @@ public class HeuristicPropertyEmbeddingGenerator implements PropertyEmbeddingGen
             // Không có dữ liệu hoặc dữ liệu không hợp lệ
             return 0.0;
         }
-        return Math.min(value / max, 1.0);                                                            // Giới hạn trong [0,1]
+        return Math.min(value / max, 1.0); // Giới hạn trong [0,1]
     }
 
     private double normalize(Integer value, double max) {
@@ -98,7 +98,7 @@ public class HeuristicPropertyEmbeddingGenerator implements PropertyEmbeddingGen
             // Không có dữ liệu hoặc dữ liệu không hợp lệ
             return 0.0;
         }
-        return Math.min(value / max, 1.0);                                                             // Giới hạn trong [0,1]
+        return Math.min(value / max, 1.0); // Giới hạn trong [0,1]
     }
 
     private double normalize(BigDecimal value, double max) {
@@ -106,7 +106,7 @@ public class HeuristicPropertyEmbeddingGenerator implements PropertyEmbeddingGen
             // Không có dữ liệu
             return 0.0;
         }
-        return normalize(value.doubleValue(), max);                                                   // Chuyển BigDecimal sang double và chuẩn hóa
+        return normalize(value.doubleValue(), max); // Chuyển BigDecimal sang double và chuẩn hóa
     }
 
     private double encodeText(String text, double maxLength) {
@@ -114,8 +114,8 @@ public class HeuristicPropertyEmbeddingGenerator implements PropertyEmbeddingGen
             // Không có nội dung văn bản
             return 0.0;
         }
-        double length = text.trim().length();                                                         // Lấy độ dài nội dung
-        return Math.min(length / maxLength, 1.0);                                                      // Giới hạn trong [0,1]
+        double length = text.trim().length(); // Lấy độ dài nội dung
+        return Math.min(length / maxLength, 1.0); // Giới hạn trong [0,1]
     }
 
     private double encodeCollection(List<?> items) {
@@ -140,7 +140,7 @@ public class HeuristicPropertyEmbeddingGenerator implements PropertyEmbeddingGen
                 // Không có phần tử trong danh sách
                 return 0.0;
             }
-            return Math.min(items.size() / 10.0, 1.0);                                                     // Chuẩn hóa dựa trên kích thước danh sách
+            return Math.min(items.size() / 10.0, 1.0); // Chuẩn hóa dựa trên kích thước danh sách
         } catch (LazyInitializationException ex) {
             log.debug("Cannot inspect lazy collection {} without an open session", items.getClass().getName(), ex);
             return 0.0;
