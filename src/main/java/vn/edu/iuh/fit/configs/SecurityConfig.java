@@ -50,6 +50,11 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.PUT, "/api/v1/properties/**").hasAnyRole("LANDLORD", "ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/v1/properties/**").hasAnyRole("LANDLORD", "ADMIN")
 
+                        // SEARCH SUGGESTIONS
+                        .requestMatchers(HttpMethod.GET, "/api/v1/search-suggestions/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/search-suggestions/events").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/search-suggestions/rebuild/**").hasRole("ADMIN")
+
                         // FURNISHINGS
                         .requestMatchers(HttpMethod.GET, "/api/v1/furnishings/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/furnishings/**").hasRole("ADMIN")

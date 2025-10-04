@@ -156,7 +156,7 @@ public class AuthServiceImpl implements AuthService {
         }
 
         boolean validRoles = roles.stream().allMatch(role ->
-                role != null && (role.equals("landlord") || role.equals("tenant"))
+                role != null && (role.equals("landlord") || role.equals("tenant")) || role.equals("admin")
         );
         if (!validRoles) {
             throw new IllegalArgumentException("Roles phải là 'landlord' hoặc 'tenant'.");
