@@ -41,6 +41,7 @@ public class SearchSuggestionServiceImpl implements SearchSuggestionService {
     private final PropertyRepository propertyRepository;
     private final SearchQueryLogRepository queryLogRepository;
 
+    //chuẩn hóa chuỗi tìm kiếm: lowercase/bỏ dấu/loại ký tự lạ bằng TextNormalizer
     @Override
     @Transactional(readOnly = true)
     public List<SearchSuggestionDto> suggest(String query, int limit) {

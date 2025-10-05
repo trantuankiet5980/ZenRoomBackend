@@ -24,4 +24,12 @@ public interface ReviewRepository extends JpaRepository<Review, String> {
     Page<Review> findByTenant_UserIdOrderByCreatedAtDesc(String tenantId, Pageable pageable);
 
     boolean existsByBooking_BookingIdAndTenant_UserId(String bookingId, String tenantId);
+
+    @Query("""
+        select count(r) as totalReviews,
+               coalesce(avg(r.rating), 0) as averageRating
+        from Review r
+        where r.booking.property.landlord.userId = :landlordId
+    """)
+    LandlordReviewStatsProjection findLandlordReviewStats(String landlordId);
 }

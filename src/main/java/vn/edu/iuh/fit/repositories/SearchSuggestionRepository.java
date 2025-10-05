@@ -13,10 +13,13 @@ import java.util.Optional;
 @Repository
 public interface SearchSuggestionRepository extends JpaRepository<SearchSuggestion, String> {
 
+    //lay ra de match voi search box
     Optional<SearchSuggestion> findFirstByActiveTrueAndNormalizedText(String normalizedText);
 
+    //lay ra de goi y search suggestion - bat dau bang query
     List<SearchSuggestion> findByActiveTrueAndNormalizedTextStartingWith(String normalizedText, Pageable pageable);
 
+    //lay ra de goi y search suggestion - chua query o bat ky vi tri nao
     List<SearchSuggestion> findByActiveTrueAndNormalizedTextContaining(String normalizedText, Pageable pageable);
 
     @Query("""

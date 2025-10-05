@@ -8,6 +8,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.web.bind.annotation.*;
 import vn.edu.iuh.fit.dtos.ReviewDto;
 import vn.edu.iuh.fit.dtos.ReviewReplyDto;
+import vn.edu.iuh.fit.dtos.ReviewStatsDto;
 import vn.edu.iuh.fit.services.ReviewService;
 
 import java.security.Principal;
@@ -60,6 +61,12 @@ public class ReviewController {
                                         @RequestParam(defaultValue="createdAt,DESC") String sort) {
         Pageable pageable = PageRequest.of(page, size, parseSort(sort));
         return reviewService.listByTenant(tenantId, pageable);
+    }
+
+    /** Thống kê tổng số và trung bình rating của landlord */
+    @GetMapping("/landlord/{landlordId}/stats")
+    public ReviewStatsDto landlordStats(@PathVariable String landlordId) {
+        return reviewService.getLandlordReviewStats(landlordId);
     }
 
     private Sort parseSort(String sort) {

@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vn.edu.iuh.fit.dtos.ReviewDto;
 import vn.edu.iuh.fit.dtos.ReviewReplyDto;
+import vn.edu.iuh.fit.dtos.ReviewStatsDto;
 import vn.edu.iuh.fit.entities.Booking;
 import vn.edu.iuh.fit.entities.Review;
 import vn.edu.iuh.fit.entities.ReviewReply;
@@ -14,10 +15,7 @@ import vn.edu.iuh.fit.entities.User;
 import vn.edu.iuh.fit.entities.enums.BookingStatus;
 import vn.edu.iuh.fit.mappers.ReviewMapper;
 import vn.edu.iuh.fit.mappers.ReviewReplyMapper;
-import vn.edu.iuh.fit.repositories.BookingRepository;
-import vn.edu.iuh.fit.repositories.ReviewReplyRepository;
-import vn.edu.iuh.fit.repositories.ReviewRepository;
-import vn.edu.iuh.fit.repositories.UserRepository;
+import vn.edu.iuh.fit.repositories.*;
 import vn.edu.iuh.fit.services.ReviewService;
 
 import java.time.Duration;
@@ -150,5 +148,13 @@ public class ReviewServiceImpl implements ReviewService {
     @Override
     public Page<ReviewDto> listByTenant(String tenantId, Pageable pageable) {
         return reviewRepo.findByTenant_UserIdOrderByCreatedAtDesc(tenantId, pageable).map(reviewMapper::toDto);
+    }
+
+    @Override
+    public ReviewStatsDto getLandlordReviewStats(String landlordId) {
+        LandlordReviewStatsProjection stats = reviewRepo.findLandlordReviewStats(landlordId);
+        long totalReviews = stats != null && stats.getTotalReviews() != null ? stats.getTotalReviews() : 0L;
+        double averageRating = stats != null && stats.getAverageRating() != null ? stats.getAverageRating() : 0d;
+        return new ReviewStatsDto(totalReviews, averageRating);
     }
 }
