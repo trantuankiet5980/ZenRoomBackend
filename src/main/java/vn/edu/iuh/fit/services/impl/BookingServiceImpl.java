@@ -124,6 +124,7 @@ public class BookingServiceImpl implements BookingService {
         );
         invoice.setPaymentUrl(link.getCheckoutUrl());
         invoice.setQrPayload(link.getQrPayload());
+        invoice.setPaymentRef(String.valueOf(link.getOrderCode()));
         invoice.setPaymentMethod("PAYOS");
         invoiceRepo.save(invoice);
 
@@ -186,23 +187,13 @@ public class BookingServiceImpl implements BookingService {
                 || !booking.getProperty().getLandlord().getUserId().equals(landlordId)) {
             throw new SecurityException("Only landlord can approve this booking");
         }
-        if (booking.getBookingStatus() != BookingStatus.AWAITING_LANDLORD_APPROVAL) {
-            throw new IllegalStateException("Booking is not waiting for landlord approval");
-        }
 
-        Invoice invoice = invoiceRepo.findByBooking_BookingId(bookingId)
-                .orElseThrow(() -> new IllegalStateException("Invoice not found"));
-        BigDecimal due = invoice.getDueAmount() == null ? BigDecimal.ZERO : invoice.getDueAmount();
-        if (due.compareTo(BigDecimal.ZERO) > 0) {
-            throw new IllegalStateException("Deposit not paid");
-        }
-
-        booking.setBookingStatus(BookingStatus.APPROVED);
+        booking.setBookingStatus(BookingStatus.AWAITING_LANDLORD_APPROVAL);
         booking.setUpdatedAt(LocalDateTime.now());
         Booking saved = bookingRepo.save(booking);
 
         contractRepo.findByBooking_BookingId(bookingId).ifPresent(contract -> {
-            contract.setContractStatus(ContractStatus.ACTIVE);
+            contract.setContractStatus(ContractStatus.PENDING_REVIEW);
             contract.setUpdatedAt(LocalDateTime.now());
             contractRepo.save(contract);
         });
@@ -245,14 +236,7 @@ public class BookingServiceImpl implements BookingService {
             throw new SecurityException("Only tenant can check-in");
         }
         if (booking.getBookingStatus() != BookingStatus.APPROVED) {
-            throw new IllegalStateException("Booking has not been approved");
-        }
-
-        Invoice invoice = invoiceRepo.findByBooking_BookingId(bookingId)
-                .orElseThrow(() -> new IllegalStateException("Invoice not found"));
-        BigDecimal due = invoice.getDueAmount() == null ? BigDecimal.ZERO : invoice.getDueAmount();
-        if (due.compareTo(BigDecimal.ZERO) > 0) {
-            throw new IllegalStateException("Booking still has outstanding balance");
+            throw new IllegalStateException("Booking chưa được thanh toán");
         }
 
         booking.setBookingStatus(BookingStatus.CHECKED_IN);
@@ -273,9 +257,6 @@ public class BookingServiceImpl implements BookingService {
         Invoice invoice = invoiceRepo.findByBooking_BookingId(bookingId)
                 .orElseThrow(() -> new IllegalStateException("Invoice not found"));
         BigDecimal due = invoice.getDueAmount() == null ? BigDecimal.ZERO : invoice.getDueAmount();
-        if (due.compareTo(BigDecimal.ZERO) > 0) {
-            throw new IllegalStateException("Booking still has outstanding balance");
-        }
 
         booking.setBookingStatus(BookingStatus.COMPLETED);
         booking.setUpdatedAt(LocalDateTime.now());
@@ -300,20 +281,15 @@ public class BookingServiceImpl implements BookingService {
 
     @Override
     public void handlePaymentWebhook(PaymentWebhookPayload payload) {
+        System.out.println("Handling payment webhook: " + payload);
         Invoice invoice = invoiceRepo.findById(payload.getInvoiceId()).orElseThrow();
 
-        BigDecimal paidNow = payload.getAmount() != 0
-                ? new BigDecimal(payload.getAmount())
-                : invoice.getDueAmount();
-
         if (payload.isSuccess()) {
-            BigDecimal newDue = invoice.getDueAmount().subtract(paidNow);
-            if (newDue.compareTo(BigDecimal.ZERO) < 0) {
-                newDue = BigDecimal.ZERO;
-            }
-            invoice.setDueAmount(newDue);
             invoice.setPaidAt(LocalDateTime.now());
-            invoice.setStatus(newDue.compareTo(BigDecimal.ZERO) == 0 ? InvoiceStatus.PAID : InvoiceStatus.ISSUED);
+            invoice.setStatus(InvoiceStatus.PAID);
+            if (payload.getTransactionId() != null && !payload.getTransactionId().isBlank()) {
+                invoice.setPaymentRef(payload.getTransactionId());
+            }
         } else {
             invoice.setStatus(InvoiceStatus.ISSUED);
         }
@@ -321,14 +297,14 @@ public class BookingServiceImpl implements BookingService {
         invoiceRepo.save(invoice);
 
         Booking booking = invoice.getBooking();
-        if (payload.isSuccess() && invoice.getDueAmount().compareTo(BigDecimal.ZERO) == 0) {
-            booking.setBookingStatus(BookingStatus.AWAITING_LANDLORD_APPROVAL);
+        if (payload.isSuccess()) {
+            booking.setBookingStatus(BookingStatus.APPROVED);
             booking.setPaymentUrl(null);
             booking.setUpdatedAt(LocalDateTime.now());
             bookingRepo.save(booking);
             contractRepo.findByBooking_BookingId(booking.getBookingId()).ifPresent(contract -> {
                 if (contract.getContractStatus() == ContractStatus.CANCELLED) {
-                    contract.setContractStatus(ContractStatus.PENDING_REVIEW);
+                    contract.setContractStatus(ContractStatus.ACTIVE);
                 }
                 contract.setUpdatedAt(LocalDateTime.now());
                 contractRepo.save(contract);
