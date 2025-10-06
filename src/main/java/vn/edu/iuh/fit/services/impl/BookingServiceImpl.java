@@ -1,6 +1,7 @@
 package vn.edu.iuh.fit.services.impl;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vn.edu.iuh.fit.dtos.BookingDto;
@@ -22,10 +23,7 @@ import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
-import java.util.EnumSet;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -38,6 +36,7 @@ public class BookingServiceImpl implements BookingService {
     private final ContractRepository contractRepo;
     private final BookingMapper bookingMapper;
     private final PaymentGateway paymentGateway;
+    private final SimpMessagingTemplate messaging;
 
     @Transactional
     @Override
@@ -294,14 +293,15 @@ public class BookingServiceImpl implements BookingService {
             invoice.setStatus(InvoiceStatus.ISSUED);
         }
         invoice.setUpdatedAt(LocalDateTime.now());
-        invoiceRepo.save(invoice);
+        invoice = invoiceRepo.save(invoice);
 
         Booking booking = invoice.getBooking();
+        Booking savedBooking = booking;
         if (payload.isSuccess()) {
             booking.setBookingStatus(BookingStatus.APPROVED);
             booking.setPaymentUrl(null);
             booking.setUpdatedAt(LocalDateTime.now());
-            bookingRepo.save(booking);
+            savedBooking = bookingRepo.save(booking);
             contractRepo.findByBooking_BookingId(booking.getBookingId()).ifPresent(contract -> {
                 if (contract.getContractStatus() == ContractStatus.CANCELLED) {
                     contract.setContractStatus(ContractStatus.ACTIVE);
@@ -310,6 +310,8 @@ public class BookingServiceImpl implements BookingService {
                 contractRepo.save(contract);
             });
         }
+
+        broadcastPaymentStatus(invoice, savedBooking, payload);
     }
 
     @Transactional(readOnly = true)
@@ -333,5 +335,64 @@ public class BookingServiceImpl implements BookingService {
         String date = LocalDate.now().toString().replace("-", "");
         String rand = UUID.randomUUID().toString().substring(0, 7).toUpperCase();
         return "INV-" + date + "-" + rand;
+    }
+
+    private void broadcastPaymentStatus(Invoice invoice, Booking booking, PaymentWebhookPayload payload) {
+        if (invoice == null) {
+            return;
+        }
+
+        Map<String, Object> basePayload = new HashMap<>();
+        basePayload.put("type", "PAYMENT_STATUS_CHANGED");
+        basePayload.put("invoiceId", invoice.getInvoiceId());
+        basePayload.put("invoiceNo", invoice.getInvoiceNo());
+        basePayload.put("invoiceStatus", invoice.getStatus() != null ? invoice.getStatus().name() : null);
+        basePayload.put("bookingId", booking != null ? booking.getBookingId() : null);
+        basePayload.put("bookingStatus", booking != null && booking.getBookingStatus() != null
+                ? booking.getBookingStatus().name() : null);
+        basePayload.put("success", payload.isSuccess());
+        basePayload.put("amount", payload.getAmount());
+        basePayload.put("transactionId", payload.getTransactionId());
+        basePayload.put("paidAt", invoice.getPaidAt() != null ? invoice.getPaidAt().toString() : null);
+        basePayload.put("updatedAt", invoice.getUpdatedAt() != null ? invoice.getUpdatedAt().toString()
+                : LocalDateTime.now().toString());
+
+        messaging.convertAndSend(topicForInvoice(invoice.getInvoiceId()), basePayload);
+
+        if (booking != null) {
+            if (booking.getTenant() != null && booking.getTenant().getUserId() != null) {
+                messaging.convertAndSend(
+                        tenantPaymentTopic(booking.getTenant().getUserId()),
+                        withAudience(basePayload, "TENANT")
+                );
+            }
+
+            if (booking.getProperty() != null
+                    && booking.getProperty().getLandlord() != null
+                    && booking.getProperty().getLandlord().getUserId() != null) {
+                messaging.convertAndSend(
+                        landlordPaymentTopic(booking.getProperty().getLandlord().getUserId()),
+                        withAudience(basePayload, "LANDLORD")
+                );
+            }
+        }
+    }
+
+    private Map<String, Object> withAudience(Map<String, Object> base, String audience) {
+        Map<String, Object> copy = new HashMap<>(base);
+        copy.put("audience", audience);
+        return copy;
+    }
+
+    private String topicForInvoice(String invoiceId) {
+        return "/topic/payments/" + invoiceId;
+    }
+
+    private String tenantPaymentTopic(String tenantId) {
+        return "/topic/tenants/" + tenantId + "/payments";
+    }
+
+    private String landlordPaymentTopic(String landlordId) {
+        return "/topic/landlords/" + landlordId + "/payments";
     }
 }
