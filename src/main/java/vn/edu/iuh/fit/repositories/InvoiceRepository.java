@@ -13,6 +13,7 @@ import java.util.Optional;
 public interface InvoiceRepository extends JpaRepository<Invoice, String> {
     Optional<Invoice> findByBooking_BookingId(String bookingId);
     Optional<Invoice> findByInvoiceNo(String invoiceNo);
+    Optional<Invoice> findByPaymentRef(String paymentRef);
 
     @Query("select coalesce(max(i.invoiceNo), null) from Invoice i where i.invoiceNo like concat(:prefix, '%')")
     String findMaxInvoiceNoWithPrefix(@Param("prefix") String prefix);

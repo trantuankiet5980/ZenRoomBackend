@@ -112,6 +112,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/payments/fake/**").permitAll()
 
                         // PAYMENT
+                        .requestMatchers("/api/v1/payments/**").permitAll()
+
                         .requestMatchers(HttpMethod.GET, "/api/v1/reviews/by-property/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/reviews/reply/**").hasAnyRole("LANDLORD", "ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/v1/reviews/**").hasAnyRole("TENANT", "ADMIN")
