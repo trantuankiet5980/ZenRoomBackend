@@ -31,6 +31,8 @@ public class InvoiceDto implements Serializable {
     BigDecimal dueAmount;
     String paymentMethod;
     String paymentRef;
+    String paymentUrl;
+    String qrPayload;
     LocalDateTime paidAt;
     LocalDateTime issuedAt;
     LocalDateTime dueAt;

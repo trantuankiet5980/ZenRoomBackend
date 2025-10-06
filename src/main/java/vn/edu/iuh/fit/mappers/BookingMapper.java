@@ -28,7 +28,7 @@ public class BookingMapper {
                 discountCodeMapper.toDto(entity.getDiscountCode()),
                 entity.getCreatedAt(),
                 entity.getUpdatedAt(),
-                null
+                entity.getContract() != null ? entity.getContract().getContractId() : null
         );
     }
 

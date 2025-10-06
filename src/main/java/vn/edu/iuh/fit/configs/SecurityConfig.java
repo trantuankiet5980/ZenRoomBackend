@@ -105,6 +105,9 @@ public class SecurityConfig {
                         // BOOKING
                         .requestMatchers("/api/v1/bookings/**").authenticated()
 
+                        // INVOICE
+                        .requestMatchers("/api/v1/invoices/**").authenticated()
+
                         //payment fake
                         .requestMatchers("/api/v1/payments/fake/**").permitAll()
 

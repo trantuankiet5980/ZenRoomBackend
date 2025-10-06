@@ -1,5 +1,7 @@
 package vn.edu.iuh.fit.repositories;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -26,4 +28,16 @@ public interface InvoiceRepository extends JpaRepository<Invoice, String> {
         where i.booking.bookingId = :bookingId and i.status = vn.edu.iuh.fit.entities.enums.InvoiceStatus.PAID
     """)
     List<Invoice> findPaidByBooking(@Param("bookingId") String bookingId);
+
+    Page<Invoice> findByBooking_Tenant_UserIdOrderByCreatedAtDesc(String tenantId, Pageable pageable);
+
+    Page<Invoice> findByBooking_Property_Landlord_UserIdOrderByCreatedAtDesc(String landlordId, Pageable pageable);
+
+    Optional<Invoice> findByInvoiceIdAndBooking_Tenant_UserId(String invoiceId, String tenantId);
+
+    Optional<Invoice> findByInvoiceIdAndBooking_Property_Landlord_UserId(String invoiceId, String landlordId);
+
+    Optional<Invoice> findByBooking_BookingIdAndBooking_Tenant_UserId(String bookingId, String tenantId);
+
+    Optional<Invoice> findByBooking_BookingIdAndBooking_Property_Landlord_UserId(String bookingId, String landlordId);
 }
