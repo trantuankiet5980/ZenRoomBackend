@@ -66,14 +66,18 @@ public class PropertyController {
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(defaultValue = "createdAt,DESC") String sort,
             @RequestParam(required = false) String landlordId,
-            @RequestParam(required = false) String postStatus,   // PENDING|APPROVE|REJECTED
-            @RequestParam(required = false) String type,         // BUILDING|ROOM
-            @RequestParam(required = false, name = "q") String keyword
+            @RequestParam(required = false) String postStatus,
+            @RequestParam(required = false) String type,
+            @RequestParam(required = false, name = "q") String keyword,
+            @RequestParam(required = false) String provinceCode,
+            @RequestParam(required = false) String districtCode
     ) {
         Sort s = parseSort(sort);
-        Pageable pageable = PageRequest.of(Math.max(page,0), Math.min(size, 100), s);
+        Pageable pageable = PageRequest.of(Math.max(page, 0), Math.min(size, 100), s);
 
-        Page<PropertyDto> dtoPage = propertyService.list(landlordId, postStatus, type, keyword, pageable);
+        Page<PropertyDto> dtoPage = propertyService.list(
+                landlordId, postStatus, type, keyword, provinceCode, districtCode, pageable
+        );
 
         return ResponseEntity.ok(Map.of(
                 "totalElements", dtoPage.getTotalElements(),
@@ -82,9 +86,9 @@ public class PropertyController {
                 "size", dtoPage.getSize(),
                 "sort", sort,
                 "content", dtoPage.getContent()
-
         ));
     }
+
 
     @GetMapping("/search")
     public Page<PropertyDto> search(
@@ -102,6 +106,8 @@ public class PropertyController {
             @RequestParam(required = false) Integer parkingSlots,
             @RequestParam(required = false) String buildingName,
             @RequestParam(required = false) String propertyType,
+            @RequestParam(required = false) String provinceCode,
+            @RequestParam(required = false) String districtCode,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "12") int size,
             Principal principal
@@ -116,6 +122,7 @@ public class PropertyController {
                 bathrooms, bedrooms,
                 capacity, parkingSlots,
                 buildingName, propertyType,
+                provinceCode, districtCode,
                 page, size
         );
     }

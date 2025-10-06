@@ -13,7 +13,9 @@ public interface PropertyService {
     Property create(PropertyDto dto);
     Optional<PropertyDto> getById(String id);
 
-    Page<PropertyDto> list(String landlordId, String postStatus, String type, String keyword, Pageable pageable);
+    Page<PropertyDto> list(String landlordId, String postStatus, String type, String keyword,
+                           String provinceCode, String districtCode,
+                           Pageable pageable);
 
     Property update(String id, PropertyDto dto);             // luôn đưa về PENDING
     void changeStatus(String id, PostStatus status, String rejectedReason);
@@ -30,6 +32,7 @@ public interface PropertyService {
             Integer bathrooms, Integer bedrooms,
             Integer capacity, Integer parkingSlots,
             String buildingName, String propertyType, // nếu bạn có enum PropertyType
+            String provinceCode, String districtCode,
             int page, int size
     );
 

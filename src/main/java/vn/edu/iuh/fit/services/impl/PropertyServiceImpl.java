@@ -5,6 +5,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityNotFoundException;
+import jakarta.persistence.criteria.Join;
+import jakarta.persistence.criteria.JoinType;
 import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -87,7 +89,7 @@ public class PropertyServiceImpl implements PropertyService {
         // Address entity
         Address address = propertyMapper.getAddressMapper().toEntity(dto.getAddress(), ward);
 
-        // 👉 Gọi Google Maps API để sinh tọa độ
+        // Gọi Google Maps API để sinh tọa độ
         String fullAddress = dto.getAddress().getStreet() + ", "
                 + (ward != null ? ward.getName_with_type() + ", " : "")
                 + dto.getAddress().getDistrictName() + ", "
@@ -153,15 +155,20 @@ public class PropertyServiceImpl implements PropertyService {
     /* =================== LIST =================== */
     @Transactional(readOnly = true)
     @Override
-    public Page<PropertyDto> list(String landlordId, String postStatus, String type, String keyword, Pageable pageable) {
-        Specification<Property> spec = PropertySpecs.landlordIdEq(landlordId)
+    public Page<PropertyDto> list(String landlordId, String postStatus, String type, String keyword,
+                                  String provinceCode, String districtCode,
+                                  Pageable pageable) {
+        Specification<Property> spec = vn.edu.iuh.fit.services.impl.PropertySpecs.landlordIdEq(landlordId)
                 .and(PropertySpecs.postStatusEq(postStatus))
                 .and(PropertySpecs.typeEq(type))
-                .and(PropertySpecs.keywordLike(keyword));
+                .and(PropertySpecs.keywordLike(keyword))
+                .and(vn.edu.iuh.fit.services.impl.PropertySpecs.provinceCodeEq(provinceCode))
+                .and(vn.edu.iuh.fit.services.impl.PropertySpecs.districtCodeEq(districtCode));
 
-        Page<Property> page = propertyRepository.findAll(spec, pageable);
-        return page.map(propertyMapper::toDto);
+
+        return propertyRepository.findAll(spec, pageable).map(propertyMapper::toDto);
     }
+
 
     /* =================== UPDATE (→ PENDING) =================== */
     @Transactional
@@ -297,6 +304,7 @@ public class PropertyServiceImpl implements PropertyService {
                                     Integer bathrooms, Integer bedrooms,
                                     Integer capacity, Integer parkingSlots,
                                     String buildingName, String propertyType,
+                                    String provinceCode, String districtCode,
                                     int page, int size) {
 
         Specification<Property> spec = (root, q, cb) -> {
@@ -334,6 +342,18 @@ public class PropertyServiceImpl implements PropertyService {
 
             if (propertyType != null && !propertyType.isBlank())
                 ps.add(cb.equal(root.get("propertyType"), propertyType)); // Enum/String tuỳ entity
+
+            if (provinceCode != null && !provinceCode.isBlank()) {
+                Join<Property, Address> addressJoin = root.join("address", JoinType.LEFT);
+                Join<Address, Province> provinceJoin = addressJoin.join("province", JoinType.LEFT);
+                ps.add(cb.equal(provinceJoin.get("code"), provinceCode));
+            }
+
+            if (districtCode != null && !districtCode.isBlank()) {
+                Join<Property, Address> addressJoin = root.join("address", JoinType.LEFT);
+                Join<Address, District> districtJoin = addressJoin.join("district", JoinType.LEFT);
+                ps.add(cb.equal(districtJoin.get("code"), districtCode));
+            }
 
             return cb.and(ps.toArray(new Predicate[0]));
         };
