@@ -33,6 +33,8 @@ public class InvoiceMapper {
                 e.getDueAmount(),
                 e.getPaymentMethod(),
                 e.getPaymentRef(),
+                e.getPaymentUrl(),
+                e.getQrPayload(),
                 e.getPaidAt(),
                 e.getIssuedAt(),
                 e.getDueAt(),
@@ -64,6 +66,8 @@ public class InvoiceMapper {
                 .dueAmount(d.getDueAmount())
                 .paymentMethod(d.getPaymentMethod())
                 .paymentRef(d.getPaymentRef())
+                .paymentUrl(d.getPaymentUrl())
+                .qrPayload(d.getQrPayload())
                 .paidAt(d.getPaidAt())
                 .issuedAt(d.getIssuedAt())
                 .dueAt(d.getDueAt())
