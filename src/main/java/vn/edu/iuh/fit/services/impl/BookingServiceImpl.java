@@ -207,7 +207,7 @@ public class BookingServiceImpl implements BookingService {
         }
         if (EnumSet.of(BookingStatus.CANCELLED, BookingStatus.CHECKED_IN, BookingStatus.COMPLETED, BookingStatus.APPROVED)
                 .contains(booking.getBookingStatus())) {
-            throw new IllegalStateException("Booking cannot be cancelled at this stage");
+            throw new IllegalStateException("Không thể hủy đặt phòng ở giai đoạn này");
         }
         booking.setBookingStatus(BookingStatus.CANCELLED);
         booking.setUpdatedAt(LocalDateTime.now());
@@ -303,9 +303,7 @@ public class BookingServiceImpl implements BookingService {
             booking.setUpdatedAt(LocalDateTime.now());
             savedBooking = bookingRepo.save(booking);
             contractRepo.findByBooking_BookingId(booking.getBookingId()).ifPresent(contract -> {
-                if (contract.getContractStatus() == ContractStatus.CANCELLED) {
-                    contract.setContractStatus(ContractStatus.ACTIVE);
-                }
+                contract.setContractStatus(ContractStatus.ACTIVE);
                 contract.setUpdatedAt(LocalDateTime.now());
                 contractRepo.save(contract);
             });
