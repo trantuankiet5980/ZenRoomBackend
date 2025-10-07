@@ -39,6 +39,10 @@ public class TenantReviewServiceImpl implements TenantReviewService {
                 throw new SecurityException("Only landlord of this booking can rate tenant");
             if (b.getBookingStatus() != BookingStatus.COMPLETED)
                 throw new IllegalStateException("Can rate only after COMPLETED");
+            LocalDateTime completedAt = b.getUpdatedAt();
+            LocalDateTime now = LocalDateTime.now();
+            if (completedAt == null || now.isAfter(completedAt.plusDays(10)))
+                throw new IllegalStateException("Chỉ được phép đánh giá trong vòng 10 ngày sau khi hoàn thành");
             if (trRepo.existsByBooking_BookingId(b.getBookingId()))
                 throw new IllegalStateException("Already rated for this booking");
 
@@ -49,7 +53,7 @@ public class TenantReviewServiceImpl implements TenantReviewService {
             tr.setTenant(b.getTenant());
             tr.setRating(dto.getRating());
             tr.setComment(dto.getComment());
-            tr.setCreatedAt(LocalDateTime.now());
+            tr.setCreatedAt(now);
             tr.setUpdatedAt(null);
 
             return mapper.toDto(trRepo.save(tr));
