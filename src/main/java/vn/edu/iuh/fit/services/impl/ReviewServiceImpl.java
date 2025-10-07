@@ -44,9 +44,13 @@ public class ReviewServiceImpl implements ReviewService {
             Booking b = bookingRepo.findById(dto.getBooking().getBookingId()).orElseThrow();
             if (!b.getTenant().getUserId().equals(tenantId)) throw new SecurityException("Not your booking");
             if (b.getBookingStatus() != BookingStatus.COMPLETED)
-                throw new IllegalStateException("Can review only after COMPLETED");
+                throw new IllegalStateException("Chỉ có thể đánh giá sau khi hoàn thành");
+            LocalDateTime completedAt = b.getUpdatedAt();
+            LocalDateTime now = LocalDateTime.now();
+            if (completedAt == null || now.isAfter(completedAt.plusDays(10)))
+                throw new IllegalStateException("Chỉ được phép đánh giá trong vòng 10 ngày sau khi hoàn thành");
             if (reviewRepo.existsByBooking_BookingIdAndTenant_UserId(b.getBookingId(), tenantId))
-                throw new IllegalStateException("Already reviewed this booking");
+                throw new IllegalStateException("Bạn đã đánh giá booking này");
 
             User tenant = userRepo.findById(tenantId).orElseThrow();
 
@@ -56,7 +60,7 @@ public class ReviewServiceImpl implements ReviewService {
             r.setTenant(tenant);
             r.setRating(dto.getRating());
             r.setComment(dto.getComment());
-            r.setCreatedAt(LocalDateTime.now());
+            r.setCreatedAt(now);
             r.setUpdatedAt(null);
 
             return reviewMapper.toDto(reviewRepo.save(r));
@@ -65,7 +69,7 @@ public class ReviewServiceImpl implements ReviewService {
             Review r = reviewRepo.findById(dto.getReviewId()).orElseThrow();
             if (!r.getTenant().getUserId().equals(tenantId)) throw new SecurityException("Not your review");
             if (r.getCreatedAt() == null || Duration.between(r.getCreatedAt(), LocalDateTime.now()).toHours() > 24)
-                throw new IllegalStateException("Editable within 24h");
+                throw new IllegalStateException("Chỉ được phép chỉnh sửa đánh giá trong vòng 24 giờ");
 
             if (dto.getRating() >= 1 && dto.getRating() <= 5) r.setRating(dto.getRating());
             r.setComment(dto.getComment());
@@ -80,7 +84,7 @@ public class ReviewServiceImpl implements ReviewService {
         Review r = reviewRepo.findById(reviewId).orElseThrow();
         if (!r.getTenant().getUserId().equals(tenantId)) throw new SecurityException("Not your review");
         if (r.getCreatedAt() == null || Duration.between(r.getCreatedAt(), LocalDateTime.now()).toHours() > 24)
-            throw new IllegalStateException("Deletable within 24h");
+            throw new IllegalStateException("Chỉ được phép xóa đánh giá trong vòng 24 giờ");
         // xóa reply nếu có (hoặc dùng cascade)
         replyRepo.findByReview_ReviewId(reviewId).ifPresent(replyRepo::delete);
         reviewRepo.delete(r);
@@ -97,10 +101,13 @@ public class ReviewServiceImpl implements ReviewService {
             Review r = reviewRepo.findById(dto.getReviewId()).orElseThrow();
             User landlord = r.getBooking().getProperty().getLandlord();
             if (!landlord.getUserId().equals(landlordId))
-                throw new SecurityException("Only property's landlord can reply");
+                throw new SecurityException("Chỉ có chủ nhà mới có thể trả lời đánh giá");
             if (replyRepo.existsByReview_ReviewId(r.getReviewId()))
                 throw new IllegalStateException("Reply already exists");
-
+            LocalDateTime reviewCreatedAt = r.getCreatedAt();
+            LocalDateTime now = LocalDateTime.now();
+            if (reviewCreatedAt == null || now.isAfter(reviewCreatedAt.plusDays(10)))
+                throw new IllegalStateException("Chỉ được phép trả lời trong vòng 10 ngày kể từ khi nguời thuê đánh giá");
             ReviewReply rp = new ReviewReply();
             rp.setReplyId(java.util.UUID.randomUUID().toString());
             rp.setReview(r);
