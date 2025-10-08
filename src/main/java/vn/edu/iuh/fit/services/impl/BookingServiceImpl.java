@@ -187,12 +187,17 @@ public class BookingServiceImpl implements BookingService {
             throw new SecurityException("Only landlord can approve this booking");
         }
 
-        booking.setBookingStatus(BookingStatus.AWAITING_LANDLORD_APPROVAL);
+        if (booking.getBookingStatus() != BookingStatus.PENDING_PAYMENT &&
+                booking.getBookingStatus() != BookingStatus.AWAITING_LANDLORD_APPROVAL) {
+            throw new IllegalStateException("Booking must be in PENDING_PAYMENT or AWAITING_LANDLORD_APPROVAL status to approve");
+        }
+
+        booking.setBookingStatus(BookingStatus.APPROVED);
         booking.setUpdatedAt(LocalDateTime.now());
         Booking saved = bookingRepo.save(booking);
 
         contractRepo.findByBooking_BookingId(bookingId).ifPresent(contract -> {
-            contract.setContractStatus(ContractStatus.PENDING_REVIEW);
+            contract.setContractStatus(ContractStatus.ACTIVE);
             contract.setUpdatedAt(LocalDateTime.now());
             contractRepo.save(contract);
         });
@@ -202,9 +207,15 @@ public class BookingServiceImpl implements BookingService {
     @Override
     public BookingDto cancel(String bookingId, String tenantId) {
         Booking booking = bookingRepo.findById(bookingId).orElseThrow();
-        if (!booking.getTenant().getUserId().equals(tenantId)) {
-            throw new SecurityException("Only tenant can cancel");
+
+        boolean isTenant = booking.getTenant() != null && booking.getTenant().getUserId().equals(tenantId);
+        boolean isLandlord = booking.getProperty() != null && booking.getProperty().getLandlord() != null
+                && booking.getProperty().getLandlord().getUserId().equals(tenantId);  // Sử dụng tenantId cho landlord vì param là userId
+
+        if (!isTenant && !isLandlord) {
+            throw new SecurityException("Only tenant or landlord can cancel this booking");
         }
+
         if (EnumSet.of(BookingStatus.CANCELLED, BookingStatus.CHECKED_IN, BookingStatus.COMPLETED, BookingStatus.APPROVED)
                 .contains(booking.getBookingStatus())) {
             throw new IllegalStateException("Không thể hủy đặt phòng ở giai đoạn này");
@@ -229,13 +240,18 @@ public class BookingServiceImpl implements BookingService {
     }
 
     @Override
-    public BookingDto checkIn(String bookingId, String tenantId) {
+    public BookingDto checkIn(String bookingId, String userId) {
         Booking booking = bookingRepo.findById(bookingId).orElseThrow();
-        if (!booking.getTenant().getUserId().equals(tenantId)) {
-            throw new SecurityException("Only tenant can check-in");
+        boolean isTenant = booking.getTenant() != null && booking.getTenant().getUserId().equals(userId);
+        boolean isLandlord = booking.getProperty() != null &&
+                booking.getProperty().getLandlord() != null &&
+                booking.getProperty().getLandlord().getUserId().equals(userId);
+
+        if (!isTenant && !isLandlord) {
+            throw new SecurityException("Only tenant or landlord can check-in");
         }
         if (booking.getBookingStatus() != BookingStatus.APPROVED) {
-            throw new IllegalStateException("Booking chưa được thanh toán");
+            throw new IllegalStateException("Booking chưa được thanh toán hoặc đã ở trạng thái khác");
         }
 
         booking.setBookingStatus(BookingStatus.CHECKED_IN);
@@ -245,10 +261,15 @@ public class BookingServiceImpl implements BookingService {
 
     @Transactional
     @Override
-    public BookingDto checkOut(String bookingId, String tenantId) {
+    public BookingDto checkOut(String bookingId, String userId) {
         Booking booking = bookingRepo.findById(bookingId).orElseThrow();
-        if (!booking.getTenant().getUserId().equals(tenantId)) {
-            throw new SecurityException("Only tenant can check-out");
+        boolean isTenant = booking.getTenant() != null && booking.getTenant().getUserId().equals(userId);
+        boolean isLandlord = booking.getProperty() != null &&
+                booking.getProperty().getLandlord() != null &&
+                booking.getProperty().getLandlord().getUserId().equals(userId);
+
+        if (!isTenant && !isLandlord) {
+            throw new SecurityException("Only tenant or landlord can check-out");
         }
         if (booking.getBookingStatus() != BookingStatus.CHECKED_IN) {
             throw new IllegalStateException("Booking is not in CHECKED_IN status");
