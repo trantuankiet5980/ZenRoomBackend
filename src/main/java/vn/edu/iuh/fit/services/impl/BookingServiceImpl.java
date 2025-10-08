@@ -187,17 +187,12 @@ public class BookingServiceImpl implements BookingService {
             throw new SecurityException("Only landlord can approve this booking");
         }
 
-        if (booking.getBookingStatus() != BookingStatus.PENDING_PAYMENT &&
-                booking.getBookingStatus() != BookingStatus.AWAITING_LANDLORD_APPROVAL) {
-            throw new IllegalStateException("Booking must be in PENDING_PAYMENT or AWAITING_LANDLORD_APPROVAL status to approve");
-        }
-
-        booking.setBookingStatus(BookingStatus.APPROVED);
+        booking.setBookingStatus(BookingStatus.AWAITING_LANDLORD_APPROVAL);
         booking.setUpdatedAt(LocalDateTime.now());
         Booking saved = bookingRepo.save(booking);
 
         contractRepo.findByBooking_BookingId(bookingId).ifPresent(contract -> {
-            contract.setContractStatus(ContractStatus.ACTIVE);
+            contract.setContractStatus(ContractStatus.PENDING_REVIEW);
             contract.setUpdatedAt(LocalDateTime.now());
             contractRepo.save(contract);
         });
