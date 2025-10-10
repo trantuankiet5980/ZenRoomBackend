@@ -62,12 +62,30 @@ public interface UserEventRepository extends JpaRepository<UserEvent, String> {
                                                 @Param("threshold") LocalDateTime threshold,
                                                 Pageable pageable);
 
+    @Query("""
+            select e.property.propertyId as propertyId,
+                   max(e.occurredAt) as lastSeen
+            from UserEvent e
+            where e.user.userId = :userId
+              and e.property.propertyId is not null
+              and e.eventType in :eventTypes
+            group by e.property.propertyId
+            order by max(e.occurredAt) desc
+            """)
+    List<RecentPropertyProjection> findRecentProperties(@Param("userId") String userId,
+                                                        @Param("eventTypes") Collection<EventType> eventTypes,
+                                                        Pageable pageable);
+
     interface PropertyScore {
         String getPropertyId();
         Double getScore();
     }
 
     interface UserPropertyScore extends PropertyScore {
+        LocalDateTime getLastSeen();
+    }
+    interface RecentPropertyProjection {
+        String getPropertyId();
         LocalDateTime getLastSeen();
     }
 }
