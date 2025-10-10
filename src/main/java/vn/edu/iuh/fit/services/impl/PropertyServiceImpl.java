@@ -360,29 +360,7 @@ public class PropertyServiceImpl implements PropertyService {
 
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
         Page<Property> pageData = propertyRepository.findAll(spec, pageable);
-        Page<PropertyDto> result = pageData.map(propertyMapper::toDto);
-
-        // LƯU LỊCH SỬ
-        if (userId != null) {
-            ObjectNode filters = om.createObjectNode();
-            put(filters, "priceMin", priceMin);
-            put(filters, "priceMax", priceMax);
-            put(filters, "areaMin",  areaMin);
-            put(filters, "areaMax",  areaMax);
-            put(filters, "apartmentCategory", apartmentCategory);
-            put(filters, "floorNo",  floorNo);
-            put(filters, "roomNumber", roomNumber);
-            put(filters, "bathrooms", bathrooms);
-            put(filters, "bedrooms",  bedrooms);
-            put(filters, "capacity",  capacity);
-            put(filters, "parkingSlots", parkingSlots);
-            put(filters, "buildingName", buildingName);
-            put(filters, "propertyType", propertyType);
-
-            searchHistoryService.saveHistory(userId, keyword, filters);
-        }
-
-        return result;
+        return pageData.map(propertyMapper::toDto);
     }
 
     @Override
