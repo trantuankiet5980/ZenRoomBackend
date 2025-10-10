@@ -2,6 +2,7 @@ package vn.edu.iuh.fit.controllers;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import vn.edu.iuh.fit.dtos.SearchSuggestionDto;
@@ -13,6 +14,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/v1/search-suggestions")
 @RequiredArgsConstructor
+@Slf4j
 public class SearchSuggestionController {
 
     private final SearchSuggestionService searchSuggestionService;
@@ -21,7 +23,18 @@ public class SearchSuggestionController {
     public ResponseEntity<List<SearchSuggestionDto>> suggest(
             @RequestParam("q") String query,
             @RequestParam(value = "limit", defaultValue = "10") int limit) {
-        return ResponseEntity.ok(searchSuggestionService.suggest(query, limit));
+        List<SearchSuggestionDto> suggestions = searchSuggestionService.suggest(query, limit);
+        try {
+            String topSuggestionId = suggestions.stream()
+                    .map(SearchSuggestionDto::getSuggestionId)
+                    .filter(id -> id != null && !id.isBlank())
+                    .findFirst()
+                    .orElse(null);
+            searchSuggestionService.recordQuery(query, topSuggestionId);
+        } catch (Exception ex) {
+            log.warn("Unable to persist search telemetry for query '{}': {}", query, ex.getMessage());
+        }
+        return ResponseEntity.ok(suggestions);
     }
 
     @PostMapping("/rebuild/properties")
