@@ -5,7 +5,11 @@ import org.springframework.stereotype.Component;
 import vn.edu.iuh.fit.dtos.MessageDto;
 import vn.edu.iuh.fit.dtos.PropertyMiniDto;
 import vn.edu.iuh.fit.entities.Message;
+import vn.edu.iuh.fit.entities.MessageAttachment;
 import vn.edu.iuh.fit.entities.Property;
+import vn.edu.iuh.fit.services.ChatAttachmentService;
+
+import java.util.List;
 
 @Component
 @RequiredArgsConstructor
@@ -13,6 +17,8 @@ public class MessageMapper {
 
     private final ConversationMapper conversationMapper;
     private final UserMapper userMapper;
+    private final MessageAttachmentMapper attachmentMapper;
+    private final ChatAttachmentService chatAttachmentService;
 
     public MessageDto toDto(Message entity) {
         if (entity == null) return null;
@@ -24,7 +30,10 @@ public class MessageMapper {
                 entity.getContent(),
                 entity.getCreatedAt(),
                 entity.getIsRead(),
-                toMini(entity.getProperty())
+                toMini(entity.getProperty()),
+                entity.getAttachments() != null
+                        ? entity.getAttachments().stream().map(this::mapAttachment).toList()
+                        : List.of()
         );
     }
 
@@ -51,6 +60,19 @@ public class MessageMapper {
                 p.getPrice(),
                 addr,
                 thumb
+        );
+    }
+    private vn.edu.iuh.fit.dtos.MessageAttachmentDto mapAttachment(MessageAttachment attachment) {
+        var dto = attachmentMapper.toDto(attachment);
+        String resolved = chatAttachmentService.resolveUrl(attachment);
+        if (dto == null) return null;
+        return new vn.edu.iuh.fit.dtos.MessageAttachmentDto(
+                dto.getAttachmentId(),
+                dto.getMediaType(),
+                resolved,
+                dto.getContentType(),
+                dto.getSize(),
+                dto.getCreatedAt()
         );
     }
 }

@@ -10,11 +10,11 @@ import vn.edu.iuh.fit.entities.Message;
 import java.util.List;
 
 public interface MessageRepository extends JpaRepository<Message, String> {
-    @EntityGraph(attributePaths = {"conversation","sender","property","property.address"})
+    @EntityGraph(attributePaths = {"conversation","sender","property","property.address","attachments"})
     Page<Message> findByConversation_ConversationId(String conversationId, Pageable pageable);
     List<Message> findByConversation_ConversationIdAndIsReadFalse(String conversationId);
     //get last message in conversation
-    @EntityGraph(attributePaths = {"conversation","sender","property","property.address"})
+    @EntityGraph(attributePaths = {"conversation","sender","property","property.address","attachments"})
     Message findFirstByConversation_ConversationIdOrderByCreatedAtDesc(String conversationId);
 
     // Đếm tin NHẬN chưa đọc (sender != currentUser)
