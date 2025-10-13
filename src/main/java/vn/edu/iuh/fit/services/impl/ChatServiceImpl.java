@@ -11,6 +11,7 @@ import vn.edu.iuh.fit.dtos.ConversationInboxEvent;
 import vn.edu.iuh.fit.dtos.MessageDto;
 import vn.edu.iuh.fit.entities.Conversation;
 import vn.edu.iuh.fit.entities.Message;
+import vn.edu.iuh.fit.entities.MessageAttachment;
 import vn.edu.iuh.fit.entities.Property;
 import vn.edu.iuh.fit.entities.User;
 import vn.edu.iuh.fit.mappers.ConversationMapper;
@@ -22,10 +23,7 @@ import vn.edu.iuh.fit.repositories.UserRepository;
 import vn.edu.iuh.fit.services.ChatService;
 
 import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
@@ -46,8 +44,16 @@ public class ChatServiceImpl implements ChatService {
                 && (cmd.propertyId()==null || cmd.propertyId().isBlank())) {
             throw new IllegalArgumentException("Provide conversationId or peerId/propertyId");
         }
-        if (cmd.content()==null || cmd.content().isBlank())
-            throw new IllegalArgumentException("content is required");
+        List<ChatService.AttachmentPayload> attachments = (cmd.attachments() != null)
+                ? cmd.attachments().stream().filter(Objects::nonNull).toList()
+                : List.of();
+        if (attachments.size() > 10) {
+            throw new IllegalArgumentException("Maximum 10 attachments per message");
+        }
+
+        boolean hasContent = cmd.content() != null && !cmd.content().isBlank();
+        if (!hasContent && attachments.isEmpty())
+            throw new IllegalArgumentException("Message content or images are required");
 
         User me = userRepo.findById(currentUserId).orElseThrow();
 
@@ -83,7 +89,7 @@ public class ChatServiceImpl implements ChatService {
                     conv = createConversation(tenant, landlord);
                 }
 
-                Message saved = persistMessage(conv, me, cmd.content(), null /* no property */);
+                Message saved = persistMessage(conv, me, cmd.content(), null /* no property */, attachments);
                 notify(conv, saved);
                 return messageMapper.toDto(saved);
             }
@@ -96,7 +102,7 @@ public class ChatServiceImpl implements ChatService {
 
             Property prop = propertyRepo.getReferenceById(cmd.propertyId());
 
-            Message saved = persistMessage(conv, me, cmd.content(), prop);
+            Message saved = persistMessage(conv, me, cmd.content(), prop, attachments);
             notify(conv, saved);
             return messageMapper.toDto(saved);
         }
@@ -105,7 +111,7 @@ public class ChatServiceImpl implements ChatService {
                 ? propertyRepo.findById(cmd.propertyId()).orElse(null)
                 : null;
 
-        Message saved = persistMessage(conv, me, cmd.content(), prop);
+        Message saved = persistMessage(conv, me, cmd.content(), prop, attachments);
         notify(conv, saved);
         return messageMapper.toDto(saved);
     }
@@ -193,14 +199,34 @@ public class ChatServiceImpl implements ChatService {
         return conversationRepo.save(c);
     }
 
-    private Message persistMessage(Conversation conv, User sender, String content, Property prop) {
+    private Message persistMessage(Conversation conv, User sender, String content, Property prop,
+                                   List<ChatService.AttachmentPayload> attachments) {
         Message m = new Message();
+        m.setMessageId(UUID.randomUUID().toString());
         m.setConversation(conv);
         m.setSender(sender);
         m.setProperty(prop);
         m.setContent(content);
         m.setIsRead(false);
         m.setCreatedAt(LocalDateTime.now());
+        if (attachments != null && !attachments.isEmpty()) {
+            List<MessageAttachment> attEntities = new ArrayList<>();
+            for (ChatService.AttachmentPayload payload : attachments) {
+                if (payload == null) continue;
+                MessageAttachment attachment = MessageAttachment.builder()
+                        .attachmentId(UUID.randomUUID().toString())
+                        .message(m)
+                        .mediaType(payload.mediaType())
+                        .storageKey(payload.storageKey())
+                        .url(payload.url())
+                        .contentType(payload.contentType())
+                        .size(payload.size())
+                        .createdAt(LocalDateTime.now())
+                        .build();
+                attEntities.add(attachment);
+            }
+            m.setAttachments(attEntities);
+        }
         return messageRepo.save(m);
     }
     private String topicNotify(String userId) {

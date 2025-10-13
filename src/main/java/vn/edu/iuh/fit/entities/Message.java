@@ -31,10 +31,15 @@ public class Message {
     private Boolean isRead;
     private LocalDateTime createdAt;
 
+    @Builder.Default
+    @OneToMany(mappedBy = "message", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<MessageAttachment> attachments = new ArrayList<>();
+
     @PrePersist
     void pre() {
         if (messageId == null) messageId = java.util.UUID.randomUUID().toString();
         if (createdAt == null) createdAt = java.time.LocalDateTime.now();
         if (isRead == null) isRead = false;
+        if (attachments == null) attachments = new ArrayList<>();
     }
 }

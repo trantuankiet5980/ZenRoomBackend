@@ -5,9 +5,12 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 import vn.edu.iuh.fit.dtos.ConversationDto;
 import vn.edu.iuh.fit.dtos.MessageDto;
+import vn.edu.iuh.fit.services.ChatAttachmentService;
 import vn.edu.iuh.fit.services.ChatService;
 
 import java.security.Principal;
@@ -19,13 +22,33 @@ import java.util.*;
 public class ChatRestController {
 
     private final ChatService chat;
+    private final ChatAttachmentService attachmentService;
 
     // GỬI TIN (tự tạo conversation nếu chưa có)
     @PostMapping("/send")
     public MessageDto send(@RequestBody SendReq body, Principal principal) {
         var cmd = new ChatService.SendCommand(
-                body.conversationId(), body.propertyId(), body.peerId(), body.content()
+                body.conversationId(), body.propertyId(), body.peerId(), body.content(), List.of()
         );
+        return chat.send(principal.getName(), cmd);
+    }
+
+    @PostMapping(value = "/send/images", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public MessageDto sendImages(@RequestParam(required = false) String conversationId,
+                                 @RequestParam(required = false) String propertyId,
+                                 @RequestParam(required = false) String peerId,
+                                 @RequestParam(required = false) String content,
+                                 @RequestParam("images") List<MultipartFile> images,
+                                 Principal principal) {
+        if (images == null || images.isEmpty()) {
+            throw new IllegalArgumentException("images is required");
+        }
+        if (images.size() > 10) {
+            throw new IllegalArgumentException("You can upload up to 10 images each time");
+        }
+
+        var attachments = attachmentService.uploadImages(principal.getName(), images);
+        var cmd = new ChatService.SendCommand(conversationId, propertyId, peerId, content, attachments);
         return chat.send(principal.getName(), cmd);
     }
 

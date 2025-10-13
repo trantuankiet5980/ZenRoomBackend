@@ -4,6 +4,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import vn.edu.iuh.fit.dtos.ConversationDto;
 import vn.edu.iuh.fit.dtos.MessageDto;
+import vn.edu.iuh.fit.entities.enums.MediaType;
 
 import java.util.List;
 
@@ -16,5 +17,8 @@ public interface ChatService {
     int unreadCount(String currentUserId, String conversationId);
     MessageDto lastMessage(String currentUserId, String conversationId);
 
-    record SendCommand(String conversationId, String propertyId, String peerId, String content) {}
+    record AttachmentPayload(String storageKey, String url, MediaType mediaType, String contentType, Long size) {}
+
+    record SendCommand(String conversationId, String propertyId, String peerId, String content,
+                       List<AttachmentPayload> attachments) {}
 }

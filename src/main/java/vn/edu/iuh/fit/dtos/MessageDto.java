@@ -4,6 +4,7 @@ import lombok.Value;
 
 import java.io.Serializable;
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * DTO for {@link vn.edu.iuh.fit.entities.Message}
@@ -18,4 +19,5 @@ public class MessageDto implements Serializable {
     Boolean isRead;
 
     PropertyMiniDto property;
+    List<MessageAttachmentDto> attachments;
 }
