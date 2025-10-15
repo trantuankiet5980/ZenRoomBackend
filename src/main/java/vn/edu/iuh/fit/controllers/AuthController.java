@@ -12,11 +12,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
-import vn.edu.iuh.fit.dtos.requests.LoginRequest;
 import vn.edu.iuh.fit.dtos.requests.SignUpRequest;
 import vn.edu.iuh.fit.dtos.responses.ApiResponse;
 import vn.edu.iuh.fit.dtos.responses.LoginResponse;
-import vn.edu.iuh.fit.dtos.responses.RefreshTokenResponse;
 import vn.edu.iuh.fit.entities.User;
 import vn.edu.iuh.fit.entities.enums.UserStatus;
 import vn.edu.iuh.fit.exceptions.UserNotFoundException;
@@ -246,25 +244,6 @@ public class AuthController {
             return ResponseEntity.badRequest().body(ApiResponse.builder()
                     .success(false)
                     .message("Registration failed!")
-                    .data(null)
-                    .build());
-        }
-    }
-
-    @PostMapping("/refresh-token")
-    public ResponseEntity<ApiResponse<RefreshTokenResponse>> refreshToken(@RequestBody Map<String, String> request) {
-        String refreshToken = request.get("refreshToken");
-        try {
-            RefreshTokenResponse response = authService.refreshToken(refreshToken);
-            return ResponseEntity.ok(ApiResponse.<RefreshTokenResponse>builder()
-                    .success(true)
-                    .message("Token refreshed successfully")
-                    .data(response)
-                    .build());
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(ApiResponse.<RefreshTokenResponse>builder()
-                    .success(false)
-                    .message("Failed to refresh token: " + e.getMessage())
                     .data(null)
                     .build());
         }

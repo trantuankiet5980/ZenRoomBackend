@@ -189,7 +189,7 @@ public class PropertyServiceImpl implements PropertyService {
         if (dto.getBathrooms() != null) existing.setBathrooms(dto.getBathrooms());
         if (dto.getRoomNumber() != null) existing.setRoomNumber(dto.getRoomNumber());
         if (dto.getFloorNo() != null) existing.setFloorNo(dto.getFloorNo());
-
+        if (dto.getCapacity() != null) existing.setCapacity(dto.getCapacity());
         // Update Address
         if (dto.getAddress() != null) {
             Ward ward = null;

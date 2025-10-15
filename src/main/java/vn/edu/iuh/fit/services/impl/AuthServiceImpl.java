@@ -5,23 +5,17 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
-import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.JwtException;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import vn.edu.iuh.fit.auths.UserPrincipal;
-import vn.edu.iuh.fit.dtos.requests.LoginRequest;
 import vn.edu.iuh.fit.dtos.requests.SignUpRequest;
-import vn.edu.iuh.fit.dtos.responses.LoginResponse;
-import vn.edu.iuh.fit.dtos.responses.RefreshTokenResponse;
-import vn.edu.iuh.fit.entities.RefreshToken;
 import vn.edu.iuh.fit.entities.Role;
 import vn.edu.iuh.fit.entities.User;
 import vn.edu.iuh.fit.entities.enums.UserStatus;
@@ -32,13 +26,10 @@ import vn.edu.iuh.fit.exceptions.UserNotFoundException;
 import vn.edu.iuh.fit.repositories.RoleRepository;
 import vn.edu.iuh.fit.repositories.UserRepository;
 import vn.edu.iuh.fit.services.AuthService;
-import vn.edu.iuh.fit.services.RefreshTokenService;
 import vn.edu.iuh.fit.utils.FormatPhoneNumber;
 import vn.edu.iuh.fit.utils.JwtUtil;
 
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
 
 @Service
@@ -58,8 +49,6 @@ public class AuthServiceImpl implements AuthService {
     private String jwtEncoder;
     @Autowired
     private JwtDecoder jwtDecoder;
-    @Autowired
-    private RefreshTokenService refreshTokenService;
     @Autowired
     private UserDetailsServiceImpl userDetailsService;
 
@@ -251,54 +240,9 @@ public class AuthServiceImpl implements AuthService {
             if (userIdFromPrincipal == null) {
                 throw new TokenRevokedException("ID người dùng không hợp lệ.");
             }
-
-            String refreshToken = refreshTokenService.getRefreshTokenByUser(userIdFromPrincipal);
-            if (refreshToken == null) {
-                throw new IllegalArgumentException("Không tìm thấy refresh token cho người dùng này.");
-            }
-
-            RefreshToken storedRefreshToken = refreshTokenService.findByToken(refreshToken);
-            storedRefreshToken.setRevoked(true);
-            refreshTokenService.saveRefreshToken(storedRefreshToken);
             SecurityContextHolder.clearContext();
         } catch (JwtException e) {
             throw new InvalidTokenException("Token không hợp lệ.");
-        }
-    }
-
-    @Override
-    public RefreshTokenResponse refreshToken(String refreshToken) {
-        if (refreshToken == null || refreshToken.isEmpty()) {
-            throw new MissingTokenException("Refresh token không được để trống.");
-        }
-
-        try {
-            Jwt decodedToken = jwtDecoder.decode(refreshToken);
-            String userId = decodedToken.getSubject();
-
-            RefreshToken storedRefreshToken = refreshTokenService.findByToken(refreshToken);
-            if (storedRefreshToken == null || storedRefreshToken.isRevoked()) {
-                throw new TokenRevokedException("Refresh token đã bị thu hồi. Vui lòng đăng nhập lại.");
-            }
-
-            List<RefreshToken> validRefreshTokens = refreshTokenService.getValidTokensByUserId(String.valueOf(storedRefreshToken.getId()));
-            if (validRefreshTokens.isEmpty()) {
-                throw new TokenRevokedException("Không còn refresh token hợp lệ. Vui lòng đăng nhập lại.");
-            }
-
-            UserPrincipal userPrincipal = (UserPrincipal) userDetailsService.loadUserByUsername(userId);
-            if (userPrincipal == null) {
-                throw new UserNotFoundException("Không tìm thấy người dùng từ token.");
-            }
-
-            String newAccessToken = jwtTokenUtil.generateToken(
-                    userPrincipal.getUserResponse().getUserId(),
-                    userPrincipal.getUserResponse().getRoleName()
-            );
-
-            return new RefreshTokenResponse(newAccessToken, "Bearer", jwtTokenUtil.getExpiration());
-        } catch (JwtException e) {
-            throw new InvalidTokenException("Refresh token không hợp lệ.");
         }
     }
 
