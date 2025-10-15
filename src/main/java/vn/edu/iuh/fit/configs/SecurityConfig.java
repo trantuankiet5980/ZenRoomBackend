@@ -145,6 +145,7 @@ public class SecurityConfig {
 
                         // RECOMMENDATIONS
                         .requestMatchers("/api/v1/recommendations/**").permitAll()
+                        .requestMatchers("/api/v1/ai/**").permitAll()
 
                         .anyRequest().authenticated()
                 )
