@@ -1,6 +1,8 @@
 package vn.edu.iuh.fit.services.impl;
 
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,6 +18,7 @@ import vn.edu.iuh.fit.payments.PaymentGateway;
 import vn.edu.iuh.fit.payments.PaymentLink;
 import vn.edu.iuh.fit.repositories.*;
 import vn.edu.iuh.fit.services.BookingService;
+import vn.edu.iuh.fit.services.RealtimeNotificationService;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -37,6 +40,8 @@ public class BookingServiceImpl implements BookingService {
     private final BookingMapper bookingMapper;
     private final PaymentGateway paymentGateway;
     private final SimpMessagingTemplate messaging;
+    private final RealtimeNotificationService realtimeNotificationService;
+    private static final Logger logger = LoggerFactory.getLogger(BookingServiceImpl.class);
 
     @Transactional
     @Override
@@ -196,7 +201,12 @@ public class BookingServiceImpl implements BookingService {
             contract.setUpdatedAt(LocalDateTime.now());
             contractRepo.save(contract);
         });
-        return bookingMapper.toDto(saved);
+
+        // Notify tenant about booking approval
+        BookingDto bookingDto = bookingMapper.toDto(saved);
+        realtimeNotificationService.notifyTenantBookingApproved(bookingDto);
+
+        return bookingDto;
     }
 
     @Override

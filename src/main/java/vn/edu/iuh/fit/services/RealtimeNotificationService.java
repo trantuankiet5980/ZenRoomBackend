@@ -1,5 +1,6 @@
 package vn.edu.iuh.fit.services;
 
+import vn.edu.iuh.fit.dtos.BookingDto;
 import vn.edu.iuh.fit.dtos.NotificationDto;
 import vn.edu.iuh.fit.dtos.PropertyDto;
 import vn.edu.iuh.fit.entities.User;
@@ -14,6 +15,8 @@ public interface RealtimeNotificationService {
 
     // Thong bao khi bai dang thay doi trang thai
     void notifyAdminsPropertyStatusChanged(PropertyDto p, PostStatus status, String rejectedReason); // NEW
+
+    void notifyTenantBookingApproved(BookingDto booking);
 
     NotificationDto createAndPush(
             User target,
