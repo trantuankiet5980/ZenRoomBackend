@@ -3,6 +3,7 @@ package vn.edu.iuh.fit.services;
 import vn.edu.iuh.fit.dtos.BookingDto;
 import vn.edu.iuh.fit.dtos.NotificationDto;
 import vn.edu.iuh.fit.dtos.PropertyDto;
+import vn.edu.iuh.fit.entities.Invoice;
 import vn.edu.iuh.fit.entities.User;
 import vn.edu.iuh.fit.entities.enums.NotificationType;
 import vn.edu.iuh.fit.entities.enums.PostStatus;
@@ -17,6 +18,10 @@ public interface RealtimeNotificationService {
     void notifyAdminsPropertyStatusChanged(PropertyDto p, PostStatus status, String rejectedReason); // NEW
 
     void notifyTenantBookingApproved(BookingDto booking);
+
+    void notifyLandlordBookingCreated(BookingDto booking);
+
+    void notifyPaymentStatusChanged(BookingDto booking, Invoice invoice, boolean success);
 
     NotificationDto createAndPush(
             User target,

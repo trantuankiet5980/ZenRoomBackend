@@ -181,7 +181,10 @@ public class BookingServiceImpl implements BookingService {
         contractRepo.save(contract);
         savedBooking.setContract(contract);
 
-        return bookingMapper.toDto(savedBooking);
+        BookingDto result = bookingMapper.toDto(savedBooking);
+        realtimeNotificationService.notifyLandlordBookingCreated(result);
+
+        return result;
     }
 
     @Override
@@ -334,6 +337,9 @@ public class BookingServiceImpl implements BookingService {
                 contractRepo.save(contract);
             });
         }
+
+        BookingDto bookingDto = bookingMapper.toDto(savedBooking);
+        realtimeNotificationService.notifyPaymentStatusChanged(bookingDto, invoice, payload.isSuccess());
 
         broadcastPaymentStatus(invoice, savedBooking, payload);
     }
