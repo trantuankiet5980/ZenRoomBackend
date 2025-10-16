@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import vn.edu.iuh.fit.dtos.BookingDto;
 import vn.edu.iuh.fit.dtos.NotificationDto;
 import vn.edu.iuh.fit.dtos.PropertyDto;
+import vn.edu.iuh.fit.entities.Invoice;
 import vn.edu.iuh.fit.entities.Notification;
 import vn.edu.iuh.fit.entities.User;
 import vn.edu.iuh.fit.entities.enums.NotificationType;
@@ -181,6 +182,96 @@ public class RealtimeNotificationServiceImpl implements RealtimeNotificationServ
             payloadTenant.put("audience", "TENANT");
             log.info("Sending WS notification to tenant {}: {}", tenantId, payloadTenant);
             messaging.convertAndSendToUser(tenantId, "/queue/notifications", payloadTenant);
+        }
+    }
+
+    @Override
+    public void notifyLandlordBookingCreated(BookingDto booking) {
+        if (booking == null
+                || booking.getProperty() == null
+                || booking.getProperty().getLandlord() == null
+                || booking.getProperty().getLandlord().getUserId() == null) {
+            return;
+        }
+
+        var landlordId = booking.getProperty().getLandlord().getUserId();
+        userRepository.findById(landlordId).ifPresent(landlord -> {
+            String propertyTitle = booking.getProperty().getTitle() != null
+                    ? booking.getProperty().getTitle()
+                    : "đặt phòng";
+            String tenantName = booking.getTenant() != null && booking.getTenant().getFullName() != null
+                    ? booking.getTenant().getFullName()
+                    : "Một khách thuê";
+            String message = tenantName + " đã đặt " + propertyTitle;
+
+            createAndPush(
+                    landlord,
+                    "Có đặt phòng mới",
+                    message,
+                    NotificationType.BOOKING,
+                    "/landlord/bookings/" + booking.getBookingId()
+            );
+
+            log.info("Sent new booking notification to landlord {} for booking {}", landlordId, booking.getBookingId());
+        });
+    }
+
+    @Override
+    public void notifyPaymentStatusChanged(BookingDto booking, Invoice invoice, boolean success) {
+        if (booking == null) {
+            return;
+        }
+
+        String propertyTitle = booking.getProperty() != null && booking.getProperty().getTitle() != null
+                ? booking.getProperty().getTitle()
+                : "đặt phòng";
+        String invoiceNo = invoice != null ? invoice.getInvoiceNo() : null;
+
+        if (booking.getTenant() != null && booking.getTenant().getUserId() != null) {
+            String tenantId = booking.getTenant().getUserId();
+            userRepository.findById(tenantId).ifPresent(tenant -> {
+                String title = success ? "Thanh toán thành công" : "Thanh toán thất bại";
+                String message;
+                if (success) {
+                    message = "Bạn đã thanh toán thành công cho " + propertyTitle
+                            + (invoiceNo != null ? " (" + invoiceNo + ")" : "");
+                } else {
+                    message = "Thanh toán cho " + propertyTitle + " không thành công. Vui lòng thử lại.";
+                }
+
+                createAndPush(
+                        tenant,
+                        title,
+                        message,
+                        NotificationType.PAYMENT,
+                        "/tenant/bookings/" + booking.getBookingId()
+                );
+            });
+        }
+
+        if (!success) {
+            return;
+        }
+
+        if (booking.getProperty() != null
+                && booking.getProperty().getLandlord() != null
+                && booking.getProperty().getLandlord().getUserId() != null) {
+            String landlordId = booking.getProperty().getLandlord().getUserId();
+            userRepository.findById(landlordId).ifPresent(landlord -> {
+                String tenantName = booking.getTenant() != null && booking.getTenant().getFullName() != null
+                        ? booking.getTenant().getFullName()
+                        : "Khách thuê";
+                String message = tenantName + " đã hoàn tất thanh toán cho " + propertyTitle
+                        + (invoiceNo != null ? " (" + invoiceNo + ")" : "");
+
+                createAndPush(
+                        landlord,
+                        "Đặt phòng đã được thanh toán",
+                        message,
+                        NotificationType.PAYMENT,
+                        "/landlord/bookings/" + booking.getBookingId()
+                );
+            });
         }
     }
 
