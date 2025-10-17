@@ -33,6 +33,10 @@ public class RealtimeNotificationServiceImpl implements RealtimeNotificationServ
     private final NotificationMapper notificationMapper;
     private final UserRepository userRepository;
 
+    private String topicUserNotifications(String userId) {
+        return "/topic/user.notifications." + userId;
+    }
+
     public void notifyAdminsPropertyCreated(PropertyDto p) {
         // A) Broadcast realtime cho admin FE
         var payload = Map.of(
@@ -117,9 +121,9 @@ public class RealtimeNotificationServiceImpl implements RealtimeNotificationServ
             var landlordId = p.getLandlord().getUserId();
 
             var landlordTitle = switch (status) {
-                case APPROVED -> "Tin của bạn đã được DUYỆT";
-                case REJECTED -> "Tin của bạn BỊ TỪ CHỐI";
-                default -> "Tin của bạn ĐANG CHỜ DUYỆT";
+                case APPROVED -> "Bài đăng của bạn đã được DUYỆT";
+                case REJECTED -> "Bài đăng của bạn BỊ TỪ CHỐI";
+                default -> "Bài đăng của bạn ĐANG CHỜ DUYỆT";
             };
             var landlordMsg = (rejectedReason != null && !rejectedReason.isBlank())
                     ? (p.getTitle() + " | Lý do: " + rejectedReason)
@@ -148,41 +152,27 @@ public class RealtimeNotificationServiceImpl implements RealtimeNotificationServ
 
     @Override
     public void notifyTenantBookingApproved(BookingDto booking) {
-        var now = LocalDateTime.now();
+        if (booking == null || booking.getTenant() == null || booking.getTenant().getUserId() == null) {
+            return;
+        }
 
-        // Prepare WebSocket payload
-        var payload = new HashMap<String, Object>();
-        payload.put("type", "BOOKING_APPROVED");
-        payload.put("bookingId", booking.getBookingId());
-        payload.put("propertyTitle", booking.getProperty() != null ? booking.getProperty().getTitle() : null);
-        payload.put("status", booking.getBookingStatus() != null ? booking.getBookingStatus().name() : null);
-        payload.put("createdAt", now.toString());
+        String tenantId = booking.getTenant().getUserId();
+        userRepository.findById(tenantId).ifPresent(tenant -> {
+            String tenantTitle = "Đặt phòng của bạn đã được duyệt";
+            String tenantMessage = booking.getProperty() != null && booking.getProperty().getTitle() != null
+                    ? booking.getProperty().getTitle()
+                    : "Đặt phòng #" + booking.getBookingId();
 
-        // Notify tenant
-        if (booking.getTenant() != null && booking.getTenant().getUserId() != null) {
-            var tenantId = booking.getTenant().getUserId();
-            var tenantTitle = "Đặt phòng của bạn đã được duyệt";
-            var tenantMessage = booking.getProperty() != null ? booking.getProperty().getTitle() : "Đặt phòng #" + booking.getBookingId();
-
-            // Save notification to database
-            notificationRepository.save(
-                    Notification.builder()
-                            .user(userRepository.getReferenceById(tenantId))
-                            .title(tenantTitle)
-                            .message(tenantMessage)
-                            .type(NotificationType.BOOKING)
-                            .redirectUrl("/tenant/bookings/" + booking.getBookingId())
-                            .isRead(false)
-                            .createdAt(now)
-                            .build()
+            createAndPush(
+                    tenant,
+                    tenantTitle,
+                    tenantMessage,
+                    NotificationType.BOOKING,
+                    "/tenant/bookings/" + booking.getBookingId()
             );
 
-            // Send WebSocket notification to tenant
-            var payloadTenant = new HashMap<String, Object>(payload);
-            payloadTenant.put("audience", "TENANT");
-            log.info("Sending WS notification to tenant {}: {}", tenantId, payloadTenant);
-            messaging.convertAndSendToUser(tenantId, "/queue/notifications", payloadTenant);
-        }
+            log.info("Sent booking approved notification to tenant {} for booking {}", tenantId, booking.getBookingId());
+        });
     }
 
     @Override
@@ -291,9 +281,13 @@ public class RealtimeNotificationServiceImpl implements RealtimeNotificationServ
         Notification saved = notificationRepository.save(entity);
         NotificationDto dto = notificationMapper.toDto(saved);
 
-        messaging.convertAndSendToUser(
-                target.getUserId(),            // Principal.getName() == userId
-                "/queue/notifications",
+//        messaging.convertAndSendToUser(
+//                target.getUserId(),            // Principal.getName() == userId
+//                "/queue/notifications",
+//                dto
+//        );
+        messaging.convertAndSend(
+                topicUserNotifications(target.getUserId()),
                 dto
         );
         return dto;
