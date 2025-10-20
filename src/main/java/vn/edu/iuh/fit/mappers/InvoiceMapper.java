@@ -38,6 +38,11 @@ public class InvoiceMapper {
                 e.getPaidAt(),
                 e.getIssuedAt(),
                 e.getDueAt(),
+                e.getCancellationFee(),
+                e.getRefundableAmount(),
+                e.getRefundConfirmed(),
+                e.getRefundRequestedAt(),
+                e.getRefundConfirmedAt(),
                 e.getCreatedAt(),
                 e.getUpdatedAt(),
                 e.getItemsJson()
@@ -71,6 +76,11 @@ public class InvoiceMapper {
                 .paidAt(d.getPaidAt())
                 .issuedAt(d.getIssuedAt())
                 .dueAt(d.getDueAt())
+                .cancellationFee(d.getCancellationFee())
+                .refundableAmount(d.getRefundableAmount())
+                .refundConfirmed(d.getRefundConfirmed())
+                .refundRequestedAt(d.getRefundRequestedAt())
+                .refundConfirmedAt(d.getRefundConfirmedAt())
                 .createdAt(d.getCreatedAt())
                 .updatedAt(d.getUpdatedAt())
                 .itemsJson(d.getItemsJson())

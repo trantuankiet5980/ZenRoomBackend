@@ -31,6 +31,9 @@ public class Invoice {
         if (invoiceId == null) invoiceId = UUID.randomUUID().toString();
         if (createdAt == null) createdAt = LocalDateTime.now();
         if (updatedAt == null) updatedAt = LocalDateTime.now();
+        if (cancellationFee == null) cancellationFee = BigDecimal.ZERO;
+        if (refundableAmount == null) refundableAmount = BigDecimal.ZERO;
+        if (refundConfirmed == null) refundConfirmed = Boolean.FALSE;
     }
     @PreUpdate void upd(){ updatedAt = LocalDateTime.now(); }
 
@@ -84,6 +87,16 @@ public class Invoice {
 
     private LocalDateTime issuedAt;
     private LocalDateTime dueAt;
+
+    @Column(precision = 14, scale = 2)
+    private BigDecimal cancellationFee; // Phí phạt khi hủy (1 đêm + phí dịch vụ)
+
+    @Column(precision = 14, scale = 2)
+    private BigDecimal refundableAmount; // Số tiền cần hoàn lại cho khách
+
+    private Boolean refundConfirmed;
+    private LocalDateTime refundRequestedAt;
+    private LocalDateTime refundConfirmedAt;
 
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

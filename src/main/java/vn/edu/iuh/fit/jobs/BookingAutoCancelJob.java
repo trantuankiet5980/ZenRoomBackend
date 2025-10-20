@@ -29,6 +29,8 @@ public class BookingAutoCancelJob {
     private static final Duration PAYMENT_WINDOW = Duration.ofHours(24);
     private static final Set<BookingStatus> CANCELLABLE_STATUSES =
             EnumSet.of(BookingStatus.PENDING_PAYMENT, BookingStatus.AWAITING_LANDLORD_APPROVAL);
+    private static final Set<InvoiceStatus> PAID_OR_REFUNDING_STATUSES =
+            EnumSet.of(InvoiceStatus.PAID, InvoiceStatus.REFUND_PENDING, InvoiceStatus.REFUNDED);
 
     private final BookingRepository bookingRepo;
     private final InvoiceRepository invoiceRepo;
@@ -57,7 +59,7 @@ public class BookingAutoCancelJob {
             }
 
             Invoice invoice = invoiceRepo.findByBooking_BookingId(booking.getBookingId()).orElse(null);
-            if (invoice != null && invoice.getStatus() == InvoiceStatus.PAID) {
+            if (invoice != null && PAID_OR_REFUNDING_STATUSES.contains(invoice.getStatus())) {
                 continue;
             }
 
