@@ -39,4 +39,6 @@ public interface BookingRepository extends JpaRepository<Booking, String> {
     );
 
     List<Booking> findByProperty_PropertyIdAndBookingStatusNot(String propertyId, BookingStatus status);
+
+    List<Booking> findByBookingStatusAndEndDateLessThanEqual(BookingStatus status, LocalDate endDate);
 }
