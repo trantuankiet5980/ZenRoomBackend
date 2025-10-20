@@ -9,6 +9,8 @@ import vn.edu.iuh.fit.entities.Booking;
 import vn.edu.iuh.fit.entities.enums.BookingStatus;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
 
 public interface BookingRepository extends JpaRepository<Booking, String> {
@@ -59,4 +61,6 @@ public interface BookingRepository extends JpaRepository<Booking, String> {
             @Param("endDate") LocalDate endDate,
             @Param("bookingId") String bookingId
     );
+
+    List<Booking> findByBookingStatusInAndCreatedAtBefore(Collection<BookingStatus> statuses, LocalDateTime createdAt);
 }
