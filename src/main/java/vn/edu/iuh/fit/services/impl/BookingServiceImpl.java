@@ -115,6 +115,11 @@ public class BookingServiceImpl implements BookingService {
         invoice.setLandlordPhone(property.getLandlord() != null ? property.getLandlord().getPhoneNumber() : null);
         invoice.setPropertyTitle(property.getTitle());
         invoice.setPropertyAddressText(property.getAddress() != null ? property.getAddress().getAddressFull() : null);
+        invoice.setCancellationFee(BigDecimal.ZERO);
+        invoice.setRefundableAmount(BigDecimal.ZERO);
+        invoice.setRefundConfirmed(Boolean.FALSE);
+        invoice.setRefundRequestedAt(null);
+        invoice.setRefundConfirmedAt(null);
 
         BigDecimal roundedTotal = total.setScale(0, RoundingMode.HALF_UP);
         long amount = roundedTotal.longValueExact();
@@ -213,6 +218,7 @@ public class BookingServiceImpl implements BookingService {
     }
 
     @Override
+    @Transactional
     public BookingDto cancel(String bookingId, String tenantId) {
         Booking booking = bookingRepo.findById(bookingId).orElseThrow();
 
@@ -224,24 +230,36 @@ public class BookingServiceImpl implements BookingService {
             throw new SecurityException("Only tenant or landlord can cancel this booking");
         }
 
-        if (EnumSet.of(BookingStatus.CANCELLED, BookingStatus.CHECKED_IN, BookingStatus.COMPLETED, BookingStatus.APPROVED)
+        if (EnumSet.of(BookingStatus.CANCELLED, BookingStatus.CHECKED_IN, BookingStatus.COMPLETED)
                 .contains(booking.getBookingStatus())) {
             throw new IllegalStateException("Không thể hủy đặt phòng ở giai đoạn này");
         }
+        LocalDateTime now = LocalDateTime.now();
+        Invoice invoice = invoiceRepo.findByBooking_BookingId(bookingId).orElse(null);
+
+        if (booking.getBookingStatus() == BookingStatus.APPROVED) {
+            applyRefundPolicy(booking, invoice, now);
+        } else {
+            if (invoice != null) {
+                invoice.setStatus(InvoiceStatus.VOID);
+                invoice.setCancellationFee(BigDecimal.ZERO);
+                invoice.setRefundableAmount(BigDecimal.ZERO);
+                invoice.setRefundConfirmed(Boolean.TRUE);
+                invoice.setRefundRequestedAt(null);
+                invoice.setRefundConfirmedAt(now);
+                invoice.setUpdatedAt(now);
+                invoiceRepo.save(invoice);
+            }
+        }
+
         booking.setBookingStatus(BookingStatus.CANCELLED);
-        booking.setUpdatedAt(LocalDateTime.now());
+        booking.setUpdatedAt(now);
         bookingRepo.save(booking);
 
         contractRepo.findByBooking_BookingId(bookingId).ifPresent(contract -> {
             contract.setContractStatus(ContractStatus.CANCELLED);
-            contract.setUpdatedAt(LocalDateTime.now());
+            contract.setUpdatedAt(now);
             contractRepo.save(contract);
-        });
-
-        invoiceRepo.findByBooking_BookingId(bookingId).ifPresent(inv -> {
-            inv.setStatus(InvoiceStatus.VOID);
-            inv.setUpdatedAt(LocalDateTime.now());
-            invoiceRepo.save(inv);
         });
 
         return bookingMapper.toDto(booking);
@@ -348,8 +366,18 @@ public class BookingServiceImpl implements BookingService {
             if (payload.getTransactionId() != null && !payload.getTransactionId().isBlank()) {
                 invoice.setPaymentRef(payload.getTransactionId());
             }
+            invoice.setCancellationFee(BigDecimal.ZERO);
+            invoice.setRefundableAmount(BigDecimal.ZERO);
+            invoice.setRefundConfirmed(Boolean.FALSE);
+            invoice.setRefundRequestedAt(null);
+            invoice.setRefundConfirmedAt(null);
         } else {
             invoice.setStatus(InvoiceStatus.ISSUED);
+            invoice.setCancellationFee(BigDecimal.ZERO);
+            invoice.setRefundableAmount(BigDecimal.ZERO);
+            invoice.setRefundConfirmed(Boolean.FALSE);
+            invoice.setRefundRequestedAt(null);
+            invoice.setRefundConfirmedAt(null);
         }
         invoice.setUpdatedAt(LocalDateTime.now());
         invoice = invoiceRepo.save(invoice);
@@ -395,6 +423,107 @@ public class BookingServiceImpl implements BookingService {
         String date = LocalDate.now().toString().replace("-", "");
         String rand = UUID.randomUUID().toString().substring(0, 7).toUpperCase();
         return "INV-" + date + "-" + rand;
+    }
+
+    private void applyRefundPolicy(Booking booking, Invoice invoice, LocalDateTime cancelAt) {
+        if (booking == null) {
+            return;
+        }
+
+        BigDecimal dueAmount = invoice != null ? safe(invoice.getDueAmount()) : BigDecimal.ZERO;
+        if (dueAmount.compareTo(BigDecimal.ZERO) <= 0) {
+            dueAmount = safe(booking.getTotalPrice());
+        }
+
+        BigDecimal refundAmount = dueAmount;
+        BigDecimal cancellationFee = BigDecimal.ZERO;
+
+        LocalDate startDate = booking.getStartDate();
+        if (startDate != null) {
+            LocalDateTime freeCancelDeadline = startDate.minusDays(1).atTime(14, 0);
+            LocalDateTime partialRefundDeadline = startDate.atTime(14, 0);
+
+            if (cancelAt.isBefore(freeCancelDeadline)) {
+                refundAmount = dueAmount;
+                cancellationFee = BigDecimal.ZERO;
+            } else if (cancelAt.isBefore(partialRefundDeadline)) {
+                BigDecimal firstNightCharge = calculateFirstNightCharge(booking);
+                BigDecimal serviceFee = calculateServiceFee(booking);
+                cancellationFee = firstNightCharge.add(serviceFee);
+                if (cancellationFee.compareTo(dueAmount) > 0) {
+                    cancellationFee = dueAmount;
+                }
+                refundAmount = dueAmount.subtract(cancellationFee);
+            } else {
+                cancellationFee = dueAmount;
+                refundAmount = BigDecimal.ZERO;
+            }
+        }
+
+        refundAmount = refundAmount.max(BigDecimal.ZERO);
+        cancellationFee = cancellationFee.max(BigDecimal.ZERO);
+
+        if (invoice != null) {
+            invoice.setCancellationFee(cancellationFee);
+            invoice.setRefundableAmount(refundAmount);
+            invoice.setRefundRequestedAt(cancelAt);
+            if (refundAmount.compareTo(BigDecimal.ZERO) > 0) {
+                invoice.setStatus(InvoiceStatus.REFUND_PENDING);
+                invoice.setRefundConfirmed(Boolean.FALSE);
+                invoice.setRefundConfirmedAt(null);
+            } else {
+                invoice.setStatus(InvoiceStatus.PAID);
+                invoice.setRefundConfirmed(Boolean.TRUE);
+                invoice.setRefundConfirmedAt(cancelAt);
+            }
+            invoice.setUpdatedAt(cancelAt);
+            invoiceRepo.save(invoice);
+        }
+    }
+
+    private BigDecimal calculateFirstNightCharge(Booking booking) {
+        if (booking == null) {
+            return BigDecimal.ZERO;
+        }
+        BigDecimal total = safe(booking.getTotalPrice());
+        LocalDate startDate = booking.getStartDate();
+        LocalDate endDate = booking.getEndDate();
+        if (startDate == null || endDate == null) {
+            return total;
+        }
+        long nights = ChronoUnit.DAYS.between(startDate, endDate);
+        if (nights <= 0) {
+            return total;
+        }
+        if (nights == 1) {
+            return total;
+        }
+        return total.divide(BigDecimal.valueOf(nights), 2, RoundingMode.HALF_UP);
+    }
+
+    private BigDecimal calculateServiceFee(Booking booking) {
+        if (booking == null) {
+            return BigDecimal.ZERO;
+        }
+        Contract contract = booking.getContract();
+        if (contract != null && contract.getServices() != null) {
+            return contract.getServices().stream()
+                    .filter(service -> service != null && Boolean.FALSE.equals(service.getIsIncluded()))
+                    .map(service -> safe(service.getFee()))
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+        }
+        Property property = booking.getProperty();
+        if (property != null && property.getServices() != null) {
+            return property.getServices().stream()
+                    .filter(service -> service != null && Boolean.FALSE.equals(service.getIsIncluded()))
+                    .map(service -> safe(service.getFee()))
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+        }
+        return BigDecimal.ZERO;
+    }
+
+    private BigDecimal safe(BigDecimal value) {
+        return value == null ? BigDecimal.ZERO : value;
     }
 
     private void broadcastPaymentStatus(Invoice invoice, Booking booking, PaymentWebhookPayload payload) {
