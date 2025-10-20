@@ -262,6 +262,36 @@ public class BookingServiceImpl implements BookingService {
             throw new IllegalStateException("Booking chưa được thanh toán hoặc đã ở trạng thái khác");
         }
 
+        LocalDate startDate = booking.getStartDate();
+        if (startDate == null) {
+            throw new IllegalStateException("Booking chưa có ngày nhận phòng");
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime standardCheckIn = startDate.atTime(14, 0);
+        LocalDateTime earlyCheckInStart = standardCheckIn.minusMinutes(10);
+
+        if (now.isBefore(earlyCheckInStart)) {
+            throw new IllegalStateException("Chỉ được nhận phòng từ 14:00. Có thể check-in sớm nhất từ 13:50-14:00 nếu phòng trống.");
+        }
+
+        if (now.isBefore(standardCheckIn)) {
+            Property property = booking.getProperty();
+            if (property == null || property.getPropertyId() == null) {
+                throw new IllegalStateException("Không xác định được căn phòng để kiểm tra tình trạng");
+            }
+
+            boolean previousGuestNotCheckedOut = bookingRepo.existsActiveBookingEndingOn(
+                    property.getPropertyId(),
+                    startDate,
+                    booking.getBookingId()
+            );
+
+            if (previousGuestNotCheckedOut) {
+                throw new IllegalStateException("Khách thuê trước chưa trả phòng, vui lòng check-in sau 14:00.");
+            }
+        }
+
         booking.setBookingStatus(BookingStatus.CHECKED_IN);
         booking.setUpdatedAt(LocalDateTime.now());
         return bookingMapper.toDto(bookingRepo.save(booking));
