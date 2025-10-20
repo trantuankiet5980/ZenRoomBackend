@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import vn.edu.iuh.fit.dtos.PropertyDto;
+import vn.edu.iuh.fit.dtos.RecentlyViewedPropertyDto;
 import vn.edu.iuh.fit.dtos.requests.EventRequest;
 import vn.edu.iuh.fit.services.EventService;
 
@@ -26,7 +27,7 @@ public class EventController {
     }
 
     @GetMapping("/recently-viewed")
-    public ResponseEntity<List<PropertyDto>> getRecentlyViewed(
+    public ResponseEntity<List<RecentlyViewedPropertyDto>> getRecentlyViewed(
             @RequestParam(name = "limit", defaultValue = "6") int limit,
             Principal principal
     ) {
