@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import jakarta.persistence.criteria.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
@@ -12,26 +13,24 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 import org.springframework.web.server.ResponseStatusException;
 import vn.edu.iuh.fit.configs.GeminiProperties;
 import vn.edu.iuh.fit.dtos.chat.*;
-import vn.edu.iuh.fit.entities.Address;
-import vn.edu.iuh.fit.entities.Property;
-import vn.edu.iuh.fit.entities.PropertyMedia;
+import vn.edu.iuh.fit.entities.*;
 import vn.edu.iuh.fit.entities.enums.ApartmentCategory;
 import vn.edu.iuh.fit.entities.enums.PostStatus;
 import vn.edu.iuh.fit.entities.enums.PropertyStatus;
 import vn.edu.iuh.fit.entities.enums.PropertyType;
+import vn.edu.iuh.fit.repositories.FurnishingRepository;
 import vn.edu.iuh.fit.repositories.PropertyRepository;
 import vn.edu.iuh.fit.services.AiChatService;
 import vn.edu.iuh.fit.services.ai.LocationAliasService;
 import vn.edu.iuh.fit.services.ai.GeminiClient;
 
-import jakarta.persistence.criteria.Join;
-import jakarta.persistence.criteria.JoinType;
-import jakarta.persistence.criteria.Predicate;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.text.Normalizer;
 import java.util.*;
 
 @Slf4j
@@ -44,6 +43,7 @@ public class AiChatServiceImpl implements AiChatService {
     private final ObjectMapper objectMapper;
     private final PropertyRepository propertyRepository;
     private final LocationAliasService locationAliasService;
+    private final FurnishingRepository furnishingRepository;
 
     @Override
     @Transactional(readOnly = true)
@@ -74,7 +74,8 @@ public class AiChatServiceImpl implements AiChatService {
                 filters.bathroomsMin(),
                 filters.propertyType() != null ? filters.propertyType().name() : null,
                 filters.apartmentCategory() != null ? filters.apartmentCategory().name() : null,
-                filters.keywords().isEmpty() ? null : filters.keywords()
+                filters.keywords().isEmpty() ? null : filters.keywords(),
+                filters.furnishings().isEmpty() ? null : filters.furnishings()
         );
     }
 
@@ -92,6 +93,8 @@ public class AiChatServiceImpl implements AiChatService {
                         .map(m -> m.getPosterUrl() != null ? m.getPosterUrl() : m.getUrl())
                         .findFirst()
                         .orElse(null);
+        List<String> furnishings = extractFurnishings(property);
+
         return new ChatPropertyDto(
                 property.getPropertyId(),
                 property.getTitle(),
@@ -105,8 +108,28 @@ public class AiChatServiceImpl implements AiChatService {
                 property.getApartmentCategory() != null ? property.getApartmentCategory().name() : null,
                 property.getBedrooms(),
                 property.getBathrooms(),
-                thumbnail
+                thumbnail,
+                furnishings
         );
+    }
+
+    private List<String> extractFurnishings(Property property) {
+        if (property == null) {
+            return List.of();
+        }
+        return Optional.ofNullable(property.getFurnishings())
+                .orElseGet(Collections::emptyList)
+                .stream()
+                .filter(Objects::nonNull)
+                .map(PropertyFurnishing::getFurnishing)
+                .filter(Objects::nonNull)
+                .map(Furnishings::getFurnishingName)
+                .filter(StringUtils::hasText)
+                .map(String::trim)
+                .filter(name -> !name.isEmpty())
+                .distinct()
+                .sorted(String.CASE_INSENSITIVE_ORDER)
+                .toList();
     }
 
     private FilterExtraction extractFilters(String message, List<AIChatRequest.HistoryMessage> history) {
@@ -155,6 +178,7 @@ public class AiChatServiceImpl implements AiChatService {
         props.putObject("property_type").put("type", "string");
         props.putObject("apartment_category").put("type", "string");
         props.putObject("keywords").put("type", "array").putObject("items").put("type", "string");
+        props.putObject("furnishings").put("type", "array").putObject("items").put("type", "string");
 
         JsonNode response = geminiClient.generateContent(geminiProperties.getFilterModel(), body);
         String arguments = extractFirstText(response);
@@ -176,7 +200,8 @@ public class AiChatServiceImpl implements AiChatService {
                     intValue(argsNode, "bathrooms_min"),
                     textValue(argsNode, "property_type"),
                     textValue(argsNode, "apartment_category"),
-                    listValue(argsNode, "keywords")
+                    listValue(argsNode, "keywords"),
+                    listValue(argsNode, "furnishings")
             );
         } catch (Exception e) {
             log.error("Cannot parse Gemini filter arguments: {}", arguments, e);
@@ -214,9 +239,17 @@ public class AiChatServiceImpl implements AiChatService {
         PropertyType propertyType = normalizeEnum(extraction.propertyType(), PropertyType.class);
         ApartmentCategory apartmentCategory = normalizeEnum(extraction.apartmentCategory(), ApartmentCategory.class);
 
-        List<String> keywords = extraction.keywords() != null
-                ? extraction.keywords().stream().filter(Objects::nonNull).map(String::trim).filter(s -> !s.isEmpty()).toList()
-                : List.of();
+        List<String> rawFurnishings = extraction.furnishings() != null ? extraction.furnishings() : List.of();
+        List<String> rawKeywords = extraction.keywords() != null ? extraction.keywords() : List.of();
+        Map<String, String> furnishingDictionary = (rawFurnishings.isEmpty() && rawKeywords.isEmpty())
+                ? Map.of()
+                : loadFurnishingDictionary();
+        Set<String> furnishingKeys = new LinkedHashSet<>();
+        List<String> requestedFurnishings = new ArrayList<>();
+        Map<String, String> keywordMap = new LinkedHashMap<>();
+
+        rawFurnishings.forEach(value -> classifyFilterValue(value, furnishingDictionary, furnishingKeys, requestedFurnishings, keywordMap));
+        rawKeywords.forEach(value -> classifyFilterValue(value, furnishingDictionary, furnishingKeys, requestedFurnishings, keywordMap));
 
         return new SanitizedFilters(
                 location != null ? location.provinceCode() : null,
@@ -232,7 +265,8 @@ public class AiChatServiceImpl implements AiChatService {
                 extraction.bathroomsMin(),
                 propertyType,
                 apartmentCategory,
-                keywords
+                List.copyOf(keywordMap.values()),
+                List.copyOf(requestedFurnishings)
         );
     }
 
@@ -284,6 +318,22 @@ public class AiChatServiceImpl implements AiChatService {
             if (filters.apartmentCategory() != null) {
                 predicates.add(cb.equal(root.get("apartmentCategory"), filters.apartmentCategory()));
             }
+            if (!filters.furnishings().isEmpty()) {
+                for (String furnishing : filters.furnishings()) {
+                    if (!StringUtils.hasText(furnishing)) {
+                        continue;
+                    }
+                    Subquery<Long> subquery = query.subquery(Long.class);
+                    Root<PropertyFurnishing> furnishingRoot = subquery.from(PropertyFurnishing.class);
+                    Join<PropertyFurnishing, Furnishings> furnishingJoin = furnishingRoot.join("furnishing", JoinType.INNER);
+                    subquery.select(cb.literal(1L));
+                    subquery.where(
+                            cb.equal(furnishingRoot.get("property").get("propertyId"), root.get("propertyId")),
+                            cb.equal(cb.lower(furnishingJoin.get("furnishingName")), furnishing.toLowerCase(Locale.ROOT))
+                    );
+                    predicates.add(cb.exists(subquery));
+                }
+            }
             if (!filters.keywords().isEmpty()) {
                 for (String keyword : filters.keywords()) {
                     String pattern = "%" + keyword.toLowerCase(Locale.ROOT) + "%";
@@ -331,6 +381,10 @@ public class AiChatServiceImpl implements AiChatService {
         if (!filters.keywords().isEmpty()) {
             ArrayNode kw = filterNode.putArray("keywords");
             filters.keywords().forEach(kw::add);
+        }
+        if (!filters.furnishings().isEmpty()) {
+            ArrayNode interior = filterNode.putArray("furnishings");
+            filters.furnishings().forEach(interior::add);
         }
 
         ArrayNode resultNode = context.putArray("results");
@@ -454,6 +508,82 @@ public class AiChatServiceImpl implements AiChatService {
         return List.of();
     }
 
+    private void classifyFilterValue(String value,
+                                     Map<String, String> furnishingDictionary,
+                                     Set<String> furnishingKeys,
+                                     List<String> requestedFurnishings,
+                                     Map<String, String> keywordMap) {
+        if (!StringUtils.hasText(value)) {
+            return;
+        }
+        String trimmed = value.trim();
+        String normalized = normalizeText(trimmed);
+        if (normalized == null) {
+            return;
+        }
+        String canonical = resolveFurnishing(normalized, furnishingDictionary);
+        if (canonical != null) {
+            String canonicalKey = normalizeText(canonical);
+            if (canonicalKey != null && furnishingKeys.add(canonicalKey)) {
+                requestedFurnishings.add(canonical);
+            }
+            return;
+        }
+        String keywordKey = trimmed.toLowerCase(Locale.ROOT);
+        keywordMap.putIfAbsent(keywordKey, trimmed);
+    }
+
+    private Map<String, String> loadFurnishingDictionary() {
+        List<Furnishings> items = furnishingRepository.findAll();
+        Map<String, String> dictionary = new LinkedHashMap<>();
+        for (Furnishings furnishing : items) {
+            if (furnishing == null || !StringUtils.hasText(furnishing.getFurnishingName())) {
+                continue;
+            }
+            String name = furnishing.getFurnishingName().trim();
+            String normalized = normalizeText(name);
+            if (normalized != null) {
+                dictionary.putIfAbsent(normalized, name);
+            }
+        }
+        return dictionary;
+    }
+
+    private String resolveFurnishing(String normalized, Map<String, String> dictionary) {
+        if (normalized == null || dictionary.isEmpty()) {
+            return null;
+        }
+        String direct = dictionary.get(normalized);
+        if (direct != null) {
+            return direct;
+        }
+        String padded = " " + normalized + " ";
+        for (Map.Entry<String, String> entry : dictionary.entrySet()) {
+            String key = entry.getKey();
+            if (key == null) continue;
+            String paddedKey = " " + key + " ";
+            if (padded.contains(paddedKey)) {
+                return entry.getValue();
+            }
+        }
+        return null;
+    }
+
+    private String normalizeText(String input) {
+        if (input == null) {
+            return null;
+        }
+        String trimmed = input.trim();
+        if (trimmed.isEmpty()) {
+            return null;
+        }
+        String decomposed = Normalizer.normalize(trimmed, Normalizer.Form.NFD);
+        String withoutDiacritics = decomposed.replaceAll("\\p{M}", "");
+        String ascii = withoutDiacritics.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9\\s]", " ");
+        String normalized = ascii.replaceAll("\\s+", " ").trim();
+        return normalized.isEmpty() ? null : normalized;
+    }
+
     private String humanPrice(BigDecimal price) {
         if (price == null) return null;
         BigDecimal million = price.divide(BigDecimal.valueOf(1_000_000), 2, RoundingMode.HALF_UP);
@@ -483,7 +613,8 @@ public class AiChatServiceImpl implements AiChatService {
             Integer bathroomsMin,
             String propertyType,
             String apartmentCategory,
-            List<String> keywords
+            List<String> keywords,
+            List<String> furnishings
     ) {}
 
     private record SanitizedFilters(
@@ -500,6 +631,7 @@ public class AiChatServiceImpl implements AiChatService {
             Integer bathroomsMin,
             PropertyType propertyType,
             ApartmentCategory apartmentCategory,
-            List<String> keywords
+            List<String> keywords,
+            List<String> furnishings
     ) {}
 }
