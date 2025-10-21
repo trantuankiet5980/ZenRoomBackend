@@ -20,4 +20,9 @@ public interface AdminStatsRepository {
     long getApprovedPostCountForYear(int year);
     List<DailyPostCountDTO> getApprovedPostDailyCountsForMonth(int year, int month);
     List<MonthlyPostCountDTO> getApprovedPostMonthlyCountsForYear(int year);
+    long getUserRegistrationCountForDay(java.time.LocalDate date);
+    long getUserRegistrationCountForMonth(int year, int month);
+    long getUserRegistrationCountForYear(int year);
+    List<DailyUserCountDTO> getUserRegistrationDailyCountsForMonth(int year, int month);
+    List<MonthlyUserCountDTO> getUserRegistrationMonthlyCountsForYear(int year);
 }
