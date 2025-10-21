@@ -5,6 +5,9 @@ import jakarta.persistence.criteria.JoinType;
 import org.springframework.data.jpa.domain.Specification;
 import vn.edu.iuh.fit.entities.*;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+
 public class PropertySpecs {
     public static Specification<Property> landlordIdEq(String landlordId) {
         return (root, cq, cb) -> {
@@ -55,6 +58,43 @@ public class PropertySpecs {
             Join<Property, Address> addressJoin = root.join("address", JoinType.LEFT);
             Join<Address, District> districtJoin = addressJoin.join("district", JoinType.LEFT);
             return cb.equal(districtJoin.get("code"), districtCode);
+        };
+    }
+
+    public static Specification<Property> createdAtBetween(LocalDate startDate, LocalDate endDate) {
+        LocalDate start = startDate;
+        LocalDate end = endDate;
+
+        if (start != null && end != null && start.isAfter(end)) {
+            LocalDate tmp = start;
+            start = end;
+            end = tmp;
+        }
+
+        final LocalDate finalStart = start;
+        final LocalDate finalEnd = end;
+
+        return (root, cq, cb) -> {
+            if (finalStart == null && finalEnd == null) {
+                return cb.conjunction();
+            }
+
+            if (finalStart != null && finalEnd != null) {
+                LocalDateTime from = finalStart.atStartOfDay();
+                LocalDateTime toExclusive = finalEnd.plusDays(1).atStartOfDay();
+                return cb.and(
+                        cb.greaterThanOrEqualTo(root.get("createdAt"), from),
+                        cb.lessThan(root.get("createdAt"), toExclusive)
+                );
+            }
+
+            if (finalStart != null) {
+                LocalDateTime from = finalStart.atStartOfDay();
+                return cb.greaterThanOrEqualTo(root.get("createdAt"), from);
+            }
+
+            LocalDateTime toExclusive = finalEnd.plusDays(1).atStartOfDay();
+            return cb.lessThan(root.get("createdAt"), toExclusive);
         };
     }
 }
