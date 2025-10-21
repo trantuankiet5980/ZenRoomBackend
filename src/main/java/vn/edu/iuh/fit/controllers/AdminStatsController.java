@@ -70,6 +70,21 @@ public class AdminStatsController {
         }
     }
 
+    @GetMapping("/stats/users/summary")
+    public ResponseEntity<UserStatsDTO> userSummary(
+            @RequestParam(required = false) Integer year,
+            @RequestParam(required = false) Integer month,
+            @RequestParam(required = false) Integer day
+    ) {
+        validateMonth(month);
+        validateDay(day);
+        try {
+            return ResponseEntity.ok(service.getUserStats(year, month, day));
+        } catch (IllegalArgumentException ex) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage());
+        }
+    }
+
     // 3) Booking gần đây
     @GetMapping("/bookings/recent")
     public ResponseEntity<List<RecentBookingDTO>> recentBookings(

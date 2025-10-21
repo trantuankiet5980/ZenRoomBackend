@@ -315,6 +315,95 @@ public class AdminStatsRepositoryImpl implements AdminStatsRepository {
         return out;
     }
 
+    @Override
+    public long getUserRegistrationCountForDay(LocalDate date) {
+        return ((Number) em.createNativeQuery("""
+            SELECT COUNT(*)
+            FROM users u
+            WHERE DATE(u.created_at) = ?1
+        """)
+                .setParameter(1, java.sql.Date.valueOf(date))
+                .getSingleResult()).longValue();
+    }
+
+    @Override
+    public long getUserRegistrationCountForMonth(int year, int month) {
+        return ((Number) em.createNativeQuery("""
+            SELECT COUNT(*)
+            FROM users u
+            WHERE YEAR(u.created_at) = ?1
+              AND MONTH(u.created_at) = ?2
+        """)
+                .setParameter(1, year)
+                .setParameter(2, month)
+                .getSingleResult()).longValue();
+    }
+
+    @Override
+    public long getUserRegistrationCountForYear(int year) {
+        return ((Number) em.createNativeQuery("""
+            SELECT COUNT(*)
+            FROM users u
+            WHERE YEAR(u.created_at) = ?1
+        """)
+                .setParameter(1, year)
+                .getSingleResult()).longValue();
+    }
+
+    @SuppressWarnings("unchecked")
+    @Override
+    public List<DailyUserCountDTO> getUserRegistrationDailyCountsForMonth(int year, int month) {
+        var rows = em.createNativeQuery("""
+            SELECT DATE(u.created_at) AS d,
+                   COUNT(*) AS total
+            FROM users u
+            WHERE YEAR(u.created_at) = ?1
+              AND MONTH(u.created_at) = ?2
+            GROUP BY DATE(u.created_at)
+            ORDER BY d ASC
+        """)
+                .setParameter(1, year)
+                .setParameter(2, month)
+                .getResultList();
+
+        List<DailyUserCountDTO> out = new ArrayList<>();
+        for (Object row : rows) {
+            Object[] a = (Object[]) row;
+            out.add(new DailyUserCountDTO(
+                    ((java.sql.Date) a[0]).toLocalDate(),
+                    ((Number) a[1]).longValue()
+            ));
+        }
+        return out;
+    }
+
+    @SuppressWarnings("unchecked")
+    @Override
+    public List<MonthlyUserCountDTO> getUserRegistrationMonthlyCountsForYear(int year) {
+        var rows = em.createNativeQuery("""
+            SELECT YEAR(u.created_at) AS y,
+                   MONTH(u.created_at) AS m,
+                   COUNT(*) AS total
+            FROM users u
+            WHERE YEAR(u.created_at) = ?1
+            GROUP BY y, m
+            ORDER BY y, m
+        """)
+                .setParameter(1, year)
+                .getResultList();
+
+        List<MonthlyUserCountDTO> out = new ArrayList<>();
+        for (Object row : rows) {
+            Object[] a = (Object[]) row;
+            out.add(new MonthlyUserCountDTO(
+                    ((Number) a[0]).intValue(),
+                    ((Number) a[1]).intValue(),
+                    ((Number) a[2]).longValue()
+            ));
+        }
+        return out;
+    }
+
     @SuppressWarnings("unchecked")
     @Override
     public List<RecentBookingDTO> getRecentBookings(int limit) {

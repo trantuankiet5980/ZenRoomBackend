@@ -10,4 +10,5 @@ public interface AdminStatsService {
     List<RecentBookingDTO> getRecentBookings(int limit);
     RevenueStatsDTO getRevenueStats(Integer year, Integer month, Integer day);
     PostStatsDTO getPostStats(Integer year, Integer month, Integer day);
+    UserStatsDTO getUserStats(Integer year, Integer month, Integer day);
 }

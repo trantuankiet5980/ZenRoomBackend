@@ -149,6 +149,65 @@ public class AdminStatsServiceImpl implements AdminStatsService {
         );
     }
 
+    @Override
+    public UserStatsDTO getUserStats(Integer year, Integer month, Integer day) {
+        var today = LocalDate.now();
+        int resolvedYear = year != null ? year : today.getYear();
+        Integer resolvedMonth = month;
+        Integer resolvedDay = day;
+
+        if (resolvedDay != null) {
+            if (resolvedMonth == null) {
+                resolvedMonth = today.getMonthValue();
+            }
+            if (year == null) {
+                resolvedYear = today.getYear();
+            }
+
+            LocalDate targetDate = validateDate(resolvedYear, resolvedMonth, resolvedDay);
+            long totalUsers = repo.getUserRegistrationCountForDay(targetDate);
+            return new UserStatsDTO(
+                    StatPeriod.DAY,
+                    resolvedYear,
+                    resolvedMonth,
+                    resolvedDay,
+                    totalUsers,
+                    List.of(new DailyUserCountDTO(targetDate, totalUsers)),
+                    List.of()
+            );
+        }
+
+        if (resolvedMonth != null) {
+            if (year == null) {
+                resolvedYear = today.getYear();
+            }
+            validateMonth(resolvedMonth);
+            long totalUsers = repo.getUserRegistrationCountForMonth(resolvedYear, resolvedMonth);
+            var daily = repo.getUserRegistrationDailyCountsForMonth(resolvedYear, resolvedMonth);
+            return new UserStatsDTO(
+                    StatPeriod.MONTH,
+                    resolvedYear,
+                    resolvedMonth,
+                    null,
+                    totalUsers,
+                    daily,
+                    List.of()
+            );
+        }
+
+        long totalUsers = repo.getUserRegistrationCountForYear(resolvedYear);
+        var monthly = repo.getUserRegistrationMonthlyCountsForYear(resolvedYear);
+        return new UserStatsDTO(
+                StatPeriod.YEAR,
+                resolvedYear,
+                null,
+                null,
+                totalUsers,
+                List.of(),
+                monthly
+        );
+    }
+
     private static void validateMonth(int month) {
         if (month < 1 || month > 12) {
             throw new IllegalArgumentException("month must be between 1 and 12");
