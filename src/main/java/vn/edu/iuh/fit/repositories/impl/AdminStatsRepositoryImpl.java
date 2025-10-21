@@ -3,12 +3,11 @@ package vn.edu.iuh.fit.repositories.impl;
 import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
-import vn.edu.iuh.fit.dtos.DailyRevenueDTO;
-import vn.edu.iuh.fit.dtos.OverviewStatsDTO;
-import vn.edu.iuh.fit.dtos.RecentBookingDTO;
+import vn.edu.iuh.fit.dtos.*;
 import vn.edu.iuh.fit.repositories.AdminStatsRepository;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -19,7 +18,7 @@ public class AdminStatsRepositoryImpl implements AdminStatsRepository {
     private final EntityManager em;
 
     @Override
-    public OverviewStatsDTO getOverview() {
+    public OverviewStatsDTO getOverview(Integer year, Integer month) {
         //Users
         var totalUsers = ((Number) em.createNativeQuery("""
             SELECT COUNT(*) FROM users
@@ -53,17 +52,9 @@ public class AdminStatsRepositoryImpl implements AdminStatsRepository {
             SELECT COUNT(*) FROM properties WHERE post_status = 'PENDING'
         """).getSingleResult()).longValue();
 
-        // Bookings (PENDING/APPROVED/COMPLETED/CANCELLED)
+        // Bookings
         var totalBookings     = ((Number) em.createNativeQuery("""
             SELECT COUNT(*) FROM bookings
-        """).getSingleResult()).longValue();
-
-        var pendingBookings   = ((Number) em.createNativeQuery("""
-            SELECT COUNT(*) FROM bookings WHERE booking_status = 'PENDING'
-        """).getSingleResult()).longValue();
-
-        var approvedBookings  = ((Number) em.createNativeQuery("""
-            SELECT COUNT(*) FROM bookings WHERE booking_status = 'APPROVED'
         """).getSingleResult()).longValue();
 
         var completedBookings = ((Number) em.createNativeQuery("""
@@ -74,15 +65,17 @@ public class AdminStatsRepositoryImpl implements AdminStatsRepository {
             SELECT COUNT(*) FROM bookings WHERE booking_status = 'CANCELLED'
         """).getSingleResult()).longValue();
 
-        // Doanh thu 30 ngày gần nhất (từ invoice PAID, fallback 0)
-        BigDecimal revenue30 = getRevenueLastNDays(30);
-        if (revenue30 == null) revenue30 = BigDecimal.ZERO;
+        BigDecimal totalRevenue = (BigDecimal) em.createNativeQuery("""
+            SELECT COALESCE(SUM(i.total), 0)
+            FROM invoice i
+            WHERE i.status = 'PAID'
+        """).getSingleResult();
 
         return new OverviewStatsDTO(
                 totalUsers, activeUsers, landlords, tenants,
                 totalProperties, approvedProps, pendingProps,
-                totalBookings, pendingBookings, approvedBookings, completedBookings, cancelledBookings,
-                revenue30
+                totalBookings, completedBookings, cancelledBookings,
+                totalRevenue
         );
     }
 
@@ -129,6 +122,194 @@ public class AdminStatsRepositoryImpl implements AdminStatsRepository {
             out.add(new DailyRevenueDTO(
                     ((java.sql.Date) a[0]).toLocalDate(),
                     (BigDecimal) a[1]
+            ));
+        }
+        return out;
+    }
+
+    @Override
+    public BigDecimal getRevenueForDay(LocalDate date) {
+        return (BigDecimal) em.createNativeQuery("""
+            SELECT COALESCE(SUM(i.total), 0)
+            FROM invoice i
+            WHERE i.status = 'PAID'
+              AND DATE(COALESCE(i.paid_at, i.issued_at)) = ?1
+        """)
+                .setParameter(1, java.sql.Date.valueOf(date))
+                .getSingleResult();
+    }
+
+    @Override
+    public BigDecimal getRevenueForMonth(int year, int month) {
+        return (BigDecimal) em.createNativeQuery("""
+            SELECT COALESCE(SUM(i.total), 0)
+            FROM invoice i
+            WHERE i.status = 'PAID'
+              AND YEAR(COALESCE(i.paid_at, i.issued_at)) = ?1
+              AND MONTH(COALESCE(i.paid_at, i.issued_at)) = ?2
+        """)
+                .setParameter(1, year)
+                .setParameter(2, month)
+                .getSingleResult();
+    }
+
+    @Override
+    public BigDecimal getRevenueForYear(int year) {
+        return (BigDecimal) em.createNativeQuery("""
+            SELECT COALESCE(SUM(i.total), 0)
+            FROM invoice i
+            WHERE i.status = 'PAID'
+              AND YEAR(COALESCE(i.paid_at, i.issued_at)) = ?1
+        """)
+                .setParameter(1, year)
+                .getSingleResult();
+    }
+
+    @SuppressWarnings("unchecked")
+    @Override
+    public List<DailyRevenueDTO> getDailyRevenueForMonth(int year, int month) {
+        var rows = em.createNativeQuery("""
+            SELECT DATE(COALESCE(i.paid_at, i.issued_at)) AS d,
+                   COALESCE(SUM(i.total), 0) AS rev
+            FROM invoice i
+            WHERE i.status = 'PAID'
+              AND YEAR(COALESCE(i.paid_at, i.issued_at)) = ?1
+              AND MONTH(COALESCE(i.paid_at, i.issued_at)) = ?2
+            GROUP BY DATE(COALESCE(i.paid_at, i.issued_at))
+            ORDER BY d ASC
+        """)
+                .setParameter(1, year)
+                .setParameter(2, month)
+                .getResultList();
+
+        List<DailyRevenueDTO> out = new ArrayList<>();
+        for (Object r : rows) {
+            Object[] a = (Object[]) r;
+            out.add(new DailyRevenueDTO(
+                    ((java.sql.Date) a[0]).toLocalDate(),
+                    (BigDecimal) a[1]
+            ));
+        }
+        return out;
+    }
+
+    @SuppressWarnings("unchecked")
+    @Override
+    public List<MonthlyRevenueDTO> getMonthlyRevenueForYear(int year) {
+        var rows = em.createNativeQuery("""
+            SELECT YEAR(COALESCE(i.paid_at, i.issued_at)) AS y,
+                   MONTH(COALESCE(i.paid_at, i.issued_at)) AS m,
+                   COALESCE(SUM(i.total), 0) AS rev
+            FROM invoice i
+            WHERE i.status = 'PAID'
+              AND YEAR(COALESCE(i.paid_at, i.issued_at)) = ?1
+            GROUP BY y, m
+            ORDER BY y, m
+        """)
+                .setParameter(1, year)
+                .getResultList();
+
+        List<MonthlyRevenueDTO> out = new ArrayList<>();
+        for (Object row : rows) {
+            Object[] a = (Object[]) row;
+            out.add(new MonthlyRevenueDTO(
+                    ((Number) a[0]).intValue(),
+                    ((Number) a[1]).intValue(),
+                    (BigDecimal) a[2]
+            ));
+        }
+        return out;
+    }
+
+    @Override
+    public long getApprovedPostCountForDay(LocalDate date) {
+        return ((Number) em.createNativeQuery("""
+            SELECT COUNT(*)
+            FROM properties p
+            WHERE p.post_status = 'APPROVED'
+              AND DATE(p.created_at) = ?1
+        """)
+                .setParameter(1, java.sql.Date.valueOf(date))
+                .getSingleResult()).longValue();
+    }
+
+    @Override
+    public long getApprovedPostCountForMonth(int year, int month) {
+        return ((Number) em.createNativeQuery("""
+            SELECT COUNT(*)
+            FROM properties p
+            WHERE p.post_status = 'APPROVED'
+              AND YEAR(p.created_at) = ?1
+              AND MONTH(p.created_at) = ?2
+        """)
+                .setParameter(1, year)
+                .setParameter(2, month)
+                .getSingleResult()).longValue();
+    }
+
+    @Override
+    public long getApprovedPostCountForYear(int year) {
+        return ((Number) em.createNativeQuery("""
+            SELECT COUNT(*)
+            FROM properties p
+            WHERE p.post_status = 'APPROVED'
+              AND YEAR(p.created_at) = ?1
+        """)
+                .setParameter(1, year)
+                .getSingleResult()).longValue();
+    }
+
+    @SuppressWarnings("unchecked")
+    @Override
+    public List<DailyPostCountDTO> getApprovedPostDailyCountsForMonth(int year, int month) {
+        var rows = em.createNativeQuery("""
+            SELECT DATE(p.created_at) AS d,
+                   COUNT(*) AS total
+            FROM properties p
+            WHERE p.post_status = 'APPROVED'
+              AND YEAR(p.created_at) = ?1
+              AND MONTH(p.created_at) = ?2
+            GROUP BY DATE(p.created_at)
+            ORDER BY d ASC
+        """)
+                .setParameter(1, year)
+                .setParameter(2, month)
+                .getResultList();
+
+        List<DailyPostCountDTO> out = new ArrayList<>();
+        for (Object row : rows) {
+            Object[] a = (Object[]) row;
+            out.add(new DailyPostCountDTO(
+                    ((java.sql.Date) a[0]).toLocalDate(),
+                    ((Number) a[1]).longValue()
+            ));
+        }
+        return out;
+    }
+
+    @SuppressWarnings("unchecked")
+    @Override
+    public List<MonthlyPostCountDTO> getApprovedPostMonthlyCountsForYear(int year) {
+        var rows = em.createNativeQuery("""
+            SELECT YEAR(p.created_at) AS y,
+                   MONTH(p.created_at) AS m,
+                   COUNT(*) AS total
+            FROM properties p
+            WHERE p.post_status = 'APPROVED'
+              AND YEAR(p.created_at) = ?1
+            GROUP BY y, m
+            ORDER BY y, m
+        """)
+                .setParameter(1, year)
+                .getResultList();
+
+        List<MonthlyPostCountDTO> out = new ArrayList<>();
+        for (Object row : rows) {
+            Object[] a = (Object[]) row;
+            out.add(new MonthlyPostCountDTO(
+                    ((Number) a[0]).intValue(),
+                    ((Number) a[1]).intValue(),
+                    ((Number) a[2]).longValue()
             ));
         }
         return out;
