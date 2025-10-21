@@ -14,6 +14,7 @@ public class GeminiProperties {
 
     private String filterModel = "gemini-2.5-flash";
     private String answerModel = "gemini-2.5-flash";
+    private String suggestionModel = "gemini-2.5-flash";
 
     public String getApiKey() {
         return apiKey;
@@ -76,5 +77,13 @@ public class GeminiProperties {
 
     public void setAnswerModel(String answerModel) {
         this.answerModel = answerModel;
+    }
+
+    public String getSuggestionModel() {
+        return suggestionModel;
+    }
+
+    public void setSuggestionModel(String suggestionModel) {
+        this.suggestionModel = suggestionModel;
     }
 }
