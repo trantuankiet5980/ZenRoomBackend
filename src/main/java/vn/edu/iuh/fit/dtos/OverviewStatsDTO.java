@@ -11,9 +11,7 @@ public record OverviewStatsDTO(
         long approvedProperties,
         long pendingProperties,
         long totalBookings,
-        long pendingBookings,
-        long approvedBookings,
         long completedBookings,
         long cancelledBookings,
-        BigDecimal revenueLast30Days
+        BigDecimal totalRevenue
 ) {}
