@@ -30,6 +30,7 @@ import vn.edu.iuh.fit.services.*;
 import vn.edu.iuh.fit.services.embedding.PropertyEmbeddingGenerator;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -156,14 +157,15 @@ public class PropertyServiceImpl implements PropertyService {
     @Transactional(readOnly = true)
     @Override
     public Page<PropertyDto> list(String landlordId, String postStatus, String type, String keyword,
-                                  String provinceCode, String districtCode,
+                                  String provinceCode, String districtCode, LocalDate createdFrom, LocalDate createdTo,
                                   Pageable pageable) {
         Specification<Property> spec = vn.edu.iuh.fit.services.impl.PropertySpecs.landlordIdEq(landlordId)
                 .and(PropertySpecs.postStatusEq(postStatus))
                 .and(PropertySpecs.typeEq(type))
                 .and(PropertySpecs.keywordLike(keyword))
                 .and(vn.edu.iuh.fit.services.impl.PropertySpecs.provinceCodeEq(provinceCode))
-                .and(vn.edu.iuh.fit.services.impl.PropertySpecs.districtCodeEq(districtCode));
+                .and(vn.edu.iuh.fit.services.impl.PropertySpecs.districtCodeEq(districtCode))
+                .and(vn.edu.iuh.fit.services.impl.PropertySpecs.createdAtBetween(createdFrom, createdTo));
 
 
         return propertyRepository.findAll(spec, pageable).map(propertyMapper::toDto);

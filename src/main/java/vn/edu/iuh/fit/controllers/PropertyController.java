@@ -6,6 +6,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 //import vn.edu.iuh.fit.dtos.PropertyCreateDTO;
@@ -20,6 +21,7 @@ import vn.edu.iuh.fit.services.PropertyService;
 
 import java.net.URI;
 import java.security.Principal;
+import java.time.LocalDate;
 import java.util.Map;
 import java.util.Optional;
 
@@ -70,13 +72,15 @@ public class PropertyController {
             @RequestParam(required = false) String type,
             @RequestParam(required = false, name = "q") String keyword,
             @RequestParam(required = false) String provinceCode,
-            @RequestParam(required = false) String districtCode
+            @RequestParam(required = false) String districtCode,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate createdFrom,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate createdTo
     ) {
         Sort s = parseSort(sort);
         Pageable pageable = PageRequest.of(Math.max(page, 0), Math.min(size, 100), s);
 
         Page<PropertyDto> dtoPage = propertyService.list(
-                landlordId, postStatus, type, keyword, provinceCode, districtCode, pageable
+                landlordId, postStatus, type, keyword, provinceCode, districtCode, createdFrom, createdTo, pageable
         );
 
         return ResponseEntity.ok(Map.of(

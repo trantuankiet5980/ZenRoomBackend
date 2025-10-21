@@ -6,6 +6,7 @@ import vn.edu.iuh.fit.dtos.PropertyDto;
 import vn.edu.iuh.fit.entities.Property;
 import vn.edu.iuh.fit.entities.enums.PostStatus;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -14,7 +15,7 @@ public interface PropertyService {
     Optional<PropertyDto> getById(String id);
 
     Page<PropertyDto> list(String landlordId, String postStatus, String type, String keyword,
-                           String provinceCode, String districtCode,
+                           String provinceCode, String districtCode, LocalDate createdFrom, LocalDate createdTo,
                            Pageable pageable);
 
     Property update(String id, PropertyDto dto);             // luôn đưa về PENDING
