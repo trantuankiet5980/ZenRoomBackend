@@ -6,10 +6,13 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.web.bind.annotation.*;
 import vn.edu.iuh.fit.dtos.InvoiceDto;
+import vn.edu.iuh.fit.entities.Invoice;
+import vn.edu.iuh.fit.entities.enums.InvoiceStatus;
 import vn.edu.iuh.fit.mappers.InvoiceMapper;
 import vn.edu.iuh.fit.repositories.InvoiceRepository;
 
 import java.security.Principal;
+import java.time.LocalDateTime;
 
 @RestController
 @RequestMapping("/api/v1/invoices")
@@ -61,6 +64,23 @@ public class InvoiceController {
         return invoiceRepo.findByBooking_BookingIdAndBooking_Property_Landlord_UserId(bookingId, principal.getName())
                 .map(invoiceMapper::toDto)
                 .orElseThrow(() -> new EntityNotFoundException("Invoice not found"));
+    }
+
+    @PostMapping("/{invoiceId}/confirm-refund")
+    public InvoiceDto confirmRefund(@PathVariable String invoiceId, Principal principal) {
+        Invoice invoice = invoiceRepo.findByInvoiceIdAndBooking_Property_Landlord_UserId(invoiceId, principal.getName())
+                .orElseThrow(() -> new EntityNotFoundException("Invoice not found"));
+
+        if (invoice.getStatus() != InvoiceStatus.REFUND_PENDING) {
+            throw new IllegalStateException("Hoá đơn không ở trạng thái chờ hoàn tiền");
+        }
+
+        invoice.setStatus(InvoiceStatus.REFUNDED);
+        invoice.setRefundConfirmed(Boolean.TRUE);
+        invoice.setRefundConfirmedAt(LocalDateTime.now());
+        invoice.setUpdatedAt(LocalDateTime.now());
+
+        return invoiceMapper.toDto(invoiceRepo.save(invoice));
     }
 
     private PageRequest pageRequest(int page, int size) {

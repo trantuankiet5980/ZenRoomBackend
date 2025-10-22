@@ -9,6 +9,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vn.edu.iuh.fit.dtos.PropertyDto;
+import vn.edu.iuh.fit.dtos.RecentlyViewedPropertyDto;
 import vn.edu.iuh.fit.dtos.requests.EventRequest;
 import vn.edu.iuh.fit.entities.Property;
 import vn.edu.iuh.fit.entities.UserEvent;
@@ -80,7 +81,7 @@ public class EventServiceImpl implements EventService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<PropertyDto> getRecentlyViewedProperties(String userId, int limit) {
+    public List<RecentlyViewedPropertyDto> getRecentlyViewedProperties(String userId, int limit) {
         if (userId == null || userId.isBlank() || limit <= 0) {
             return List.of();
         }
@@ -105,11 +106,11 @@ public class EventServiceImpl implements EventService {
                 .filter(Objects::nonNull)
                 .collect(Collectors.toMap(PropertyDto::getPropertyId, Function.identity()));
 
-        List<PropertyDto> result = new ArrayList<>();
-        for (String propertyId : propertyIds) {
-            PropertyDto dto = propertyById.get(propertyId);
+        List<RecentlyViewedPropertyDto> result = new ArrayList<>();
+        for (UserEventRepository.RecentPropertyProjection projection : recent) {
+            PropertyDto dto = propertyById.get(projection.getPropertyId());
             if (dto != null) {
-                result.add(dto);
+                result.add(new RecentlyViewedPropertyDto(dto, projection.getLastSeen()));
             }
             if (result.size() == limit) {
                 break;

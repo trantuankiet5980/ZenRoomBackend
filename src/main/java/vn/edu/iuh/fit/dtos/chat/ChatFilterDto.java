@@ -19,6 +19,7 @@ public record ChatFilterDto(
         Integer bathroomsMin,
         String propertyType,
         String apartmentCategory,
-        List<String> keywords
+        List<String> keywords,
+        List<String> furnishings
 ) {
 }

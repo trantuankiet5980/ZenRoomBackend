@@ -9,6 +9,8 @@ import vn.edu.iuh.fit.entities.Booking;
 import vn.edu.iuh.fit.entities.enums.BookingStatus;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
 
 public interface BookingRepository extends JpaRepository<Booking, String> {
@@ -39,4 +41,26 @@ public interface BookingRepository extends JpaRepository<Booking, String> {
     );
 
     List<Booking> findByProperty_PropertyIdAndBookingStatusNot(String propertyId, BookingStatus status);
+
+    List<Booking> findByBookingStatusAndEndDateLessThanEqual(BookingStatus status, LocalDate endDate);
+
+    List<Booking> findByBookingStatusAndStartDate(BookingStatus status, LocalDate startDate);
+
+    @Query("""
+        select count(b) > 0 from Booking b
+        where b.property.propertyId = :propertyId
+          and b.endDate = :endDate
+          and b.bookingId <> :bookingId
+          and b.bookingStatus not in (
+                vn.edu.iuh.fit.entities.enums.BookingStatus.CANCELLED,
+                vn.edu.iuh.fit.entities.enums.BookingStatus.COMPLETED
+          )
+    """)
+    boolean existsActiveBookingEndingOn(
+            @Param("propertyId") String propertyId,
+            @Param("endDate") LocalDate endDate,
+            @Param("bookingId") String bookingId
+    );
+
+    List<Booking> findByBookingStatusInAndCreatedAtBefore(Collection<BookingStatus> statuses, LocalDateTime createdAt);
 }

@@ -3,6 +3,8 @@ package vn.edu.iuh.fit.controllers;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -12,11 +14,16 @@ import vn.edu.iuh.fit.dtos.responses.ApiResponse;
 import vn.edu.iuh.fit.dtos.user.UserCreateRequest;
 import vn.edu.iuh.fit.dtos.user.UserResponse;
 import vn.edu.iuh.fit.dtos.user.UserUpdateRequest;
+import vn.edu.iuh.fit.entities.enums.UserStatus;
 import vn.edu.iuh.fit.services.AuthService;
 import vn.edu.iuh.fit.services.FollowService;
 import vn.edu.iuh.fit.services.UserService;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/v1/users")
@@ -34,8 +41,41 @@ public class UserController {
     @GetMapping
     public ResponseEntity<Page<UserResponse>> list(
             @RequestParam(defaultValue="0") int page,
-            @RequestParam(defaultValue="20") int size){
-        return ResponseEntity.ok(userService.list(PageRequest.of(page,size)));
+            @RequestParam(defaultValue="20") int size,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate,
+            @RequestParam(name = "roles", required = false) List<String> roleNames,
+            @RequestParam(required = false) UserStatus status,
+            @RequestParam(defaultValue = "createdAt") String sortBy,
+            @RequestParam(defaultValue = "DESC") String sortDirection) {
+
+        Sort.Direction direction;
+        try {
+            direction = Sort.Direction.fromString(sortDirection);
+        } catch (IllegalArgumentException ex) {
+            throw new IllegalArgumentException("Invalid sortDirection. Use ASC or DESC");
+        }
+
+        String sortProperty = switch (sortBy) {
+            case "createdAt" -> "createdAt";
+            case "role" -> "role.roleName";
+            case "status" -> "status";
+            default -> throw new IllegalArgumentException("Invalid sortBy. Use createdAt, role or status");
+        };
+
+        if (fromDate != null && toDate != null && fromDate.isAfter(toDate)) {
+            throw new IllegalArgumentException("fromDate must be before toDate");
+        }
+
+        int safePage = Math.max(page, 0);
+        int pageSize = Math.max(1, Math.min(size, 100));
+
+        PageRequest pageRequest = PageRequest.of(safePage, pageSize, Sort.by(direction, sortProperty));
+        LocalDateTime createdFrom = Optional.ofNullable(fromDate).map(LocalDate::atStartOfDay).orElse(null);
+        LocalDateTime createdTo = Optional.ofNullable(toDate).map(date -> date.atTime(23, 59, 59)).orElse(null);
+
+        return ResponseEntity.ok(userService.list(pageRequest, keyword, createdFrom, createdTo, roleNames, status));
     }
 
     /** Cập nhật hồ sơ của chính mình bằng UserDto (partial update) */
