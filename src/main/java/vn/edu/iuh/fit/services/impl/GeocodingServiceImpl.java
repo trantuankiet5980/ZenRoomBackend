@@ -1,6 +1,7 @@
 package vn.edu.iuh.fit.services.impl;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import io.github.cdimascio.dotenv.Dotenv;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -20,9 +21,9 @@ import java.nio.charset.StandardCharsets;
 @RequiredArgsConstructor
 public class GeocodingServiceImpl implements GeocodingService {
     private final RestTemplate restTemplate;
+    private final Dotenv dotenv = Dotenv.configure().ignoreIfMissing().load();
 
-    @Value("${google.maps.api.key}")
-    private String apiKey;
+    private final String apiKey = dotenv.get("GOOGLE_MAPS_API_KEY");
 
     public GeocodingServiceImpl() {
         this.restTemplate = new RestTemplate();
@@ -50,7 +51,7 @@ public class GeocodingServiceImpl implements GeocodingService {
         } catch (Exception e) {
             e.printStackTrace();
         }
-        return null; // nếu không tìm thấy
+        return null;
     }
 }
 
