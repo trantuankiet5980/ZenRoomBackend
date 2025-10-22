@@ -1,5 +1,6 @@
 package vn.edu.iuh.fit.services.impl;
 
+import io.github.cdimascio.dotenv.Dotenv;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.configurationprocessor.json.JSONArray;
@@ -26,8 +27,10 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class AddressServiceImpl implements AddressService {
 
-    @Value("${google.maps.api.key}")
-    private String apiKey;
+
+    private final Dotenv dotenv = Dotenv.configure().ignoreIfMissing().load();
+
+    private final String apiKey = dotenv.get("GOOGLE_MAPS_API_KEY");
 
     private final AddressRepository addressRepository;
     private final AddressMapper addressMapper;
