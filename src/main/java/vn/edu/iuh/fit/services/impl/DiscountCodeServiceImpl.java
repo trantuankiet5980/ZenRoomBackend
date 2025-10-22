@@ -15,8 +15,11 @@ import vn.edu.iuh.fit.services.DiscountCodeService;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -83,8 +86,17 @@ public class DiscountCodeServiceImpl implements DiscountCodeService {
     }
 
     @Override
-    public Page<DiscountCodeDto> list(String q, Pageable pageable) {
-        return repo.search(q, pageable).map(c -> {
+    public Page<DiscountCodeDto> list(String q,
+                                      List<DiscountCodeStatus> statuses,
+                                      LocalDate validFrom,
+                                      LocalDate validTo,
+                                      Pageable pageable) {
+        String keyword = (q == null || q.trim().isEmpty()) ? null : q.trim();
+        List<DiscountCodeStatus> statusFilters = statuses == null ? List.of() :
+                statuses.stream().filter(Objects::nonNull).distinct().collect(Collectors.toList());
+        boolean statusesEmpty = statusFilters.isEmpty();
+
+        return repo.search(keyword, statusFilters, statusesEmpty, validFrom, validTo, pageable).map(c -> {
             c.setStatus(effectiveStatus(c));
             return mapper.toDto(c);
         });
