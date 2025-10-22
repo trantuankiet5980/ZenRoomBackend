@@ -6,13 +6,17 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import vn.edu.iuh.fit.dtos.DiscountCodeDto;
+import vn.edu.iuh.fit.entities.enums.DiscountCodeStatus;
 import vn.edu.iuh.fit.services.DiscountCodeService;
 
 import java.math.BigDecimal;
 import java.security.Principal;
+import java.time.LocalDate;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/discount-codes")
@@ -48,12 +52,15 @@ public class DiscountCodeController {
     // Danh sách + search
     @GetMapping
     public Page<DiscountCodeDto> list(@RequestParam(required=false) String q,
+                                      @RequestParam(required=false) List<DiscountCodeStatus> statuses,
+                                      @RequestParam(required=false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate validFrom,
+                                      @RequestParam(required=false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate validTo,
                                       @RequestParam(defaultValue="0") int page,
                                       @RequestParam(defaultValue="10") int size,
                                       @RequestParam(defaultValue="validFrom,DESC") String sort) {
         Sort s = parseSort(sort);
         Pageable pageable = PageRequest.of(page, size, s);
-        return service.list(q, pageable);
+        return service.list(q, statuses, validFrom, validTo, pageable);
     }
 
     // Preview (không trừ lượt)
