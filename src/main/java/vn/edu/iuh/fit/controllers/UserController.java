@@ -14,12 +14,16 @@ import vn.edu.iuh.fit.dtos.responses.ApiResponse;
 import vn.edu.iuh.fit.dtos.user.UserCreateRequest;
 import vn.edu.iuh.fit.dtos.user.UserResponse;
 import vn.edu.iuh.fit.dtos.user.UserUpdateRequest;
+import vn.edu.iuh.fit.entities.enums.UserStatus;
 import vn.edu.iuh.fit.services.AuthService;
 import vn.edu.iuh.fit.services.FollowService;
 import vn.edu.iuh.fit.services.UserService;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/v1/users")
@@ -39,8 +43,10 @@ public class UserController {
             @RequestParam(defaultValue="0") int page,
             @RequestParam(defaultValue="20") int size,
             @RequestParam(required = false) String keyword,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime fromDate,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime toDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate,
+            @RequestParam(name = "roles", required = false) List<String> roleNames,
+            @RequestParam(required = false) UserStatus status,
             @RequestParam(defaultValue = "createdAt") String sortBy,
             @RequestParam(defaultValue = "DESC") String sortDirection) {
 
@@ -66,7 +72,10 @@ public class UserController {
         int pageSize = Math.max(1, Math.min(size, 100));
 
         PageRequest pageRequest = PageRequest.of(safePage, pageSize, Sort.by(direction, sortProperty));
-        return ResponseEntity.ok(userService.list(pageRequest, keyword, fromDate, toDate));
+        LocalDateTime createdFrom = Optional.ofNullable(fromDate).map(LocalDate::atStartOfDay).orElse(null);
+        LocalDateTime createdTo = Optional.ofNullable(toDate).map(date -> date.atTime(23, 59, 59)).orElse(null);
+
+        return ResponseEntity.ok(userService.list(pageRequest, keyword, createdFrom, createdTo, roleNames, status));
     }
 
     /** Cập nhật hồ sơ của chính mình bằng UserDto (partial update) */

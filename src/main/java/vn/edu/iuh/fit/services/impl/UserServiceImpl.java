@@ -78,7 +78,8 @@ public class UserServiceImpl implements UserService {
     private boolean isBlank(String s) { return s == null || s.isBlank(); }
 
     @Override
-    public Page<UserResponse> list(Pageable pageable, String keyword, LocalDateTime createdFrom, LocalDateTime createdTo) {
+    public Page<UserResponse> list(Pageable pageable, String keyword, LocalDateTime createdFrom, LocalDateTime createdTo,
+                                   List<String> roleNames, UserStatus status) {
         Specification<User> spec = Specification.where(null);
 
         if (keyword != null && !keyword.isBlank()) {
@@ -97,6 +98,22 @@ public class UserServiceImpl implements UserService {
 
         if (createdTo != null) {
             spec = spec.and((root, query, cb) -> cb.lessThanOrEqualTo(root.get("createdAt"), createdTo));
+        }
+
+        if (roleNames != null && !roleNames.isEmpty()) {
+            List<String> normalizedRoleNames = roleNames.stream()
+                    .filter(name -> name != null && !name.isBlank())
+                    .map(name -> name.trim().toLowerCase(Locale.ROOT))
+                    .distinct()
+                    .toList();
+
+            if (!normalizedRoleNames.isEmpty()) {
+                spec = spec.and((root, query, cb) -> cb.lower(root.get("role").get("roleName")).in(normalizedRoleNames));
+            }
+        }
+
+        if (status != null) {
+            spec = spec.and((root, query, cb) -> cb.equal(root.get("status"), status));
         }
 
         return userRepository.findAll(spec, pageable).map(u -> UserResponse.builder()
