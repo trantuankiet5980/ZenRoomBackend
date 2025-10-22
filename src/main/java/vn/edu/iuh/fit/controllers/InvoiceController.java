@@ -8,6 +8,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import vn.edu.iuh.fit.dtos.InvoiceDto;
 import vn.edu.iuh.fit.entities.Invoice;
@@ -93,9 +94,18 @@ public class InvoiceController {
     }
 
     @PostMapping("/{invoiceId}/confirm-refund")
-    public InvoiceDto confirmRefund(@PathVariable String invoiceId, Principal principal) {
-        Invoice invoice = invoiceRepo.findByInvoiceIdAndBooking_Property_Landlord_UserId(invoiceId, principal.getName())
-                .orElseThrow(() -> new EntityNotFoundException("Invoice not found"));
+    public InvoiceDto confirmRefund(@PathVariable String invoiceId, Principal principal, Authentication authentication) {
+        boolean isAdmin = authentication != null && authentication.getAuthorities().stream()
+                .anyMatch(auth -> "ROLE_ADMIN".equals(auth.getAuthority()));
+
+        Invoice invoice;
+        if (isAdmin) {
+            invoice = invoiceRepo.findById(invoiceId)
+                    .orElseThrow(() -> new EntityNotFoundException("Invoice not found"));
+        } else {
+            invoice = invoiceRepo.findByInvoiceIdAndBooking_Property_Landlord_UserId(invoiceId, principal.getName())
+                    .orElseThrow(() -> new EntityNotFoundException("Invoice not found"));
+        }
 
         if (invoice.getStatus() != InvoiceStatus.REFUND_PENDING) {
             throw new IllegalStateException("Hoá đơn không ở trạng thái chờ hoàn tiền");
