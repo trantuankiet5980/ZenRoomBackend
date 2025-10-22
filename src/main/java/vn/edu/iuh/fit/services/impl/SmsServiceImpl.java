@@ -23,9 +23,6 @@ class SmsServiceImpl implements SmsService {
     private static final Logger logger = LoggerFactory.getLogger(SmsServiceImpl.class);
     private final SnsClient snsClient;
 
-    @Value("${aws.region}")
-    private String awsRegion;
-
     private final Map<String, OtpDetails> otpStorage = new ConcurrentHashMap<>();
     private final Map<String, Boolean> otpVerified = new ConcurrentHashMap<>();
     private static final int OTP_LENGTH = 6;
