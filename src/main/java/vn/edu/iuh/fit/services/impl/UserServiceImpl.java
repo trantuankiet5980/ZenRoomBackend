@@ -4,6 +4,7 @@ import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -77,14 +78,59 @@ public class UserServiceImpl implements UserService {
     private boolean isBlank(String s) { return s == null || s.isBlank(); }
 
     @Override
-    public Page<UserResponse> list(Pageable pageable) {
-        return userRepository.findAll(pageable).map(u -> new UserResponse(
-                u.getUserId(), u.getFullName(), u.getPhoneNumber(), u.getEmail(),
-                u.getRole()!=null? u.getRole().getRoleId():null,
-                u.getRole()!=null? u.getRole().getRoleName():null,
-                u.getStatus()!=null? u.getStatus().name():null,
-                u.getAvatarUrl()
-        ));
+    public Page<UserResponse> list(Pageable pageable, String keyword, LocalDateTime createdFrom, LocalDateTime createdTo,
+                                   List<String> roleNames, UserStatus status) {
+        Specification<User> spec = Specification.where(null);
+
+        if (keyword != null && !keyword.isBlank()) {
+            String like = "%" + keyword.trim().toLowerCase(Locale.ROOT) + "%";
+            spec = spec.and((root, query, cb) -> {
+                var fullName = cb.like(cb.lower(root.get("fullName")), like);
+                var phone = cb.like(cb.lower(root.get("phoneNumber")), like);
+                var email = cb.like(cb.lower(root.get("email")), like);
+                return cb.or(fullName, phone, email);
+            });
+        }
+
+        if (createdFrom != null) {
+            spec = spec.and((root, query, cb) -> cb.greaterThanOrEqualTo(root.get("createdAt"), createdFrom));
+        }
+
+        if (createdTo != null) {
+            spec = spec.and((root, query, cb) -> cb.lessThanOrEqualTo(root.get("createdAt"), createdTo));
+        }
+
+        if (roleNames != null && !roleNames.isEmpty()) {
+            List<String> normalizedRoleNames = roleNames.stream()
+                    .filter(name -> name != null && !name.isBlank())
+                    .map(name -> name.trim().toLowerCase(Locale.ROOT))
+                    .distinct()
+                    .toList();
+
+            if (!normalizedRoleNames.isEmpty()) {
+                spec = spec.and((root, query, cb) -> cb.lower(root.get("role").get("roleName")).in(normalizedRoleNames));
+            }
+        }
+
+        if (status != null) {
+            spec = spec.and((root, query, cb) -> cb.equal(root.get("status"), status));
+        }
+
+        return userRepository.findAll(spec, pageable).map(u -> UserResponse.builder()
+                .userId(u.getUserId())
+                .fullName(u.getFullName())
+                .phoneNumber(u.getPhoneNumber())
+                .email(u.getEmail())
+                .roleId(u.getRole() != null ? u.getRole().getRoleId() : null)
+                .roleName(u.getRole() != null ? u.getRole().getRoleName() : null)
+                .status(u.getStatus() != null ? u.getStatus().name() : null)
+                .avatarUrl(u.getAvatarUrl())
+                .createdAt(u.getCreatedAt())
+                .deleteRequestedAt(u.getDeleteRequestedAt())
+                .deleteEffectiveAt(u.getDeleteEffectiveAt())
+                .lastLogin(u.getLastLogin())
+                .banReason(u.getBanReason())
+                .build());
     }
 
 
