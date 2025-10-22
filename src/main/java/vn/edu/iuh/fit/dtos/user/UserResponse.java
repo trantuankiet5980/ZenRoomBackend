@@ -4,6 +4,8 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 
+import java.time.LocalDateTime;
+
 @Data
 @Builder
 @AllArgsConstructor
@@ -16,6 +18,9 @@ public class UserResponse {
     private String roleName;
     private String status;
     private String avatarUrl;
-
-
+    private LocalDateTime createdAt;
+    private LocalDateTime deleteRequestedAt;
+    private LocalDateTime deleteEffectiveAt;
+    private LocalDateTime lastLogin;
+    private String banReason;
 }
