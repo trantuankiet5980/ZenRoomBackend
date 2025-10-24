@@ -16,6 +16,7 @@ public interface ChatService {
     int markAllRead(String currentUserId, String conversationId);
     int unreadCount(String currentUserId, String conversationId);
     MessageDto lastMessage(String currentUserId, String conversationId);
+    void deleteConversation(String currentUserId, String conversationId);
 
     record AttachmentPayload(String storageKey, String url, MediaType mediaType, String contentType, Long size) {}
 
