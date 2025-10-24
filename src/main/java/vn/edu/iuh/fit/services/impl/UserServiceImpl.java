@@ -24,9 +24,7 @@ import vn.edu.iuh.fit.services.UserService;
 import vn.edu.iuh.fit.utils.FormatPhoneNumber;
 
 import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Locale;
-import java.util.UUID;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
@@ -197,5 +195,33 @@ public class UserServiceImpl implements UserService {
         }
 
         u.setUpdatedAt(LocalDateTime.now());
+    }
+
+    @Transactional(readOnly = true)
+    @Override
+    public List<UserDto> searchByPhone(String phoneNumber) {
+        if (phoneNumber == null || phoneNumber.isBlank()) {
+            throw new IllegalArgumentException("phoneNumber is required");
+        }
+
+        String trimmed = phoneNumber.trim();
+        Set<User> matched = new LinkedHashSet<>();
+
+        matched.addAll(userRepository.findTop10ByPhoneNumberContaining(trimmed));
+
+        String normalized0 = FormatPhoneNumber.formatPhoneNumberTo0(trimmed);
+        if (normalized0 != null && !normalized0.equals(trimmed)) {
+            matched.addAll(userRepository.findTop10ByPhoneNumberContaining(normalized0));
+        }
+
+        String normalized84 = FormatPhoneNumber.formatPhoneNumberTo84(trimmed);
+        if (normalized84 != null && !normalized84.equals(trimmed)) {
+            matched.addAll(userRepository.findTop10ByPhoneNumberContaining(normalized84));
+        }
+
+        return matched.stream()
+                .limit(10)
+                .map(userMapper::toDto)
+                .toList();
     }
 }
