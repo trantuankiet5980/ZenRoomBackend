@@ -200,6 +200,20 @@ public class ChatServiceImpl implements ChatService {
         return (m==null)? null : messageMapper.toDto(m);
     }
 
+    @Transactional
+    @Override
+    public void deleteConversation(String currentUserId, String conversationId) {
+        Conversation c = conversationRepo.findById(conversationId).orElseThrow();
+        ensureMember(c, currentUserId);
+
+        List<Message> messages = messageRepo.findAllByConversation_ConversationId(conversationId);
+        if (!messages.isEmpty()) {
+            messageRepo.deleteAll(messages);
+        }
+
+        conversationRepo.delete(c);
+    }
+
     private Conversation createConversation(User tenant, User landlord) {
         Conversation c = new Conversation();
         c.setConversationId(UUID.randomUUID().toString());

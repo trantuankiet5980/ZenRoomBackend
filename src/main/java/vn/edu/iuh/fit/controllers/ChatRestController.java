@@ -95,6 +95,11 @@ public class ChatRestController {
         return chat.lastMessage(principal.getName(), conversationId);
     }
 
+    @DeleteMapping("/{conversationId}")
+    public void deleteConversation(@PathVariable String conversationId, Principal principal) {
+        chat.deleteConversation(principal.getName(), conversationId);
+    }
+
     private Sort parseSort(String sort) {
         String[] p = sort.split(",");
         if (p.length==2) return Sort.by("DESC".equalsIgnoreCase(p[1])? Sort.Direction.DESC: Sort.Direction.ASC, p[0]);
