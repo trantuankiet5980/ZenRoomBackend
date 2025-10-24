@@ -3,6 +3,7 @@ package vn.edu.iuh.fit.services.impl;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -71,9 +72,12 @@ public class ChatServiceImpl implements ChatService {
                         .orElseThrow(() -> new IllegalArgumentException("Property not found"));
                 landlord = prop.getLandlord();
                 if (landlord == null) throw new IllegalStateException("Property has no landlord");
-                if (Objects.equals(landlord.getUserId(), me.getUserId()))
+                if (Objects.equals(landlord.getUserId(), me.getUserId()) && !isAdmin(me))
                     throw new IllegalStateException("Landlord cannot chat with themselves");
-                tenant = me;
+
+                Participants participants = determineParticipants(me, landlord);
+                tenant = participants.tenant();
+                landlord = participants.landlord();
             } else {
                 User peer = userRepo.findById(cmd.peerId())
                         .orElseThrow(() -> new IllegalArgumentException("Peer not found"));
@@ -84,8 +88,9 @@ public class ChatServiceImpl implements ChatService {
                 if (existed.isPresent()) {
                     conv = existed.get();
                 } else {
-                    tenant = me;
-                    landlord = peer;
+                    Participants participants = determineParticipants(me, peer);
+                    tenant = participants.tenant();
+                    landlord = participants.landlord();
                     conv = createConversation(tenant, landlord);
                 }
 
@@ -97,8 +102,9 @@ public class ChatServiceImpl implements ChatService {
             final String tenantId = tenant.getUserId();
             final String landlordId = landlord.getUserId();
 
+            User finalLandlord = landlord;
             conv = conversationRepo.findByTenant_UserIdAndLandlord_UserId(tenantId, landlordId)
-                    .orElseGet(() -> createConversation(tenant, landlord));
+                    .orElseGet(() -> createConversation(tenant, finalLandlord));
 
             Property prop = propertyRepo.getReferenceById(cmd.propertyId());
 
@@ -116,7 +122,7 @@ public class ChatServiceImpl implements ChatService {
         return messageMapper.toDto(saved);
     }
 
-        @Override
+    @Override
     public Page<MessageDto> getMessages(String currentUserId, String conversationId, Pageable pageable) {
         Conversation c = conversationRepo.findById(conversationId).orElseThrow();
         ensureMember(c, currentUserId);
@@ -126,6 +132,11 @@ public class ChatServiceImpl implements ChatService {
 
     @Override
     public List<ConversationDto> myConversations(String currentUserId) {
+//        User current = userRepo.findById(currentUserId).orElseThrow();
+//        if (isAdmin(current)) {
+//            return conversationRepo.findAll(Sort.by(Sort.Direction.DESC, "createdAt"))
+//                    .stream().map(conversationMapper::toDto).toList();
+//        }
         return conversationRepo.findByTenant_UserIdOrLandlord_UserIdOrderByCreatedAtDesc(currentUserId, currentUserId)
                 .stream().map(conversationMapper::toDto).toList();
     }
@@ -259,8 +270,60 @@ public class ChatServiceImpl implements ChatService {
     private void ensureMember(Conversation c, String userId) {
         boolean isMember = (c.getTenant()!=null && c.getTenant().getUserId().equals(userId))
                 || (c.getLandlord()!=null && c.getLandlord().getUserId().equals(userId));
-        if (!isMember) throw new SecurityException("Not a member of conversation");
+        if (isMember) return;
+
+        User user = userRepo.findById(userId).orElseThrow();
+        if (isAdmin(user)) return;
+
+        throw new SecurityException("Not a member of conversation");
     }
+
+    private Participants determineParticipants(User u1, User u2) {
+        User tenant = null;
+        User landlord = null;
+
+        if (isTenant(u1)) tenant = u1;
+        if (tenant == null && isTenant(u2)) tenant = u2;
+
+        if (isLandlord(u1)) landlord = u1;
+        if (landlord == null && isLandlord(u2)) landlord = u2;
+
+        if (tenant == null) {
+            tenant = Objects.equals(landlord, u1) ? u2 : u1;
+        }
+
+        if (landlord == null) {
+            landlord = Objects.equals(tenant, u1) ? u2 : u1;
+        }
+
+        if (tenant == null) tenant = u1;
+        if (landlord == null) landlord = u2;
+
+        if (tenant == landlord) {
+            landlord = Objects.equals(tenant, u1) ? u2 : u1;
+        }
+
+        return new Participants(tenant, landlord);
+    }
+
+    private boolean isTenant(User user) {
+        return hasRole(user, "TENANT");
+    }
+
+    private boolean isLandlord(User user) {
+        return hasRole(user, "LANDLORD");
+    }
+
+    private boolean isAdmin(User user) {
+        return hasRole(user, "ADMIN");
+    }
+
+    private boolean hasRole(User user, String roleName) {
+        if (user == null || user.getRole() == null || user.getRole().getRoleName() == null) return false;
+        return roleName.equalsIgnoreCase(user.getRole().getRoleName());
+    }
+
+    private record Participants(User tenant, User landlord) {}
 
     private String topic(String conversationId) { return "/topic/chat." + conversationId; }
     private String inboxQ()                         { return "/queue/chat.inbox"; }
