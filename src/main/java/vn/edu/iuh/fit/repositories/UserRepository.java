@@ -26,4 +26,6 @@ public interface UserRepository extends JpaRepository<User, String>, JpaSpecific
     List<User> findAllEligibleForHardDelete(LocalDateTime cutoff);
 
     List<User> findByRole_RoleName(String roleName);
+
+    List<User> findTop10ByPhoneNumberContaining(String phoneNumber);
 }

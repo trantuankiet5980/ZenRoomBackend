@@ -148,4 +148,14 @@ public class UserController {
         return ResponseEntity.ok(userService.getById(authService.getCurrentUser().getUserId()));
     }
 
+    @GetMapping("/search/by-phone")
+    public ResponseEntity<ApiResponse<List<UserDto>>> searchByPhone(@RequestParam("phone") String phoneNumber) {
+        List<UserDto> users = userService.searchByPhone(phoneNumber);
+        ApiResponse<List<UserDto>> response = ApiResponse.<List<UserDto>>builder()
+                .success(true)
+                .message("Users fetched successfully")
+                .data(users)
+                .build();
+        return ResponseEntity.ok(response);
+    }
 }
