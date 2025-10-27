@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import vn.edu.iuh.fit.dtos.requests.PaymentConfirmationRequest;
 import vn.edu.iuh.fit.dtos.requests.PaymentWebhookPayload;
 import vn.edu.iuh.fit.dtos.requests.PayosWebhookPayload;
 import vn.edu.iuh.fit.dtos.requests.SepayWebhookPayload;
@@ -45,6 +46,12 @@ public class PaymentWebhookController {
         } catch (Exception e) {
             return ResponseEntity.ok("IGNORED: EX " + e.getMessage());
         }
+    }
+
+    @PostMapping("/confirm")
+    public ResponseEntity<String> confirmPayment(@RequestBody PaymentConfirmationRequest request) {
+        bookingService.confirmVirtualPayment(request);
+        return ResponseEntity.ok("OK");
     }
 
     private ResponseEntity<String> handleSepayWebhook(SepayWebhookPayload body) {
