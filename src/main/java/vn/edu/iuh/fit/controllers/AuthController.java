@@ -20,6 +20,7 @@ import vn.edu.iuh.fit.entities.enums.UserStatus;
 import vn.edu.iuh.fit.exceptions.UserNotFoundException;
 import vn.edu.iuh.fit.repositories.UserRepository;
 import vn.edu.iuh.fit.services.AuthService;
+import vn.edu.iuh.fit.services.DefaultConversationService;
 import vn.edu.iuh.fit.services.SmsService;
 import vn.edu.iuh.fit.services.impl.SmsServiceImpl;
 import vn.edu.iuh.fit.utils.FormatPhoneNumber;
@@ -46,6 +47,8 @@ public class AuthController {
     private AuthService authService;
     @Autowired
     private SmsService smsService;
+    @Autowired
+    private DefaultConversationService defaultConversationService;
     @Autowired
     private Validator validator;
 
@@ -235,6 +238,8 @@ public class AuthController {
 
         boolean success = authService.signUp(signUpRequest);
         if (success) {
+            userRepository.findByPhoneNumber(formattedPhone)
+                    .ifPresent(defaultConversationService::createConversationWithAdmin);
             return ResponseEntity.ok(ApiResponse.builder()
                     .success(true)
                     .message("User registered successfully!")
