@@ -7,14 +7,18 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vn.edu.iuh.fit.dtos.DiscountCodeDto;
 import vn.edu.iuh.fit.entities.DiscountCode;
+import vn.edu.iuh.fit.entities.UserManagementLog;
 import vn.edu.iuh.fit.entities.enums.DiscountCodeStatus;
 import vn.edu.iuh.fit.entities.enums.DiscountType;
 import vn.edu.iuh.fit.mappers.DiscountCodeMapper;
 import vn.edu.iuh.fit.repositories.DiscountCodeRepository;
+import vn.edu.iuh.fit.repositories.UserManagementLogRepository;
+import vn.edu.iuh.fit.repositories.UserRepository;
 import vn.edu.iuh.fit.services.DiscountCodeService;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
@@ -27,6 +31,23 @@ public class DiscountCodeServiceImpl implements DiscountCodeService {
 
     private final DiscountCodeRepository repo;
     private final DiscountCodeMapper mapper;
+    private final UserRepository userRepository;
+    private final UserManagementLogRepository userManagementLogRepository;
+
+    private void logAction(String adminId, String action) {
+        if (adminId == null || adminId.isBlank()) {
+            return;
+        }
+        userRepository.findById(adminId).ifPresent(admin -> {
+            UserManagementLog log = UserManagementLog.builder()
+                    .admin(admin)
+                    .targetUser(null)
+                    .action(action)
+                    .createdAt(LocalDateTime.now())
+                    .build();
+            userManagementLogRepository.save(log);
+        });
+    }
 
     @Transactional
     @Override
@@ -40,7 +61,9 @@ public class DiscountCodeServiceImpl implements DiscountCodeService {
         if (e.getStatus() == null) e.setStatus(DiscountCodeStatus.ACTIVE);
 
         e.setStatus(effectiveStatus(e));
-        return mapper.toDto(repo.save(e));
+        DiscountCode saved = repo.save(e);
+        logAction(adminId, "CREATE_DISCOUNT_CODE: code=" + saved.getCode());
+        return mapper.toDto(saved);
     }
 
     @Transactional
@@ -68,13 +91,16 @@ public class DiscountCodeServiceImpl implements DiscountCodeService {
         e.setStatus(dto.getStatus() != null ? dto.getStatus() : e.getStatus());
 
         e.setStatus(effectiveStatus(e));
-        return mapper.toDto(repo.save(e));
+        DiscountCode saved = repo.save(e);
+        logAction(adminId, "UPDATE_DISCOUNT_CODE: code=" + saved.getCode());
+        return mapper.toDto(saved);
     }
 
     @Transactional
     @Override
     public void delete(String adminId, String codeId) {
         repo.deleteById(codeId);
+        logAction(adminId, "DELETE_DISCOUNT_CODE: codeId=" + codeId);
     }
 
     @Override

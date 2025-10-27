@@ -312,7 +312,11 @@ public class BookingServiceImpl implements BookingService {
 
         booking.setBookingStatus(BookingStatus.CHECKED_IN);
         booking.setUpdatedAt(LocalDateTime.now());
-        return bookingMapper.toDto(bookingRepo.save(booking));
+
+        Booking savedBooking = bookingRepo.save(booking);
+        BookingDto result = bookingMapper.toDto(savedBooking);
+        realtimeNotificationService.notifyBookingCheckedIn(result);
+        return result;
     }
 
     @Transactional
@@ -336,7 +340,11 @@ public class BookingServiceImpl implements BookingService {
 
         booking.setBookingStatus(BookingStatus.COMPLETED);
         booking.setUpdatedAt(LocalDateTime.now());
-        return bookingMapper.toDto(bookingRepo.save(booking));
+
+        Booking savedBooking = bookingRepo.save(booking);
+        BookingDto result = bookingMapper.toDto(savedBooking);
+        realtimeNotificationService.notifyBookingCheckedOut(result);
+        return result;
     }
 
     @Override

@@ -15,9 +15,11 @@ import vn.edu.iuh.fit.dtos.user.UserResponse;
 import vn.edu.iuh.fit.dtos.user.UserUpdateRequest;
 import vn.edu.iuh.fit.entities.Role;
 import vn.edu.iuh.fit.entities.User;
+import vn.edu.iuh.fit.entities.UserManagementLog;
 import vn.edu.iuh.fit.entities.enums.UserStatus;
 import vn.edu.iuh.fit.mappers.UserMapper;
 import vn.edu.iuh.fit.repositories.RoleRepository;
+import vn.edu.iuh.fit.repositories.UserManagementLogRepository;
 import vn.edu.iuh.fit.repositories.UserRepository;
 import vn.edu.iuh.fit.services.AuthService;
 import vn.edu.iuh.fit.services.UserService;
@@ -35,6 +37,7 @@ public class UserServiceImpl implements UserService {
     private final PasswordEncoder encoder;
     private final AuthService authService;
     private final UserMapper userMapper;
+    private final UserManagementLogRepository userManagementLogRepository;
 
     @Override
     public UserDto create(UserCreateRequest req) {
@@ -154,6 +157,18 @@ public class UserServiceImpl implements UserService {
         User u = userRepository.findById(id).orElseThrow(() -> new EntityNotFoundException("User not found: " + id));
         applyPatchFromDto(u, dto, /*allowRoleStatus*/ true);
         userRepository.save(u);
+
+        User admin = authService.getCurrentUser();
+        if (admin != null && admin.getRole() != null
+                && "ADMIN".equalsIgnoreCase(admin.getRole().getRoleName())) {
+            UserManagementLog log = UserManagementLog.builder()
+                    .admin(admin)
+                    .targetUser(u)
+                    .action("UPDATE_USER: userId=" + u.getUserId())
+                    .createdAt(LocalDateTime.now())
+                    .build();
+            userManagementLogRepository.save(log);
+        }
         return userMapper.toDto(u);
     }
 
