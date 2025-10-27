@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vn.edu.iuh.fit.dtos.BookingDto;
 import vn.edu.iuh.fit.dtos.requests.BookingCreateRequest;
+import vn.edu.iuh.fit.dtos.requests.PaymentConfirmationRequest;
 import vn.edu.iuh.fit.dtos.requests.PaymentWebhookPayload;
 import vn.edu.iuh.fit.entities.*;
 import vn.edu.iuh.fit.entities.enums.BookingStatus;
@@ -408,6 +409,21 @@ public class BookingServiceImpl implements BookingService {
         realtimeNotificationService.notifyPaymentStatusChanged(bookingDto, invoice, payload.isSuccess());
 
         broadcastPaymentStatus(invoice, savedBooking, payload);
+    }
+
+    @Override
+    public void confirmVirtualPayment(PaymentConfirmationRequest request) {
+        if (request == null || request.getInvoiceId() == null || request.getInvoiceId().isBlank()) {
+            throw new IllegalArgumentException("invoiceId is required");
+        }
+
+        PaymentWebhookPayload payload = new PaymentWebhookPayload();
+        payload.setInvoiceId(request.getInvoiceId());
+        payload.setSuccess(true);
+        payload.setTransactionId(request.getTransactionId());
+        payload.setAmount(request.getAmount() != null ? request.getAmount() : 0L);
+
+        handlePaymentWebhook(payload);
     }
 
     @Transactional(readOnly = true)
