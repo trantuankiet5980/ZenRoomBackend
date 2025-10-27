@@ -1,6 +1,9 @@
 package vn.edu.iuh.fit.controllers;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -17,8 +20,6 @@ import vn.edu.iuh.fit.repositories.UserManagementLogRepository;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.util.List;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/v1/admin/user-management-logs")
@@ -29,25 +30,28 @@ public class UserManagementLogController {
     private final UserManagementLogRepository userManagementLogRepository;
 
     @GetMapping
-    public List<UserManagementLogDto> getLogs(
+    public Page<UserManagementLogDto> getLogs(
             @RequestParam(value = "fromDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
-            @RequestParam(value = "toDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate
+            @RequestParam(value = "toDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate,
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "10") int size
     ) {
 
-        List<UserManagementLog> logs;
+        PageRequest pageRequest = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        Page<UserManagementLog> logs;
 
         if (fromDate == null && toDate == null) {
-            logs = userManagementLogRepository.findAllByOrderByCreatedAtDesc();
+            logs = userManagementLogRepository.findAll(pageRequest);
         } else if (fromDate != null && toDate == null) {
             LocalDateTime from = fromDate.atStartOfDay();
             LocalDateTime to = LocalDateTime.now();
             logs = userManagementLogRepository
-                    .findAllByCreatedAtBetweenOrderByCreatedAtDesc(from, to);
+                    .findAllByCreatedAtBetween(from, to, pageRequest);
         } else if (fromDate == null && toDate != null) {
             LocalDateTime from = LocalDate.of(1970, 1, 1).atStartOfDay();
             LocalDateTime to = toDate.atTime(LocalTime.MAX);
             logs = userManagementLogRepository
-                    .findAllByCreatedAtBetweenOrderByCreatedAtDesc(from, to);
+                    .findAllByCreatedAtBetween(from, to, pageRequest);
         } else {
             if (fromDate.isAfter(toDate)) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
@@ -58,12 +62,10 @@ public class UserManagementLogController {
             LocalDateTime to = toDate.atTime(LocalTime.MAX);
 
             logs = userManagementLogRepository
-                    .findAllByCreatedAtBetweenOrderByCreatedAtDesc(from, to);
+                    .findAllByCreatedAtBetween(from, to, pageRequest);
         }
 
-        return logs.stream()
-                .map(UserManagementLogController::toDto)
-                .collect(Collectors.toList());
+        return logs.map(UserManagementLogController::toDto);
     }
 
     private static UserManagementLogDto toDto(UserManagementLog log) {

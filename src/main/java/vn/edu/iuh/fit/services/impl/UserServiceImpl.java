@@ -175,7 +175,7 @@ public class UserServiceImpl implements UserService {
                     case BANNED -> "Khóa tài khoản: " + u.getFullName();
                     case ACTIVE -> "Mở khóa tài khoản: " + u.getFullName();
                     case PENDING_DELETE -> "Yêu cầu xóa tài khoản: " + u.getFullName();
-                    case DELETED -> "Xóa cứng tài khoản: " + u.getFullName();
+                    case DELETED -> "Xóa tài khoản: " + u.getFullName();
                     case INACTIVE -> "Vô hiệu hóa tài khoản: " + u.getFullName();
                     default -> "Cập nhật trạng thái tài khoản: " + u.getFullName();
                 };
