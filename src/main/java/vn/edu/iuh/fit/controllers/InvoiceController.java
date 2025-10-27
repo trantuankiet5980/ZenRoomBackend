@@ -12,9 +12,15 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import vn.edu.iuh.fit.dtos.InvoiceDto;
 import vn.edu.iuh.fit.entities.Invoice;
+import vn.edu.iuh.fit.entities.User;
+import vn.edu.iuh.fit.entities.UserManagementLog;
 import vn.edu.iuh.fit.entities.enums.InvoiceStatus;
+import vn.edu.iuh.fit.mappers.BookingMapper;
 import vn.edu.iuh.fit.mappers.InvoiceMapper;
 import vn.edu.iuh.fit.repositories.InvoiceRepository;
+import vn.edu.iuh.fit.repositories.UserManagementLogRepository;
+import vn.edu.iuh.fit.services.AuthService;
+import vn.edu.iuh.fit.services.RealtimeNotificationService;
 
 import java.security.Principal;
 import java.time.LocalDate;
@@ -26,6 +32,10 @@ import java.time.LocalDateTime;
 public class InvoiceController {
     private final InvoiceRepository invoiceRepo;
     private final InvoiceMapper invoiceMapper;
+    private final RealtimeNotificationService realtimeNotificationService;
+    private final UserManagementLogRepository userManagementLogRepository;
+    private final AuthService authService;
+    private final BookingMapper bookingMapper;
 
     @PreAuthorize("hasRole('ADMIN')")
     @GetMapping
@@ -116,7 +126,28 @@ public class InvoiceController {
         invoice.setRefundConfirmedAt(LocalDateTime.now());
         invoice.setUpdatedAt(LocalDateTime.now());
 
-        return invoiceMapper.toDto(invoiceRepo.save(invoice));
+        invoice = invoiceRepo.save(invoice);
+
+        var booking = invoice.getBooking();
+        var bookingDto = booking != null ? bookingMapper.toDto(booking) : null;
+        realtimeNotificationService.notifyRefundProcessed(bookingDto, invoice);
+
+        if (isAdmin) {
+            User admin = authService.getCurrentUser();
+            if (admin != null) {
+                User targetUser = booking != null ? booking.getTenant() : null;
+                UserManagementLog log = UserManagementLog.builder()
+                        .admin(admin)
+                        .targetUser(targetUser)
+                        .action("CONFIRM_REFUND: invoice=" + invoice.getInvoiceId()
+                                + (booking != null ? ", booking=" + booking.getBookingId() : ""))
+                        .createdAt(LocalDateTime.now())
+                        .build();
+                userManagementLogRepository.save(log);
+            }
+        }
+
+        return invoiceMapper.toDto(invoice);
     }
 
     private PageRequest pageRequest(int page, int size) {

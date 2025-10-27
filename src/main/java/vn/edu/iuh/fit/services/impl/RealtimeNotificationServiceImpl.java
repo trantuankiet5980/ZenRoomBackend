@@ -18,6 +18,7 @@ import vn.edu.iuh.fit.repositories.NotificationRepository;
 import vn.edu.iuh.fit.repositories.UserRepository;
 import vn.edu.iuh.fit.services.RealtimeNotificationService;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
@@ -262,6 +263,179 @@ public class RealtimeNotificationServiceImpl implements RealtimeNotificationServ
                         "/landlord/bookings/" + booking.getBookingId()
                 );
             });
+        }
+    }
+
+    @Override
+    public void notifyBookingCheckedIn(BookingDto booking) {
+        if (booking == null) {
+            return;
+        }
+
+        String bookingId = booking.getBookingId();
+        String propertyTitle = booking.getProperty() != null && booking.getProperty().getTitle() != null
+                ? booking.getProperty().getTitle()
+                : "đặt phòng";
+
+        if (booking.getTenant() != null && booking.getTenant().getUserId() != null) {
+            String tenantId = booking.getTenant().getUserId();
+            userRepository.findById(tenantId).ifPresent(tenant -> {
+                String message = "Bạn đã check-in thành công vào " + propertyTitle + ".";
+                createAndPush(
+                        tenant,
+                        "Check-in thành công",
+                        message,
+                        NotificationType.BOOKING,
+                        "/tenant/bookings/" + bookingId
+                );
+            });
+        }
+
+        if (booking.getProperty() != null
+                && booking.getProperty().getLandlord() != null
+                && booking.getProperty().getLandlord().getUserId() != null) {
+            String landlordId = booking.getProperty().getLandlord().getUserId();
+            String tenantName = booking.getTenant() != null && booking.getTenant().getFullName() != null
+                    ? booking.getTenant().getFullName()
+                    : "Khách thuê";
+            userRepository.findById(landlordId).ifPresent(landlord -> {
+                String message = tenantName + " đã check-in vào " + propertyTitle + ".";
+                createAndPush(
+                        landlord,
+                        "Khách thuê đã check-in",
+                        message,
+                        NotificationType.BOOKING,
+                        "/landlord/bookings/" + bookingId
+                );
+            });
+        }
+    }
+
+    @Override
+    public void notifyBookingCheckedOut(BookingDto booking) {
+        if (booking == null) {
+            return;
+        }
+
+        String bookingId = booking.getBookingId();
+        String propertyTitle = booking.getProperty() != null && booking.getProperty().getTitle() != null
+                ? booking.getProperty().getTitle()
+                : "đặt phòng";
+
+        if (booking.getTenant() != null && booking.getTenant().getUserId() != null) {
+            String tenantId = booking.getTenant().getUserId();
+            userRepository.findById(tenantId).ifPresent(tenant -> {
+                String message = "Bạn đã check-out khỏi " + propertyTitle + ".";
+                createAndPush(
+                        tenant,
+                        "Check-out thành công",
+                        message,
+                        NotificationType.BOOKING,
+                        "/tenant/bookings/" + bookingId
+                );
+            });
+        }
+
+        if (booking.getProperty() != null
+                && booking.getProperty().getLandlord() != null
+                && booking.getProperty().getLandlord().getUserId() != null) {
+            String landlordId = booking.getProperty().getLandlord().getUserId();
+            String tenantName = booking.getTenant() != null && booking.getTenant().getFullName() != null
+                    ? booking.getTenant().getFullName()
+                    : "Khách thuê";
+            userRepository.findById(landlordId).ifPresent(landlord -> {
+                String message = tenantName + " đã check-out khỏi " + propertyTitle + ".";
+                createAndPush(
+                        landlord,
+                        "Khách thuê đã check-out",
+                        message,
+                        NotificationType.BOOKING,
+                        "/landlord/bookings/" + bookingId
+                );
+            });
+        }
+    }
+
+    @Override
+    public void notifyRefundProcessed(BookingDto booking, Invoice invoice) {
+        if (invoice == null) {
+            return;
+        }
+
+        String bookingId = booking != null ? booking.getBookingId() : null;
+        String propertyTitle = booking != null
+                && booking.getProperty() != null
+                && booking.getProperty().getTitle() != null
+                ? booking.getProperty().getTitle()
+                : "đặt phòng";
+        BigDecimal refundAmount = invoice.getRefundableAmount();
+        if (refundAmount == null || refundAmount.compareTo(BigDecimal.ZERO) <= 0) {
+            refundAmount = invoice.getDueAmount();
+        }
+        String refundAmountText = refundAmount != null
+                ? refundAmount.stripTrailingZeros().toPlainString()
+                : "0";
+
+        if (booking != null && booking.getTenant() != null && booking.getTenant().getUserId() != null) {
+            String tenantId = booking.getTenant().getUserId();
+            userRepository.findById(tenantId).ifPresent(tenant -> {
+                String message = "Yêu cầu hoàn tiền cho " + propertyTitle
+                        + " đã được xử lý. Số tiền hoàn: " + refundAmountText + ".";
+                createAndPush(
+                        tenant,
+                        "Hoàn tiền đã được xử lý",
+                        message,
+                        NotificationType.PAYMENT,
+                        "/tenant/bookings/" + bookingId
+                );
+            });
+        }
+
+        if (booking != null
+                && booking.getProperty() != null
+                && booking.getProperty().getLandlord() != null
+                && booking.getProperty().getLandlord().getUserId() != null) {
+            String landlordId = booking.getProperty().getLandlord().getUserId();
+            String tenantName = booking.getTenant() != null && booking.getTenant().getFullName() != null
+                    ? booking.getTenant().getFullName()
+                    : "Khách thuê";
+            userRepository.findById(landlordId).ifPresent(landlord -> {
+                String message = "Đã hoàn " + refundAmountText + " cho " + tenantName
+                        + " trong " + propertyTitle + ".";
+                createAndPush(
+                        landlord,
+                        "Đơn đặt phòng đã hoàn tiền",
+                        message,
+                        NotificationType.PAYMENT,
+                        "/landlord/bookings/" + bookingId
+                );
+            });
+        }
+
+        List<User> admins = userRepository.findByRole_RoleName("admin");
+        if (!admins.isEmpty()) {
+            var payload = new HashMap<String, Object>();
+            payload.put("type", "REFUND_CONFIRMED");
+            payload.put("invoiceId", invoice.getInvoiceId());
+            payload.put("invoiceNo", invoice.getInvoiceNo());
+            payload.put("bookingId", bookingId);
+            payload.put("amount", refundAmountText);
+            payload.put("createdAt", LocalDateTime.now().toString());
+
+            messaging.convertAndSend("/topic/admin.notifications", payload);
+
+            String adminMessage = "Hoàn tiền cho booking "
+                    + (bookingId != null ? bookingId : "")
+                    + " đã được xác nhận. Số tiền: " + refundAmountText + ".";
+            for (User admin : admins) {
+                createAndPush(
+                        admin,
+                        "Hoàn tiền đã được xác nhận",
+                        adminMessage,
+                        NotificationType.PAYMENT,
+                        "/admin/invoices/" + invoice.getInvoiceId()
+                );
+            }
         }
     }
 

@@ -23,6 +23,12 @@ public interface RealtimeNotificationService {
 
     void notifyPaymentStatusChanged(BookingDto booking, Invoice invoice, boolean success);
 
+    void notifyBookingCheckedIn(BookingDto booking);
+
+    void notifyBookingCheckedOut(BookingDto booking);
+
+    void notifyRefundProcessed(BookingDto booking, Invoice invoice);
+
     NotificationDto createAndPush(
             User target,
             String title,
