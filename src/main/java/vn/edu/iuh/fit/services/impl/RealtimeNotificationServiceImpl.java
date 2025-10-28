@@ -11,6 +11,7 @@ import vn.edu.iuh.fit.dtos.PropertyDto;
 import vn.edu.iuh.fit.entities.Invoice;
 import vn.edu.iuh.fit.entities.Notification;
 import vn.edu.iuh.fit.entities.User;
+import vn.edu.iuh.fit.entities.enums.InvoiceStatus;
 import vn.edu.iuh.fit.entities.enums.NotificationType;
 import vn.edu.iuh.fit.entities.enums.PostStatus;
 import vn.edu.iuh.fit.mappers.NotificationMapper;
@@ -20,10 +21,7 @@ import vn.edu.iuh.fit.services.RealtimeNotificationService;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
@@ -353,6 +351,92 @@ public class RealtimeNotificationServiceImpl implements RealtimeNotificationServ
                         "/landlord/bookings/" + bookingId
                 );
             });
+        }
+    }
+
+    @Override
+    public void notifyBookingCancelledByTenant(BookingDto booking, Invoice invoice) {
+        if (booking == null) {
+            return;
+        }
+
+        String bookingId = booking.getBookingId();
+        String propertyTitle = booking.getProperty() != null && booking.getProperty().getTitle() != null
+                ? booking.getProperty().getTitle()
+                : "đặt phòng";
+        String tenantName = booking.getTenant() != null && booking.getTenant().getFullName() != null
+                ? booking.getTenant().getFullName()
+                : "Khách thuê";
+
+        boolean wasPaid = invoice != null
+                && invoice.getStatus() != null
+                && EnumSet.of(InvoiceStatus.PAID, InvoiceStatus.REFUND_PENDING, InvoiceStatus.REFUNDED)
+                .contains(invoice.getStatus());
+
+        if (booking.getProperty() != null
+                && booking.getProperty().getLandlord() != null
+                && booking.getProperty().getLandlord().getUserId() != null) {
+            String landlordId = booking.getProperty().getLandlord().getUserId();
+            userRepository.findById(landlordId).ifPresent(landlord -> {
+                StringBuilder message = new StringBuilder();
+                message.append(tenantName)
+                        .append(" đã hủy ")
+                        .append(propertyTitle)
+                        .append(".");
+                if (wasPaid) {
+                    message.append(" Đơn đặt phòng đã thanh toán, vui lòng kiểm tra hoàn tiền.");
+                }
+
+                createAndPush(
+                        landlord,
+                        "Khách thuê đã hủy đặt phòng",
+                        message.toString(),
+                        NotificationType.BOOKING,
+                        "/landlord/bookings/" + bookingId
+                );
+
+                log.info("Sent booking cancellation notification to landlord {} for booking {}", landlordId, bookingId);
+            });
+        }
+
+        if (!wasPaid) {
+            return;
+        }
+
+        String invoiceNo = invoice != null ? invoice.getInvoiceNo() : null;
+        String adminRedirect = invoice != null && invoice.getInvoiceId() != null
+                ? "/admin/invoices/" + invoice.getInvoiceId()
+                : "/admin/bookings/" + bookingId;
+
+        var payload = new HashMap<String, Object>();
+        payload.put("type", "BOOKING_CANCELLED_PAID");
+        payload.put("bookingId", bookingId);
+        payload.put("propertyTitle", propertyTitle);
+        payload.put("tenantName", tenantName);
+        if (invoiceNo != null) {
+            payload.put("invoiceNo", invoiceNo);
+        }
+        payload.put("createdAt", LocalDateTime.now().toString());
+        messaging.convertAndSend("/topic/admin.notifications", payload);
+
+        StringBuilder adminMessage = new StringBuilder();
+        adminMessage.append(tenantName)
+                .append(" đã hủy booking ")
+                .append(bookingId != null ? "#" + bookingId : propertyTitle);
+        if (invoiceNo != null) {
+            adminMessage.append(" (hóa đơn ").append(invoiceNo).append(")");
+        }
+        adminMessage.append(". Vui lòng xử lý hoàn tiền.");
+
+        List<User> admins = userRepository.findByRole_RoleName("admin");
+        for (User admin : admins) {
+            createAndPush(
+                    admin,
+                    "Booking đã thanh toán bị hủy",
+                    adminMessage.toString(),
+                    NotificationType.PAYMENT,
+                    adminRedirect
+            );
         }
     }
 

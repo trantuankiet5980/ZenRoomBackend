@@ -29,6 +29,8 @@ public interface RealtimeNotificationService {
 
     void notifyRefundProcessed(BookingDto booking, Invoice invoice);
 
+    void notifyBookingCancelledByTenant(BookingDto booking, Invoice invoice);
+
     NotificationDto createAndPush(
             User target,
             String title,
