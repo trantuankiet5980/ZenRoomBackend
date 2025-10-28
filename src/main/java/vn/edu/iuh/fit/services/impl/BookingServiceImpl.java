@@ -263,7 +263,13 @@ public class BookingServiceImpl implements BookingService {
             contractRepo.save(contract);
         });
 
-        return bookingMapper.toDto(booking);
+        BookingDto result = bookingMapper.toDto(booking);
+
+        if (isTenant) {
+            realtimeNotificationService.notifyBookingCancelledByTenant(result, invoice);
+        }
+
+        return result;
     }
 
     @Override
