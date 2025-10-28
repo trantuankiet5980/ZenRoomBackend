@@ -12,6 +12,7 @@ import java.util.List;
 public interface MessageRepository extends JpaRepository<Message, String> {
     @EntityGraph(attributePaths = {"conversation","sender","property","property.address","attachments"})
     Page<Message> findByConversation_ConversationId(String conversationId, Pageable pageable);
+    List<Message> findAllByConversation_ConversationId(String conversationId);
     List<Message> findByConversation_ConversationIdAndIsReadFalse(String conversationId);
     //get last message in conversation
     @EntityGraph(attributePaths = {"conversation","sender","property","property.address","attachments"})

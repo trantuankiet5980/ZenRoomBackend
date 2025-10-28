@@ -273,7 +273,7 @@ public class PropertyServiceImpl implements PropertyService {
         }
         // Log action
         User admin = authService.getCurrentUser();
-        logAction(admin, p.getLandlord(), "CHANGE_PROPERTY_STATUS: " + status + (rejectedReason != null ? " REASON: " + rejectedReason : ""));
+        logAction(admin, p.getLandlord(), "Cập nhật trạng thái: " + status + (rejectedReason != null ? " Lý do: " + rejectedReason : ""));
         propertyRepository.save(p);
         searchSuggestionService.upsertPropertySuggestion(p);
 

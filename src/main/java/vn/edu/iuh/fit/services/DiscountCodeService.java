@@ -3,8 +3,11 @@ package vn.edu.iuh.fit.services;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import vn.edu.iuh.fit.dtos.DiscountCodeDto;
+import vn.edu.iuh.fit.entities.enums.DiscountCodeStatus;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.List;
 
 public interface DiscountCodeService {
     DiscountCodeDto create(String adminId, DiscountCodeDto dto);
@@ -12,7 +15,11 @@ public interface DiscountCodeService {
     void delete(String adminId, String codeId); // tuỳ chọn
 
     DiscountCodeDto get(String codeId);
-    Page<DiscountCodeDto> list(String q, Pageable pageable);
+    Page<DiscountCodeDto> list(String q,
+                               List<DiscountCodeStatus> statuses,
+                               LocalDate validFrom,
+                               LocalDate validTo,
+                               Pageable pageable);
 
     /** Kiểm tra & áp mã lên subtotal, trả về số tiền được giảm */
     BigDecimal previewDiscount(String code, BigDecimal subtotal);

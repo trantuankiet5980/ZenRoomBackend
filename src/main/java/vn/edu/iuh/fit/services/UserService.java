@@ -23,4 +23,5 @@ public interface UserService {
     UserDto getById(String id);
     UserDto update(String id, UserDto dto);
     void requestDeleteAccount(String userId);
+    List<UserDto> searchByPhone(String phoneNumber);
 }

@@ -15,18 +15,18 @@ import vn.edu.iuh.fit.dtos.user.UserResponse;
 import vn.edu.iuh.fit.dtos.user.UserUpdateRequest;
 import vn.edu.iuh.fit.entities.Role;
 import vn.edu.iuh.fit.entities.User;
+import vn.edu.iuh.fit.entities.UserManagementLog;
 import vn.edu.iuh.fit.entities.enums.UserStatus;
 import vn.edu.iuh.fit.mappers.UserMapper;
 import vn.edu.iuh.fit.repositories.RoleRepository;
+import vn.edu.iuh.fit.repositories.UserManagementLogRepository;
 import vn.edu.iuh.fit.repositories.UserRepository;
 import vn.edu.iuh.fit.services.AuthService;
 import vn.edu.iuh.fit.services.UserService;
 import vn.edu.iuh.fit.utils.FormatPhoneNumber;
 
 import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Locale;
-import java.util.UUID;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
@@ -37,6 +37,7 @@ public class UserServiceImpl implements UserService {
     private final PasswordEncoder encoder;
     private final AuthService authService;
     private final UserMapper userMapper;
+    private final UserManagementLogRepository userManagementLogRepository;
 
     @Override
     public UserDto create(UserCreateRequest req) {
@@ -154,8 +155,48 @@ public class UserServiceImpl implements UserService {
     @Override
     public UserDto update(String id, UserDto dto) {
         User u = userRepository.findById(id).orElseThrow(() -> new EntityNotFoundException("User not found: " + id));
+        UserStatus oldStatus = u.getStatus();
+        String oldFullName = u.getFullName();
+
         applyPatchFromDto(u, dto, /*allowRoleStatus*/ true);
         userRepository.save(u);
+
+        UserStatus newStatus = u.getStatus();
+
+        User admin = authService.getCurrentUser();
+        if (admin != null && admin.getRole() != null
+                && "ADMIN".equalsIgnoreCase(admin.getRole().getRoleName())) {
+
+            String actionMessage;
+
+            if (oldStatus != newStatus) {
+                // trạng thái thay đổi
+                actionMessage = switch (newStatus) {
+                    case BANNED -> "Khóa tài khoản: " + u.getFullName();
+                    case ACTIVE -> "Mở khóa tài khoản: " + u.getFullName();
+                    case PENDING_DELETE -> "Yêu cầu xóa tài khoản: " + u.getFullName();
+                    case DELETED -> "Xóa tài khoản: " + u.getFullName();
+                    case INACTIVE -> "Vô hiệu hóa tài khoản: " + u.getFullName();
+                    default -> "Cập nhật trạng thái tài khoản: " + u.getFullName();
+                };
+            } else if (!oldFullName.equals(u.getFullName())) {
+                // cập nhật tên
+                actionMessage = "Thay đổi tên người dùng: " + oldFullName + " -> " + u.getFullName();
+            } else {
+                // cập nhật thông tin khác
+                actionMessage = "Cập nhật thông tin: " + u.getFullName();
+            }
+
+            UserManagementLog log = UserManagementLog.builder()
+                    .admin(admin)
+                    .targetUser(u)
+                    .action(actionMessage)
+                    .createdAt(LocalDateTime.now())
+                    .build();
+
+            userManagementLogRepository.save(log);
+        }
+
         return userMapper.toDto(u);
     }
 
@@ -197,5 +238,33 @@ public class UserServiceImpl implements UserService {
         }
 
         u.setUpdatedAt(LocalDateTime.now());
+    }
+
+    @Transactional(readOnly = true)
+    @Override
+    public List<UserDto> searchByPhone(String phoneNumber) {
+        if (phoneNumber == null || phoneNumber.isBlank()) {
+            throw new IllegalArgumentException("phoneNumber is required");
+        }
+
+        String trimmed = phoneNumber.trim();
+        Set<User> matched = new LinkedHashSet<>();
+
+        matched.addAll(userRepository.findTop10ByPhoneNumberContaining(trimmed));
+
+        String normalized0 = FormatPhoneNumber.formatPhoneNumberTo0(trimmed);
+        if (normalized0 != null && !normalized0.equals(trimmed)) {
+            matched.addAll(userRepository.findTop10ByPhoneNumberContaining(normalized0));
+        }
+
+        String normalized84 = FormatPhoneNumber.formatPhoneNumberTo84(trimmed);
+        if (normalized84 != null && !normalized84.equals(trimmed)) {
+            matched.addAll(userRepository.findTop10ByPhoneNumberContaining(normalized84));
+        }
+
+        return matched.stream()
+                .limit(10)
+                .map(userMapper::toDto)
+                .toList();
     }
 }

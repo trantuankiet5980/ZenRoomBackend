@@ -2,6 +2,7 @@ package vn.edu.iuh.fit.services;
 
 import vn.edu.iuh.fit.dtos.BookingDto;
 import vn.edu.iuh.fit.dtos.requests.BookingCreateRequest;
+import vn.edu.iuh.fit.dtos.requests.PaymentConfirmationRequest;
 import vn.edu.iuh.fit.dtos.requests.PaymentWebhookPayload;
 
 import java.time.LocalDate;
@@ -15,5 +16,6 @@ public interface BookingService {
     BookingDto checkOut(String bookingId, String tenantId);               // check-out ngày trả
     BookingDto getOne(String bookingId, String userId);
     void handlePaymentWebhook(PaymentWebhookPayload payload);
+    void confirmVirtualPayment(PaymentConfirmationRequest request);
     List<LocalDate> getBookedDates(String propertyId);
 }

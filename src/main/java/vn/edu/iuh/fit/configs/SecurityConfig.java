@@ -163,8 +163,10 @@ public class SecurityConfig {
     CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowedOrigins(List.of("http://localhost:3000")); // FE origin
+//        config.setAllowedOrigins(List.of("https://zenroomadmin.vercel.app")); // production origin
         config.setAllowedMethods(List.of("GET","POST","PUT","DELETE","PATCH","OPTIONS"));
         config.setAllowedHeaders(List.of("*"));                      // hoặc liệt kê: Content-Type, Authorization, ...
+//        config.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept", "ngrok-skip-browser-warning, Access-Control-Allow-Origin"));
         config.setExposedHeaders(List.of("Authorization"));          // nếu cần đọc header này
         config.setAllowCredentials(true); // nếu dùng "*" phải false, còn nếu cần cookie thì true + không dùng "*"
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
