@@ -1,5 +1,6 @@
 package vn.edu.iuh.fit.services.impl;
 
+import io.github.cdimascio.dotenv.Dotenv;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,6 +23,9 @@ public
 class SmsServiceImpl implements SmsService {
     private static final Logger logger = LoggerFactory.getLogger(SmsServiceImpl.class);
     private final SnsClient snsClient;
+
+    private final Dotenv dotenv = Dotenv.configure().ignoreIfMissing().load();
+    private final String region = dotenv.get("AWS_REGION2");
 
     private final Map<String, OtpDetails> otpStorage = new ConcurrentHashMap<>();
     private final Map<String, Boolean> otpVerified = new ConcurrentHashMap<>();

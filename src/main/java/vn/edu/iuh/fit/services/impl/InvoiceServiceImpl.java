@@ -83,6 +83,21 @@ public class InvoiceServiceImpl implements InvoiceService {
         return invoiceRepo.save(inv);
     }
 
+    @Override
+    public List<Object[]> getLandlordRevenueByDayRaw(LocalDate from, LocalDate to) {
+        return invoiceRepo.getLandlordRevenueByDayRaw(from, to);
+    }
+
+    @Override
+    public List<Object[]> getLandlordRevenueByMonthRaw(Integer year, Integer month) {
+        return invoiceRepo.getLandlordRevenueByMonthRaw(year, month);
+    }
+
+    @Override
+    public List<Object[]> getLandlordRevenueByYearRaw(Integer year) {
+        return invoiceRepo.getLandlordRevenueByYearRaw(year);
+    }
+
     private BigDecimal computeDeposit(Booking booking) {
         // Ví dụ:
         // if (booking.getType() == DAILY) return booking.getTotalAmount().multiply(new BigDecimal("0.5"));
