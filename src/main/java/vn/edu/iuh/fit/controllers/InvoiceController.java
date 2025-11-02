@@ -20,11 +20,15 @@ import vn.edu.iuh.fit.mappers.InvoiceMapper;
 import vn.edu.iuh.fit.repositories.InvoiceRepository;
 import vn.edu.iuh.fit.repositories.UserManagementLogRepository;
 import vn.edu.iuh.fit.services.AuthService;
+import vn.edu.iuh.fit.services.InvoiceService;
 import vn.edu.iuh.fit.services.RealtimeNotificationService;
 
+import java.math.BigDecimal;
 import java.security.Principal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1/invoices")
@@ -36,6 +40,7 @@ public class InvoiceController {
     private final UserManagementLogRepository userManagementLogRepository;
     private final AuthService authService;
     private final BookingMapper bookingMapper;
+    private final InvoiceService invoiceService;
 
     @PreAuthorize("hasRole('ADMIN')")
     @GetMapping
@@ -154,5 +159,132 @@ public class InvoiceController {
         int safePage = Math.max(page, 0);
         int safeSize = Math.max(size, 1);
         return PageRequest.of(safePage, safeSize);
+    }
+    
+    @PreAuthorize("hasRole('ADMIN')")
+    @GetMapping("/stats/landlords/daily")
+    public List<Map<String, Object>> getLandlordDailyRevenue(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+
+        validateDateRange(from, to);
+        var raw = invoiceService.getLandlordRevenueByDayRaw(from, to);
+        return raw.stream().map(this::toDailyMap).toList();
+    }
+
+    @PreAuthorize("hasRole('ADMIN')")
+    @GetMapping("/stats/landlords/monthly")
+    public List<Map<String, Object>> getLandlordMonthlyRevenue(
+            @RequestParam(required = false) Integer year,
+            @RequestParam(required = false) Integer month) {
+
+        var raw = invoiceService.getLandlordRevenueByMonthRaw(year, month);
+        return raw.stream().map(this::toMonthlyMap).toList();
+    }
+
+    @PreAuthorize("hasRole('ADMIN')")
+    @GetMapping("/stats/landlords/yearly")
+    public List<Map<String, Object>> getLandlordYearlyRevenue(
+            @RequestParam(required = false) Integer year) {
+
+        var raw = invoiceService.getLandlordRevenueByYearRaw(year);
+        return raw.stream().map(this::toYearlyMap).toList();
+    }
+
+    private Map<String, Object> toDailyMap(Object[] row) {
+        return Map.of(
+                "landlordId", row[0],
+                "landlordName", row[1],
+                "date", row[2],
+                "paidRevenue", row[3], // Tổng doanh thu đã thanh toán
+                "refundedAmount", row[4], // Tổng số tiền đã hoàn trả
+                "netRevenue", ((BigDecimal) row[3]).subtract((BigDecimal) row[4]) // Doanh thu thực tế
+        );
+    }
+
+    @PreAuthorize("hasRole('LANDLORD')")
+    @GetMapping("/stats/me/daily")
+    public List<Map<String, Object>> getMyDailyRevenue(
+            Principal principal,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+
+        validateDateRange(from, to);
+        var all = invoiceService.getLandlordRevenueByDayRaw(from, to);
+        return all.stream()
+                .filter(row -> principal.getName().equals(row[0]))
+                .map(this::toDailyMap)
+                .toList();
+    }
+
+    @PreAuthorize("hasRole('LANDLORD')")
+    @GetMapping("/stats/me/monthly")
+    public List<Map<String, Object>> getMyMonthlyRevenue(
+            Principal principal,
+            @RequestParam(required = false) Integer year,
+            @RequestParam(required = false) Integer month) {
+
+        validateYearMonth(year, month);
+        var all = invoiceService.getLandlordRevenueByMonthRaw(year, month);
+        return all.stream()
+                .filter(row -> principal.getName().equals(row[0]))
+                .map(this::toMonthlyMap)
+                .toList();
+    }
+
+    @PreAuthorize("hasRole('LANDLORD')")
+    @GetMapping("/stats/me/yearly")
+    public List<Map<String, Object>> getMyYearlyRevenue(
+            Principal principal,
+            @RequestParam(required = false) Integer year) {
+
+        validateYear(year);
+        var all = invoiceService.getLandlordRevenueByYearRaw(year);
+        return all.stream()
+                .filter(row -> principal.getName().equals(row[0]))
+                .map(this::toYearlyMap)
+                .toList();
+    }
+
+    private Map<String, Object> toMonthlyMap(Object[] row) {
+        return Map.of(
+                "landlordId", row[0],
+                "landlordName", row[1],
+                "year", row[2],
+                "month", row[3],
+                "paidRevenue", row[4], // Tổng doanh thu đã thanh toán
+                "refundedAmount", row[5], // Tổng số tiền đã hoàn trả
+                "netRevenue", ((BigDecimal) row[4]).subtract((BigDecimal) row[5]) // Doanh thu thực tế
+        );
+    }
+
+    private Map<String, Object> toYearlyMap(Object[] row) {
+        return Map.of(
+                "landlordId", row[0],
+                "landlordName", row[1],
+                "year", row[2],
+                "paidRevenue", row[3], // Tổng doanh thu đã thanh toán
+                "refundedAmount", row[4], // Tổng số tiền đã hoàn trả
+                "netRevenue", ((BigDecimal) row[3]).subtract((BigDecimal) row[4]) // Doanh thu thực tế
+        );
+    }
+
+
+    private void validateDateRange(LocalDate from, LocalDate to) {
+        if (from != null && to != null && from.isAfter(to)) {
+            throw new IllegalArgumentException("fromDate must be before or equal to toDate");
+        }
+    }
+    private void validateYear(Integer year) {
+        if (year != null && (year < 1900 || year > 2100)) {
+            throw new IllegalArgumentException("Invalid year");
+        }
+    }
+
+    private void validateYearMonth(Integer year, Integer month) {
+        validateYear(year);
+        if (month != null && (month < 1 || month > 12)) {
+            throw new IllegalArgumentException("Invalid month");
+        }
     }
 }

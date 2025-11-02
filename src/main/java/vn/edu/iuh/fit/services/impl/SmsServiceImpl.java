@@ -23,7 +23,7 @@ public
 class SmsServiceImpl implements SmsService {
     private static final Logger logger = LoggerFactory.getLogger(SmsServiceImpl.class);
     private final SnsClient snsClient;
-    
+
     private final Dotenv dotenv = Dotenv.configure().ignoreIfMissing().load();
     private final String region = dotenv.get("AWS_REGION2");
 
