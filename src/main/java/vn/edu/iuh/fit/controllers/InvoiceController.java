@@ -160,7 +160,7 @@ public class InvoiceController {
         int safeSize = Math.max(size, 1);
         return PageRequest.of(safePage, safeSize);
     }
-    
+
     @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/stats/landlords/daily")
     public List<Map<String, Object>> getLandlordDailyRevenue(

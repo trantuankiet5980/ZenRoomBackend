@@ -11,7 +11,6 @@ public interface InvoiceService {
     Invoice markPaidByWebhook(String invoiceNo, String paymentRef, BigDecimal paidAmount);
 
 
-    // InvoiceService.java
     List<Object[]> getLandlordRevenueByDayRaw(LocalDate from, LocalDate to);
     List<Object[]> getLandlordRevenueByMonthRaw(Integer year, Integer month);
     List<Object[]> getLandlordRevenueByYearRaw(Integer year);
