@@ -18,4 +18,6 @@ public interface BookingService {
     void handlePaymentWebhook(PaymentWebhookPayload payload);
     void confirmVirtualPayment(PaymentConfirmationRequest request);
     List<LocalDate> getBookedDates(String propertyId);
+
+    long countSuccessfulBookings(String propertyId);
 }

@@ -448,6 +448,14 @@ public class BookingServiceImpl implements BookingService {
                 .collect(Collectors.toList());
     }
 
+    @Override
+    public long countSuccessfulBookings(String propertyId) {
+        if (propertyId == null || propertyId.isBlank()) {
+            throw new IllegalArgumentException("propertyId is required");
+        }
+        return bookingRepo.countSuccessfulBookingsByPropertyId(propertyId);
+    }
+
     private String genInvoiceNo() {
         //INV-LocalDateT.Now()-ABCDEFG (ngẫu nhiên 7 ký tự)
         String date = LocalDate.now().toString().replace("-", "");
