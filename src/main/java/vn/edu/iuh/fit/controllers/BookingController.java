@@ -5,6 +5,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.web.bind.annotation.*;
 import vn.edu.iuh.fit.dtos.BookingDto;
+import vn.edu.iuh.fit.dtos.requests.BookingCancelRequest;
 import vn.edu.iuh.fit.dtos.requests.BookingCreateRequest;
 import vn.edu.iuh.fit.entities.enums.BookingStatus;
 import vn.edu.iuh.fit.mappers.BookingMapper;
@@ -34,8 +35,11 @@ public class BookingController {
     }
 
     @PostMapping("/{bookingId}/cancel")
-    public BookingDto cancel(@PathVariable String bookingId, Principal principal) {
-        return bookingService.cancel(bookingId, principal.getName());
+    public BookingDto cancel(@PathVariable String bookingId,
+                             @RequestBody(required = false) BookingCancelRequest request,
+                             Principal principal) {
+        String reason = request != null ? request.getReason() : null;
+        return bookingService.cancel(bookingId, principal.getName(), reason);
     }
 
     @PostMapping("/{bookingId}/check-in")

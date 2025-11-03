@@ -28,7 +28,8 @@ public class BookingMapper {
                 discountCodeMapper.toDto(entity.getDiscountCode()),
                 entity.getCreatedAt(),
                 entity.getUpdatedAt(),
-                entity.getContract() != null ? entity.getContract().getContractId() : null
+                entity.getContract() != null ? entity.getContract().getContractId() : null,
+                entity.getCancellationReason()
         );
     }
 
@@ -44,6 +45,7 @@ public class BookingMapper {
         entity.setPaymentUrl(dto.getPaymentUrl());
         entity.setCreatedAt(dto.getCreatedAt());
         entity.setUpdatedAt(dto.getUpdatedAt());
+        entity.setCancellationReason(dto.getCancellationReason());
 
         // Property, Tenant, DiscountCode, Contract sẽ được set trong service từ ID để tránh lazy/vòng lặp
         return entity;

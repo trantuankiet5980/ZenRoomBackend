@@ -10,7 +10,7 @@ import java.util.List;
 
 public interface BookingService {
     BookingDto createDaily(String tenantId, BookingCreateRequest req);
-    BookingDto cancel(String bookingId, String tenantId);
+    BookingDto cancel(String bookingId, String userId, String cancellationReason);
     BookingDto approve(String bookingId, String landlordId);
     BookingDto checkIn(String bookingId, String tenantId);                // check-in ngày nhận
     BookingDto checkOut(String bookingId, String tenantId);               // check-out ngày trả

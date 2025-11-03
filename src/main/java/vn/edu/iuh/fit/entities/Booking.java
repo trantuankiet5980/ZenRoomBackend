@@ -33,6 +33,8 @@ public class Booking {
     @ManyToOne @JoinColumn(name="discount_code_id") private DiscountCode discountCode;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    @Column(name = "cancellation_reason", columnDefinition = "TEXT")
+    private String cancellationReason;
 
     @OneToOne(mappedBy = "booking", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private Contract contract;

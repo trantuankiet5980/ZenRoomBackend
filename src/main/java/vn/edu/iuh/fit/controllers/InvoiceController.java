@@ -139,7 +139,7 @@ public class InvoiceController {
                 UserManagementLog log = UserManagementLog.builder()
                         .admin(admin)
                         .targetUser(targetUser)
-                        .action("Đã hoàn tiền: invoice=" + invoice.getInvoiceId()
+                        .action("Đã hoàn tiền: invoice=" + invoice.getInvoiceNo()
                                 + (booking != null ? ", booking=" + booking.getBookingId() : ""))
                         .createdAt(LocalDateTime.now())
                         .build();
