@@ -54,4 +54,67 @@ public interface InvoiceRepository extends JpaRepository<Invoice, String> {
                                   @Param("createdFrom") LocalDate createdFrom,
                                   @Param("createdTo") LocalDate createdTo,
                                   Pageable pageable);
+
+
+    @Query("""
+    SELECT 
+        i.booking.property.landlord.userId,
+        COALESCE(i.booking.property.landlord.fullName, 'Unknown'),
+        FUNCTION('DATE', i.paidAt),
+        SUM(CASE WHEN i.status = 'PAID' THEN i.dueAmount ELSE 0 END),
+        SUM(CASE WHEN i.status = 'REFUNDED' THEN i.dueAmount ELSE 0 END)
+    FROM Invoice i
+    WHERE i.paidAt IS NOT NULL
+      AND (:from IS NULL OR FUNCTION('DATE', i.paidAt) >= :from)
+      AND (:to IS NULL OR FUNCTION('DATE', i.paidAt) <= :to)
+    GROUP BY i.booking.property.landlord.userId, 
+             i.booking.property.landlord.fullName,
+             FUNCTION('DATE', i.paidAt)
+    ORDER BY FUNCTION('DATE', i.paidAt) DESC
+    """)
+    List<Object[]> getLandlordRevenueByDayRaw(
+            @Param("from") LocalDate from,
+            @Param("to") LocalDate to
+    );
+
+    @Query("""
+    SELECT 
+        i.booking.property.landlord.userId,
+        COALESCE(i.booking.property.landlord.fullName, 'Unknown'),
+        FUNCTION('YEAR', i.paidAt),
+        FUNCTION('MONTH', i.paidAt),
+        SUM(CASE WHEN i.status = 'PAID' THEN i.dueAmount ELSE 0 END),
+        SUM(CASE WHEN i.status = 'REFUNDED' THEN i.dueAmount ELSE 0 END)
+    FROM Invoice i
+    WHERE i.paidAt IS NOT NULL
+      AND (:year IS NULL OR FUNCTION('YEAR', i.paidAt) = :year)
+      AND (:month IS NULL OR FUNCTION('MONTH', i.paidAt) = :month)
+    GROUP BY i.booking.property.landlord.userId, 
+             i.booking.property.landlord.fullName,
+             FUNCTION('YEAR', i.paidAt), FUNCTION('MONTH', i.paidAt)
+    ORDER BY FUNCTION('YEAR', i.paidAt) DESC, FUNCTION('MONTH', i.paidAt) DESC
+    """)
+    List<Object[]> getLandlordRevenueByMonthRaw(
+            @Param("year") Integer year,
+            @Param("month") Integer month
+    );
+
+    @Query("""
+    SELECT 
+        i.booking.property.landlord.userId,
+        COALESCE(i.booking.property.landlord.fullName, 'Unknown'),
+        FUNCTION('YEAR', i.paidAt),
+        SUM(CASE WHEN i.status = 'PAID' THEN i.dueAmount ELSE 0 END),
+        SUM(CASE WHEN i.status = 'REFUNDED' THEN i.dueAmount ELSE 0 END)
+    FROM Invoice i
+    WHERE i.paidAt IS NOT NULL
+      AND (:year IS NULL OR FUNCTION('YEAR', i.paidAt) = :year)
+    GROUP BY i.booking.property.landlord.userId, 
+             i.booking.property.landlord.fullName,
+             FUNCTION('YEAR', i.paidAt)
+    ORDER BY FUNCTION('YEAR', i.paidAt) DESC
+    """)
+    List<Object[]> getLandlordRevenueByYearRaw(
+            @Param("year") Integer year
+    );
 }

@@ -17,11 +17,13 @@ import vn.edu.iuh.fit.dtos.responses.ApiResponse;
 import vn.edu.iuh.fit.entities.Property;
 import vn.edu.iuh.fit.entities.enums.PostStatus;
 import vn.edu.iuh.fit.mappers.PropertyMapper;
+import vn.edu.iuh.fit.services.BookingService;
 import vn.edu.iuh.fit.services.PropertyService;
 
 import java.net.URI;
 import java.security.Principal;
 import java.time.LocalDate;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
@@ -35,6 +37,7 @@ public class PropertyController {
 
     private final PropertyService propertyService;
     private final PropertyMapper propertyMapper;
+    private final BookingService bookingService;
 
     /** Đăng bài (BUILDING/ROOM). ROOM cần ?parentId=... */
     @PostMapping
@@ -44,12 +47,24 @@ public class PropertyController {
                 .body(propertyMapper.toDto(saved));
     }
 
-    /** Lấy bài theo id */
+    /** Lấy bài theo id, có thêm số lần phòng đã được đặt*/
+
     @GetMapping("{id}")
     public ResponseEntity<?> getById(@PathVariable String id) {
-        return propertyService.getById(id)
-                .<ResponseEntity<?>>map(ResponseEntity::ok)
-                .orElseGet(() -> ResponseEntity.notFound().build());
+        Optional<PropertyDto> propertyOpt = propertyService.getById(id);
+        if (propertyOpt.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+
+        PropertyDto dto = propertyOpt.get();
+        long bookingCount = bookingService.countSuccessfulBookings(id);
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("property", dto);
+        response.put("successfulBookingCount", bookingCount);
+        response.put("description", "Số lần phòng đã được đặt thành công (đã thanh toán + hoàn thành)");
+
+        return ResponseEntity.ok(response);
     }
 
     /** Danh sách không phân trang (dành cho AI Recommendation) */
@@ -179,5 +194,7 @@ public class PropertyController {
             );
         }
     }
+
+
 
 }
