@@ -220,7 +220,7 @@ public class BookingServiceImpl implements BookingService {
 
     @Override
     @Transactional
-    public BookingDto cancel(String bookingId, String tenantId) {
+    public BookingDto cancel(String bookingId, String tenantId, String cancellationReason) {
         Booking booking = bookingRepo.findById(bookingId).orElseThrow();
 
         boolean isTenant = booking.getTenant() != null && booking.getTenant().getUserId().equals(tenantId);
@@ -237,6 +237,23 @@ public class BookingServiceImpl implements BookingService {
         }
         LocalDateTime now = LocalDateTime.now();
         Invoice invoice = invoiceRepo.findByBooking_BookingId(bookingId).orElse(null);
+
+        boolean requiresReason = EnumSet.of(BookingStatus.AWAITING_LANDLORD_APPROVAL, BookingStatus.APPROVED)
+                .contains(booking.getBookingStatus());
+        if (invoice != null) {
+            requiresReason = requiresReason || EnumSet.of(InvoiceStatus.PAID, InvoiceStatus.REFUND_PENDING, InvoiceStatus.REFUNDED)
+                    .contains(invoice.getStatus());
+        }
+
+        String trimmedReason = cancellationReason != null ? cancellationReason.trim() : null;
+        if (requiresReason) {
+            if (trimmedReason == null || trimmedReason.isEmpty()) {
+                throw new IllegalArgumentException("Vui lòng cung cấp lý do khi hủy booking đã thanh toán");
+            }
+            booking.setCancellationReason(trimmedReason);
+        } else {
+            booking.setCancellationReason(trimmedReason != null && !trimmedReason.isEmpty() ? trimmedReason : null);
+        }
 
         if (booking.getBookingStatus() == BookingStatus.APPROVED) {
             applyRefundPolicy(booking, invoice, now);

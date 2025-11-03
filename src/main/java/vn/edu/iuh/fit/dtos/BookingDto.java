@@ -26,4 +26,5 @@ public class BookingDto implements Serializable {
     LocalDateTime createdAt;
     LocalDateTime updatedAt;
     String contractId;
+    String cancellationReason;
 }
