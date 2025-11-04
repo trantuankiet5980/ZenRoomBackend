@@ -94,9 +94,13 @@ public class Invoice {
     @Column(precision = 14, scale = 2)
     private BigDecimal refundableAmount; // Số tiền cần hoàn lại cho khách
 
+    @Column(name = "cancellation_reason", columnDefinition = "TEXT")
+    private String cancellationReason;
+
     private Boolean refundConfirmed;
     private LocalDateTime refundRequestedAt;
     private LocalDateTime refundConfirmedAt;
+    private LocalDateTime cancelledAt;
 
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

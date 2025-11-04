@@ -38,9 +38,11 @@ public class InvoiceDto implements Serializable {
     LocalDateTime dueAt;
     BigDecimal cancellationFee;
     BigDecimal refundableAmount;
+    String cancellationReason;
     Boolean refundConfirmed;
     LocalDateTime refundRequestedAt;
     LocalDateTime refundConfirmedAt;
+    LocalDateTime cancelledAt;
     LocalDateTime createdAt;
     LocalDateTime updatedAt;
     String itemsJson;
