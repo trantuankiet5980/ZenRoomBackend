@@ -121,6 +121,7 @@ public class BookingServiceImpl implements BookingService {
         invoice.setRefundConfirmed(Boolean.FALSE);
         invoice.setRefundRequestedAt(null);
         invoice.setRefundConfirmedAt(null);
+        invoice.setCancelledAt(null);
 
         BigDecimal roundedTotal = total.setScale(0, RoundingMode.HALF_UP);
         long amount = roundedTotal.longValueExact();
@@ -255,6 +256,10 @@ public class BookingServiceImpl implements BookingService {
             booking.setCancellationReason(trimmedReason != null && !trimmedReason.isEmpty() ? trimmedReason : null);
         }
 
+        if (invoice != null) {
+            invoice.setCancellationReason(booking.getCancellationReason());
+        }
+
         if (booking.getBookingStatus() == BookingStatus.APPROVED) {
             applyRefundPolicy(booking, invoice, now);
         } else {
@@ -265,6 +270,7 @@ public class BookingServiceImpl implements BookingService {
                 invoice.setRefundConfirmed(Boolean.TRUE);
                 invoice.setRefundRequestedAt(null);
                 invoice.setRefundConfirmedAt(now);
+                invoice.setCancelledAt(now);
                 invoice.setUpdatedAt(now);
                 invoiceRepo.save(invoice);
             }
@@ -403,6 +409,7 @@ public class BookingServiceImpl implements BookingService {
             invoice.setRefundConfirmed(Boolean.FALSE);
             invoice.setRefundRequestedAt(null);
             invoice.setRefundConfirmedAt(null);
+            invoice.setCancelledAt(null);
         } else {
             invoice.setStatus(InvoiceStatus.ISSUED);
             invoice.setCancellationFee(BigDecimal.ZERO);
@@ -410,6 +417,7 @@ public class BookingServiceImpl implements BookingService {
             invoice.setRefundConfirmed(Boolean.FALSE);
             invoice.setRefundRequestedAt(null);
             invoice.setRefundConfirmedAt(null);
+            invoice.setCancelledAt(null);
         }
         invoice.setUpdatedAt(LocalDateTime.now());
         invoice = invoiceRepo.save(invoice);
@@ -522,6 +530,7 @@ public class BookingServiceImpl implements BookingService {
             invoice.setCancellationFee(cancellationFee);
             invoice.setRefundableAmount(refundAmount);
             invoice.setRefundRequestedAt(cancelAt);
+            invoice.setCancelledAt(cancelAt);
             if (refundAmount.compareTo(BigDecimal.ZERO) > 0) {
                 invoice.setStatus(InvoiceStatus.REFUND_PENDING);
                 invoice.setRefundConfirmed(Boolean.FALSE);

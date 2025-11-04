@@ -69,6 +69,7 @@ public class BookingAutoCancelJob {
 
             if (invoice != null && invoice.getStatus() != InvoiceStatus.VOID) {
                 invoice.setStatus(InvoiceStatus.VOID);
+                invoice.setCancelledAt(now);
                 invoice.setUpdatedAt(now);
                 invoiceRepo.save(invoice);
             }

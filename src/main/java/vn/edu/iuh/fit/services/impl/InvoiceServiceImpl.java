@@ -80,6 +80,7 @@ public class InvoiceServiceImpl implements InvoiceService {
         inv.setStatus(InvoiceStatus.PAID);
         inv.setPaymentRef(paymentRef);
         inv.setPaidAt(LocalDateTime.now());
+        inv.setCancelledAt(null);
         return invoiceRepo.save(inv);
     }
 
