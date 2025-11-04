@@ -41,6 +41,20 @@ public class PropertySpecs {
         };
     }
 
+    public static Specification<Property> priceGte(Integer priceMin) {
+        return (root, cq, cb) -> {
+            if (priceMin == null) return cb.conjunction();
+            return cb.greaterThanOrEqualTo(root.get("price"), java.math.BigDecimal.valueOf(priceMin.longValue()));
+        };
+    }
+
+    public static Specification<Property> priceLte(Integer priceMax) {
+        return (root, cq, cb) -> {
+            if (priceMax == null) return cb.conjunction();
+            return cb.lessThanOrEqualTo(root.get("price"), java.math.BigDecimal.valueOf(priceMax.longValue()));
+        };
+    }
+
     // Thêm lọc theo province
     public static Specification<Property> provinceCodeEq(String provinceCode) {
         return (root, cq, cb) -> {

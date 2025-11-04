@@ -75,6 +75,8 @@ public class PropertyController {
             @RequestParam(required = false, name = "q") String keyword,
             @RequestParam(required = false) String provinceCode,
             @RequestParam(required = false) String districtCode,
+            @RequestParam(required = false) Integer priceMin,
+            @RequestParam(required = false) Integer priceMax,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate createdFrom,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate createdTo
     ) {
@@ -82,7 +84,11 @@ public class PropertyController {
         Pageable pageable = PageRequest.of(Math.max(page, 0), Math.min(size, 100), s);
 
         Page<PropertyDto> dtoPage = propertyService.list(
-                landlordId, postStatus, type, keyword, provinceCode, districtCode, createdFrom, createdTo, pageable
+                landlordId, postStatus, type, keyword,
+                provinceCode, districtCode,
+                priceMin, priceMax,
+                createdFrom, createdTo,
+                pageable
         );
 
         return ResponseEntity.ok(Map.of(
@@ -105,7 +111,6 @@ public class PropertyController {
             @RequestParam(required = false) Integer areaMax,
             @RequestParam(required = false) String apartmentCategory,
             @RequestParam(required = false) Integer floorNo,
-            @RequestParam(required = false) String roomNumber,
             @RequestParam(required = false) Integer bathrooms,
             @RequestParam(required = false) Integer bedrooms,
             @RequestParam(required = false) Integer capacity,
@@ -124,7 +129,7 @@ public class PropertyController {
                 priceMin, priceMax,
                 areaMin, areaMax,
                 apartmentCategory,
-                floorNo, roomNumber,
+                floorNo,
                 bathrooms, bedrooms,
                 capacity, parkingSlots,
                 buildingName, propertyType,
