@@ -17,6 +17,8 @@ public interface RealtimeNotificationService {
     // Thong bao khi bai dang thay doi trang thai
     void notifyAdminsPropertyStatusChanged(PropertyDto p, PostStatus status, String rejectedReason); // NEW
 
+    void notifyAdminsReportCreated(String reporterName, String propertyId, String propertyTitle);
+
     void notifyTenantBookingApproved(BookingDto booking);
 
     void notifyLandlordBookingCreated(BookingDto booking);
