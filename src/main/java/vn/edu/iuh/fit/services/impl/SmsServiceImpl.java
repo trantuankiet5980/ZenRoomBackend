@@ -59,67 +59,56 @@ class SmsServiceImpl implements SmsService {
 
     @Override
     public void sendOtp(String phoneNumber) {
-        String formattedPhone = FormatPhoneNumber.formatPhoneNumberTo84(phoneNumber);
         String otp = generateOtp();
         Instant expiryTime = Instant.now().plusSeconds(OTP_EXPIRY_SECONDS);
-        otpStorage.put(formattedPhone, new OtpDetails(otp, expiryTime));
+        otpStorage.put(phoneNumber, new OtpDetails(otp, expiryTime));
 
         String message = "Your OTP for registration is: " + otp + ". It is valid for 5 minutes.";
-        logger.info("Sending OTP {} to phone number {}", otp, formattedPhone);
+        logger.info("Sending OTP {} to phone number {}", otp, phoneNumber);
 
         PublishRequest publishRequest = PublishRequest.builder()
-                .phoneNumber(formattedPhone)
+                .phoneNumber(phoneNumber)
                 .message(message)
                 .build();
 
         try {
             PublishResponse response = snsClient.publish(publishRequest);
-            logger.info("Message sent successfully with ID: {} for phone number {}", response.messageId(), formattedPhone);
+            logger.info("Message sent successfully with ID: {} for phone number {}", response.messageId(), phoneNumber);
         } catch (Exception e) {
-            otpStorage.remove(formattedPhone);
-            logger.error("Failed to send OTP to {}: {}", formattedPhone, e.getMessage(), e);
-            throw new RuntimeException("Failed to send OTP to " + formattedPhone + ": " + e.getMessage());
+            otpStorage.remove(phoneNumber);
+            logger.error("Failed to send OTP to {}: {}", phoneNumber, e.getMessage(), e);
+            throw new RuntimeException("Failed to send OTP to " + phoneNumber + ": " + e.getMessage());
         }
     }
 
     @Override
     public boolean verifyOtp(String phoneNumber, String otp) {
-        String formattedPhone = FormatPhoneNumber.formatPhoneNumberTo84(phoneNumber);
-        OtpDetails otpDetails = otpStorage.get(formattedPhone);
-
+        OtpDetails otpDetails = otpStorage.get(phoneNumber);
         if (otpDetails == null) {
-            logger.warn("No OTP found for phone number: {}", formattedPhone);
+            logger.warn("No OTP found for phone number: {}", phoneNumber);
             return false;
         }
-
         if (Instant.now().isAfter(otpDetails.expiryTime)) {
-            logger.warn("OTP for phone number {} has expired", formattedPhone);
-            otpStorage.remove(formattedPhone);
+            logger.warn("OTP for phone number {} has expired", phoneNumber);
+            otpStorage.remove(phoneNumber);
             return false;
         }
-
         boolean isValid = otpDetails.isValid(otp);
-        logger.info("Verifying OTP for phone number {}: provided OTP {}, stored OTP {}, result: {}",
-                formattedPhone, otp, otpDetails.otp, isValid);
-
         if (isValid) {
-            otpStorage.remove(formattedPhone);
-            logger.info("OTP verified successfully for phone number {}, OTP removed from storage", formattedPhone);
+            otpStorage.remove(phoneNumber);
+            logger.info("OTP verified successfully for phone number {}, OTP removed from storage", phoneNumber);
         }
-
         return isValid;
     }
 
     @Override
     public boolean isOtpVerified(String phoneNumber) {
-        String formattedPhone = FormatPhoneNumber.formatPhoneNumberTo84(phoneNumber);
-        return otpVerified.getOrDefault(formattedPhone, false);
+        return otpVerified.getOrDefault(phoneNumber, false);
     }
 
     @Override
     public void clearOtpVerification(String phoneNumber) {
-        String formattedPhone = FormatPhoneNumber.formatPhoneNumberTo84(phoneNumber);
-        otpVerified.remove(formattedPhone);
+        otpVerified.remove(phoneNumber);
     }
 
     @Override
