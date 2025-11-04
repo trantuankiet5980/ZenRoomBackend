@@ -46,25 +46,12 @@ public class PropertyController {
         return ResponseEntity.created(URI.create("/api/v1/properties/" + saved.getPropertyId()))
                 .body(propertyMapper.toDto(saved));
     }
-
-    /** Lấy bài theo id, có thêm số lần phòng đã được đặt*/
-
+    /** Lấy bài theo id */
     @GetMapping("{id}")
     public ResponseEntity<?> getById(@PathVariable String id) {
-        Optional<PropertyDto> propertyOpt = propertyService.getById(id);
-        if (propertyOpt.isEmpty()) {
-            return ResponseEntity.notFound().build();
-        }
-
-        PropertyDto dto = propertyOpt.get();
-        long bookingCount = bookingService.countSuccessfulBookings(id);
-
-        Map<String, Object> response = new HashMap<>();
-        response.put("property", dto);
-        response.put("successfulBookingCount", bookingCount);
-        response.put("description", "Số lần phòng đã được đặt thành công (đã thanh toán + hoàn thành)");
-
-        return ResponseEntity.ok(response);
+        return propertyService.getById(id)
+                .<ResponseEntity<?>>map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
     /** Danh sách không phân trang (dành cho AI Recommendation) */
@@ -172,6 +159,20 @@ public class PropertyController {
         return ResponseEntity.noContent().build();
     }
 
+    /** Thống kê số lần phòng đã được đặt */
+    @GetMapping("{id}/stats")
+    public ResponseEntity<?> getPropertyStats(@PathVariable String id) {
+        long bookingCount = bookingService.countSuccessfulBookings(id);
+
+        Map<String, Object> stats = Map.of(
+                "propertyId", id,
+                "successfulBookingCount", bookingCount,
+                "description", "Số lần phòng đã được đặt"
+        );
+
+        return ResponseEntity.ok(stats);
+    }
+
     private Sort parseSort(String sort) {
         try {
             String[] parts = sort.split(",");
@@ -194,7 +195,6 @@ public class PropertyController {
             );
         }
     }
-
 
 
 }
