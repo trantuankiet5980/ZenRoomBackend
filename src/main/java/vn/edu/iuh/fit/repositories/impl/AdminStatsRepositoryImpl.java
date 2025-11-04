@@ -435,4 +435,67 @@ public class AdminStatsRepositoryImpl implements AdminStatsRepository {
         }
         return out;
     }
+
+    @SuppressWarnings("unchecked")
+    @Override
+    public List<TopBookedPropertyDTO> getTopBookedProperties(int year, Integer month, int limit) {
+        int sanitizedLimit = Math.max(1, Math.min(limit, 50));
+
+        StringBuilder sql = new StringBuilder("""
+            SELECT p.property_id,
+                   p.title,
+                   p.building_name,
+                   p.price,
+                   COUNT(*) AS booking_count,
+                   COALESCE(SUM(
+                       CASE
+                           WHEN b.start_date IS NULL OR b.end_date IS NULL THEN 0
+                           ELSE GREATEST(DATEDIFF(b.end_date, b.start_date), 0)
+                       END
+                   ), 0) AS total_days
+            FROM bookings b
+            JOIN properties p ON p.property_id = b.property_id
+            WHERE b.booking_status <> 'CANCELLED'
+              AND YEAR(b.created_at) = ?1
+        """);
+
+        if (month != null) {
+            sql.append("  AND MONTH(b.created_at) = ?2\n");
+        }
+
+        sql.append("""
+            GROUP BY p.property_id, p.title
+            ORDER BY booking_count DESC, total_days DESC, p.title ASC
+        """);
+
+        if (month != null) {
+            sql.append("LIMIT ?3\n");
+        } else {
+            sql.append("LIMIT ?2\n");
+        }
+
+        var query = em.createNativeQuery(sql.toString());
+        query.setParameter(1, year);
+
+        int paramIndex = 2;
+        if (month != null) {
+            query.setParameter(paramIndex++, month);
+        }
+        query.setParameter(paramIndex, sanitizedLimit);
+
+        var rows = query.getResultList();
+        List<TopBookedPropertyDTO> out = new ArrayList<>();
+        for (Object row : rows) {
+            Object[] a = (Object[]) row;
+            out.add(new TopBookedPropertyDTO(
+                    (String) a[0],
+                    (String) a[1],
+                    (String) a[2],
+                    (BigDecimal) a[3],
+                    ((Number) a[4]).longValue(),
+                    ((Number) a[5]).longValue()
+            ));
+        }
+        return out;
+    }
 }

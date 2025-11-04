@@ -66,11 +66,11 @@ public interface BookingRepository extends JpaRepository<Booking, String> {
 
 
     @Query("""
-    SELECT COUNT(b) 
-    FROM Booking b 
-    JOIN Invoice i ON b.bookingId = i.booking.bookingId 
-    WHERE b.property.propertyId = :propertyId 
-      AND b.bookingStatus = 'COMPLETED' 
+    SELECT COUNT(b)
+    FROM Booking b
+    JOIN Invoice i ON b.bookingId = i.booking.bookingId
+    WHERE b.property.propertyId = :propertyId
+      AND b.bookingStatus = 'COMPLETED'
       AND i.status = 'PAID'
     """)
     long countSuccessfulBookingsByPropertyId(@Param("propertyId") String propertyId);

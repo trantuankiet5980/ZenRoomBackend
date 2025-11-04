@@ -93,6 +93,16 @@ public class AdminStatsController {
         return ResponseEntity.ok(service.getRecentBookings(limit));
     }
 
+    @GetMapping("/stats/bookings/top")
+    public ResponseEntity<List<TopBookedPropertyDTO>> topBookedProperties(
+            @RequestParam(required = false) Integer year,
+            @RequestParam(required = false) Integer month,
+            @RequestParam(defaultValue = "10") int limit
+    ) {
+        validateMonth(month);
+        return ResponseEntity.ok(service.getTopBookedProperties(year, month, limit));
+    }
+
     private static void validateMonth(Integer month) {
         if (month != null && (month < 1 || month > 12)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "month must be between 1 and 12");

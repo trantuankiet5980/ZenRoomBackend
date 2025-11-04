@@ -25,4 +25,5 @@ public interface AdminStatsRepository {
     long getUserRegistrationCountForYear(int year);
     List<DailyUserCountDTO> getUserRegistrationDailyCountsForMonth(int year, int month);
     List<MonthlyUserCountDTO> getUserRegistrationMonthlyCountsForYear(int year);
+    List<TopBookedPropertyDTO> getTopBookedProperties(int year, Integer month, int limit);
 }

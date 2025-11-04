@@ -32,6 +32,23 @@ public class AdminStatsServiceImpl implements AdminStatsService {
     }
 
     @Override
+    public List<TopBookedPropertyDTO> getTopBookedProperties(Integer year, Integer month, int limit) {
+        var today = LocalDate.now();
+        int resolvedYear = year != null ? year : today.getYear();
+        Integer resolvedMonth = month;
+
+        if (resolvedMonth != null) {
+            validateMonth(resolvedMonth);
+            if (year == null) {
+                resolvedYear = today.getYear();
+            }
+        }
+
+        int sanitizedLimit = limit <= 0 ? 10 : Math.min(limit, 50);
+        return repo.getTopBookedProperties(resolvedYear, resolvedMonth, sanitizedLimit);
+    }
+
+    @Override
     public RevenueStatsDTO getRevenueStats(Integer year, Integer month, Integer day) {
         var today = LocalDate.now();
         int resolvedYear = year != null ? year : today.getYear();
