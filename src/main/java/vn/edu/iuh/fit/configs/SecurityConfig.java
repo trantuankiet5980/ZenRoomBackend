@@ -147,6 +147,9 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/recommendations/**").permitAll()
                         .requestMatchers("/api/v1/ai/**").permitAll()
 
+                        // REPORTS
+                        .requestMatchers("/api/v1/reports/**").authenticated()
+
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
