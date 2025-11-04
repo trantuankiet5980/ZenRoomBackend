@@ -157,12 +157,16 @@ public class PropertyServiceImpl implements PropertyService {
     @Transactional(readOnly = true)
     @Override
     public Page<PropertyDto> list(String landlordId, String postStatus, String type, String keyword,
-                                  String provinceCode, String districtCode, LocalDate createdFrom, LocalDate createdTo,
+                                  String provinceCode, String districtCode,
+                                  Integer priceMin, Integer priceMax,
+                                  LocalDate createdFrom, LocalDate createdTo,
                                   Pageable pageable) {
         Specification<Property> spec = vn.edu.iuh.fit.services.impl.PropertySpecs.landlordIdEq(landlordId)
                 .and(PropertySpecs.postStatusEq(postStatus))
                 .and(PropertySpecs.typeEq(type))
                 .and(PropertySpecs.keywordLike(keyword))
+                .and(vn.edu.iuh.fit.services.impl.PropertySpecs.priceGte(priceMin))
+                .and(vn.edu.iuh.fit.services.impl.PropertySpecs.priceLte(priceMax))
                 .and(vn.edu.iuh.fit.services.impl.PropertySpecs.provinceCodeEq(provinceCode))
                 .and(vn.edu.iuh.fit.services.impl.PropertySpecs.districtCodeEq(districtCode))
                 .and(vn.edu.iuh.fit.services.impl.PropertySpecs.createdAtBetween(createdFrom, createdTo));
@@ -302,7 +306,6 @@ public class PropertyServiceImpl implements PropertyService {
                                     Integer areaMin, Integer areaMax,
                                     String apartmentCategory,
                                     Integer floorNo,
-                                    String roomNumber,
                                     Integer bathrooms, Integer bedrooms,
                                     Integer capacity, Integer parkingSlots,
                                     String buildingName, String propertyType,
@@ -331,8 +334,6 @@ public class PropertyServiceImpl implements PropertyService {
                 ps.add(cb.equal(root.get("apartmentCategory"), apartmentCategory)); // Enum/String tuỳ entity
 
             if (floorNo != null) ps.add(cb.equal(root.get("floorNo"), floorNo));
-            if (roomNumber != null && !roomNumber.isBlank())
-                ps.add(cb.equal(cb.lower(root.get("roomNumber")), roomNumber.toLowerCase()));
 
             if (bathrooms != null) ps.add(cb.equal(root.get("bathrooms"), bathrooms));
             if (bedrooms  != null) ps.add(cb.equal(root.get("bedrooms"), bedrooms));

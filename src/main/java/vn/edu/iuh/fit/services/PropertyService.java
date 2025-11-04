@@ -15,7 +15,9 @@ public interface PropertyService {
     Optional<PropertyDto> getById(String id);
 
     Page<PropertyDto> list(String landlordId, String postStatus, String type, String keyword,
-                           String provinceCode, String districtCode, LocalDate createdFrom, LocalDate createdTo,
+                           String provinceCode, String districtCode,
+                           Integer priceMin, Integer priceMax,
+                           LocalDate createdFrom, LocalDate createdTo,
                            Pageable pageable);
 
     Property update(String id, PropertyDto dto);             // luôn đưa về PENDING
@@ -29,7 +31,6 @@ public interface PropertyService {
             Integer areaMin, Integer areaMax,
             String apartmentCategory,  // CHUNG_CU | DUPLEX | PENTHOUSE ...
             Integer floorNo,
-            String roomNumber,
             Integer bathrooms, Integer bedrooms,
             Integer capacity, Integer parkingSlots,
             String buildingName, String propertyType, // nếu bạn có enum PropertyType
