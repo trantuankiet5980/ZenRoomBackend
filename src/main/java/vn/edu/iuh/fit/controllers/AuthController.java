@@ -275,6 +275,7 @@ public class AuthController {
                     .build());
         }
 
+        // Dùng 0... để tìm trong DB
         String formattedPhone = FormatPhoneNumber.formatPhoneNumberTo0(phone);
         boolean exists = userRepository.existsByPhoneNumber(formattedPhone);
         if (!exists) {
@@ -286,7 +287,9 @@ public class AuthController {
         }
 
         try {
-            smsService.sendOtp(formattedPhone); // Đã có service gửi OTP dùng SNS
+            // Gửi OTP: cần +84 cho SNS
+            String phoneForSns = FormatPhoneNumber.formatPhoneNumberTo84(phone);
+            smsService.sendOtp(phoneForSns); // sendOtp dùng +84
             return ResponseEntity.ok(ApiResponse.builder()
                     .success(true)
                     .message("OTP sent successfully.")
@@ -314,8 +317,9 @@ public class AuthController {
                     .build());
         }
 
-        String formattedPhone = FormatPhoneNumber.formatPhoneNumberTo0(phone);
-        boolean isValid = smsService.verifyOtp(formattedPhone, otp);
+        // Dùng +84 để verify (vì sendOtp lưu bằng +84)
+        String phoneForVerify = FormatPhoneNumber.formatPhoneNumberTo84(phone);
+        boolean isValid = smsService.verifyOtp(phoneForVerify, otp);
 
         if (!isValid) {
             return ResponseEntity.badRequest().body(ApiResponse.builder()
@@ -325,6 +329,8 @@ public class AuthController {
                     .build());
         }
 
+        // Lưu flag verify bằng 0... (để reset dùng 0...)
+        String formattedPhone = FormatPhoneNumber.formatPhoneNumberTo0(phone);
         if (smsService instanceof SmsServiceImpl smsServiceImpl) {
             smsServiceImpl.setOtpVerified(formattedPhone, true);
         }
