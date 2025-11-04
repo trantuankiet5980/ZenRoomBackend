@@ -13,9 +13,11 @@ import vn.edu.iuh.fit.entities.Review;
 import vn.edu.iuh.fit.entities.ReviewReply;
 import vn.edu.iuh.fit.entities.User;
 import vn.edu.iuh.fit.entities.enums.BookingStatus;
+import vn.edu.iuh.fit.entities.enums.NotificationType;
 import vn.edu.iuh.fit.mappers.ReviewMapper;
 import vn.edu.iuh.fit.mappers.ReviewReplyMapper;
 import vn.edu.iuh.fit.repositories.*;
+import vn.edu.iuh.fit.services.RealtimeNotificationService;
 import vn.edu.iuh.fit.services.ReviewService;
 
 import java.time.Duration;
@@ -30,6 +32,7 @@ public class ReviewServiceImpl implements ReviewService {
     private final UserRepository userRepo;
     private final ReviewMapper reviewMapper;
     private final ReviewReplyMapper replyMapper;
+    private final RealtimeNotificationService notificationService;
 
     @Transactional
     @Override
@@ -63,7 +66,9 @@ public class ReviewServiceImpl implements ReviewService {
             r.setCreatedAt(now);
             r.setUpdatedAt(null);
 
-            return reviewMapper.toDto(reviewRepo.save(r));
+            Review saved = reviewRepo.save(r);
+            notifyLandlordReviewCreated(saved);
+            return reviewMapper.toDto(saved);
         } else {
             // UPDATE (24h)
             Review r = reviewRepo.findById(dto.getReviewId()).orElseThrow();
@@ -117,6 +122,7 @@ public class ReviewServiceImpl implements ReviewService {
             rp.setUpdatedAt(null);
             ReviewReply saved = replyRepo.save(rp);
             r.setReply(saved); // set reply cho review
+            notifyTenantReviewReplied(r, saved);
 
             return replyMapper.toDto(saved);
         } else {
@@ -134,6 +140,63 @@ public class ReviewServiceImpl implements ReviewService {
             }
             return replyMapper.toDto(updated);
         }
+    }
+    private void notifyLandlordReviewCreated(Review review) {
+        if (review == null || review.getBooking() == null) {
+            return;
+        }
+
+        var booking = review.getBooking();
+        var property = booking.getProperty();
+        if (property == null || property.getLandlord() == null || property.getLandlord().getUserId() == null) {
+            return;
+        }
+
+        var landlord = property.getLandlord();
+        var propertyTitle = property.getTitle() != null ? property.getTitle() : "bài đăng của bạn";
+        var tenantName = review.getTenant() != null && review.getTenant().getFullName() != null
+                ? review.getTenant().getFullName()
+                : "Khách thuê";
+        var message = tenantName + " đã đánh giá " + propertyTitle +".";
+        var redirectUrl = property.getPropertyId() != null
+                ? "/landlord/properties/" + property.getPropertyId()
+                : null;
+
+        notificationService.createAndPush(
+                landlord,
+                "Có đánh giá mới về bài đăng được thuê",
+                message,
+                NotificationType.SYSTEM,
+                redirectUrl
+        );
+    }
+
+    private void notifyTenantReviewReplied(Review review, ReviewReply reply) {
+        if (review == null || review.getTenant() == null || review.getTenant().getUserId() == null) {
+            return;
+        }
+
+        var tenant = review.getTenant();
+        var booking = review.getBooking();
+        var property = booking != null ? booking.getProperty() : null;
+        var propertyTitle = property != null && property.getTitle() != null
+                ? property.getTitle()
+                : "bài đăng";
+        var landlordName = reply != null && reply.getLandlord() != null && reply.getLandlord().getFullName() != null
+                ? reply.getLandlord().getFullName()
+                : "Chủ nhà";
+        var message = landlordName + " đã phản hồi đánh giá của bạn về " + propertyTitle + ".";
+        var redirectUrl = booking != null && booking.getBookingId() != null
+                ? "/tenant/bookings/" + booking.getBookingId()
+                : null;
+
+        notificationService.createAndPush(
+                tenant,
+                "Chủ nhà đã phản hồi đánh giá",
+                message,
+                NotificationType.SYSTEM,
+                redirectUrl
+        );
     }
 
     @Override
