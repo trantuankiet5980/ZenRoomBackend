@@ -150,6 +150,40 @@ public class RealtimeNotificationServiceImpl implements RealtimeNotificationServ
     }
 
     @Override
+    public void notifyAdminsReportCreated(String reporterName, String propertyId, String propertyTitle) {
+        String safeReporter = (reporterName != null && !reporterName.isBlank()) ? reporterName : "Một người dùng";
+        String safePropertyTitle = (propertyTitle != null && !propertyTitle.isBlank()) ? propertyTitle : "bài đăng";
+        var now = LocalDateTime.now();
+
+        var payload = new HashMap<String, Object>();
+        payload.put("type", "REPORT_CREATED");
+        payload.put("reporterName", safeReporter);
+        payload.put("propertyId", propertyId);
+        payload.put("propertyTitle", safePropertyTitle);
+        payload.put("message", safeReporter + " đã báo cáo bài đăng " + safePropertyTitle);
+        payload.put("createdAt", now.toString());
+        messaging.convertAndSend("/topic/admin.notifications", payload);
+
+        List<User> admins = userRepository.findByRole_RoleName("admin");
+        if (!admins.isEmpty()) {
+            String message = safeReporter + " đã báo cáo bài đăng " + safePropertyTitle;
+            String redirectUrl = "/admin/reports";
+            var records = admins.stream().map(admin ->
+                    Notification.builder()
+                            .user(admin)
+                            .title("Có báo cáo mới")
+                            .message(message)
+                            .type(NotificationType.SYSTEM)
+                            .redirectUrl(redirectUrl)
+                            .isRead(false)
+                            .createdAt(now)
+                            .build()
+            ).toList();
+            notificationRepository.saveAll(records);
+        }
+    }
+
+    @Override
     public void notifyTenantBookingApproved(BookingDto booking) {
         if (booking == null || booking.getTenant() == null || booking.getTenant().getUserId() == null) {
             return;
