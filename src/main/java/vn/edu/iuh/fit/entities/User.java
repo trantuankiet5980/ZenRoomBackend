@@ -93,9 +93,6 @@ public class User {
     @OneToMany(mappedBy = "reporter", fetch = FetchType.LAZY)
     private List<Report> reportsCreated = new ArrayList<>();
 
-    @OneToMany(mappedBy = "reported", fetch = FetchType.LAZY)
-    private List<Report> reportsReceived = new ArrayList<>();
-
     // User management logs
     @OneToMany(mappedBy = "admin", fetch = FetchType.LAZY)
     private List<UserManagementLog> adminActions = new ArrayList<>();

@@ -1,6 +1,7 @@
 package vn.edu.iuh.fit.dtos;
 
 import lombok.Value;
+import vn.edu.iuh.fit.entities.enums.ReportReason;
 import vn.edu.iuh.fit.entities.enums.ReportStatus;
 
 import java.io.Serializable;
@@ -12,11 +13,10 @@ import java.time.LocalDateTime;
 @Value
 public class ReportDto implements Serializable {
     String reportId;
-    UserDto reporter;
-    UserDto reported;
-    PropertyDto property;
-    BookingDto booking;
-    String reason;
+    String reporterId;
+    String propertyId;
+    ReportReason reason;
+    String description;
     ReportStatus status;
     LocalDateTime createdAt;
 }
