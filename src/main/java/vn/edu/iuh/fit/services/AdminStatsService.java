@@ -11,4 +11,5 @@ public interface AdminStatsService {
     RevenueStatsDTO getRevenueStats(Integer year, Integer month, Integer day);
     PostStatsDTO getPostStats(Integer year, Integer month, Integer day);
     UserStatsDTO getUserStats(Integer year, Integer month, Integer day);
+    List<TopBookedPropertyDTO> getTopBookedProperties(Integer year, Integer month, int limit);
 }
