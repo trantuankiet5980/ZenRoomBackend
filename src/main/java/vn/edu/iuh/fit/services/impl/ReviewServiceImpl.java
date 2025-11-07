@@ -187,7 +187,7 @@ public class ReviewServiceImpl implements ReviewService {
                 : "Chủ nhà";
         var message = landlordName + " đã phản hồi đánh giá của bạn về " + propertyTitle + ".";
         var redirectUrl = booking != null && booking.getBookingId() != null
-                ? "/tenant/bookings/" + booking.getBookingId()
+                ? "/tenant/properties/" + booking.getProperty().getPropertyId()
                 : null;
 
         notificationService.createAndPush(

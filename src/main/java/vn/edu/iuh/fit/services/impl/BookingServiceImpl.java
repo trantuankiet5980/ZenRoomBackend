@@ -320,7 +320,7 @@ public class BookingServiceImpl implements BookingService {
         LocalDateTime earlyCheckInStart = standardCheckIn.minusMinutes(10);
 
         if (now.isBefore(earlyCheckInStart)) {
-            throw new IllegalStateException("Chỉ được nhận phòng từ 14:00. Có thể check-in sớm nhất từ 13:50-14:00 nếu phòng trống.");
+            throw new IllegalStateException("Chỉ được nhận phòng từ 14:00. Có thể nhận phòng sớm nhất từ 13:50-14:00 nếu phòng trống.");
         }
 
         if (now.isBefore(standardCheckIn)) {
