@@ -18,10 +18,12 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import vn.edu.iuh.fit.dtos.AddressDto;
 import vn.edu.iuh.fit.dtos.PropertyDto;
 import vn.edu.iuh.fit.dtos.PropertyFurnishingDto;
 import vn.edu.iuh.fit.dtos.PropertyServiceItemDto;
 import vn.edu.iuh.fit.entities.*;
+import vn.edu.iuh.fit.entities.enums.MediaType;
 import vn.edu.iuh.fit.entities.enums.PostStatus;
 import vn.edu.iuh.fit.entities.enums.PropertyType;
 import vn.edu.iuh.fit.mappers.PropertyMapper;
@@ -75,6 +77,8 @@ public class PropertyServiceImpl implements PropertyService {
         if (dto.getLandlord() == null || dto.getLandlord().getUserId() == null)
             throw new IllegalArgumentException("landlord.userId is required");
         if (dto.getAddress() == null) throw new IllegalArgumentException("Address is required");
+
+        validatePostingConstraints(dto);
 
         // Load landlord
         User landlord = userRepository.findById(dto.getLandlord().getUserId())
@@ -142,6 +146,79 @@ public class PropertyServiceImpl implements PropertyService {
         searchSuggestionService.upsertPropertySuggestion(saved);
         realtimeNotificationService.notifyAdminsPropertyCreated(propertyMapper.toDto(saved));
         return saved;
+    }
+
+
+    private void validatePostingConstraints(PropertyDto dto) {
+        AddressDto address = dto.getAddress();
+        if (address == null) {
+            throw new IllegalArgumentException("Chưa chọn địa chỉ");
+        }
+        boolean hasFullAddress = address.getAddressFull() != null && !address.getAddressFull().isBlank();
+        boolean hasStreet = address.getStreet() != null && !address.getStreet().isBlank();
+        boolean hasDistrict = address.getDistrictName() != null && !address.getDistrictName().isBlank();
+        boolean hasProvince = address.getProvinceName() != null && !address.getProvinceName().isBlank();
+        if (!hasFullAddress && !(hasStreet && hasDistrict && hasProvince)) {
+            throw new IllegalArgumentException("Chưa chọn địa chỉ");
+        }
+        String title = dto.getTitle();
+        if (title == null || title.isBlank()) {
+            throw new IllegalArgumentException("Tiêu đề không được để trống");
+        }
+        if (title.trim().length() > 100) {
+            throw new IllegalArgumentException("Tiêu đề không được vượt quá 100 ký tự");
+        }
+
+        String buildingName = dto.getBuildingName();
+        if (buildingName == null || buildingName.isBlank()) {
+            throw new IllegalArgumentException("Tên căn hộ không được để trống");
+        }
+
+        String description = dto.getDescription();
+        if (description == null || description.isBlank()) {
+            throw new IllegalArgumentException("Mô tả là bắt buộc và không được để trống");
+        }
+        if (description.trim().length() > 705) {
+            throw new IllegalArgumentException("Mô tả không được vượt quá 705 ký tự");
+        }
+
+        Double area = dto.getArea();
+        if (area == null || area <= 0) {
+            throw new IllegalArgumentException("Diện tích là bắt buộc và > 0");
+        }
+
+        BigDecimal price = dto.getPrice();
+        if (price == null || price.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("Giá là bắt buộc và > 0");
+        }
+
+        Integer capacity = dto.getCapacity();
+        if (capacity != null && capacity <= 0) {
+            throw new IllegalArgumentException("Sức chứa phải > 0");
+        }
+
+        Integer floorNo = dto.getFloorNo();
+        if (floorNo != null && floorNo < 1) {
+            throw new IllegalArgumentException("Số tầng phải >= 1");
+        }
+
+
+
+        if (dto.getMedia() != null) {
+            long imageCount = dto.getMedia().stream()
+                    .filter(m -> m != null && m.getMediaType() == MediaType.IMAGE)
+                    .count();
+            if (imageCount > 10) {
+                throw new IllegalArgumentException("Chỉ được đăng tối đa 10 ảnh");
+            }
+
+            long videoCount = dto.getMedia().stream()
+                    .filter(m -> m != null && m.getMediaType() == MediaType.VIDEO)
+                    .count();
+            if (videoCount > 1) {
+                throw new IllegalArgumentException("Chỉ được đăng tối đa 1 video");
+            }
+        }
     }
 
 
