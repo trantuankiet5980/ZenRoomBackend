@@ -117,7 +117,7 @@ public class AuthController {
                 "role", user.getRole().getRoleName()
         )));
     }
-    
+
 
     // Dùng cho quên mật khẩu hoặc kiểm tra số điện thoại đã đăng ký
     @PostMapping("/send-otp")
