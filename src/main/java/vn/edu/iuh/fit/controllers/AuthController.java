@@ -1,8 +1,8 @@
 package vn.edu.iuh.fit.controllers;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-import jakarta.validation.ConstraintViolation;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseToken;
+import jakarta.validation.Valid;
 import jakarta.validation.Validator;
 import lombok.Data;
 import org.slf4j.Logger;
@@ -16,7 +16,6 @@ import vn.edu.iuh.fit.dtos.requests.SignUpRequest;
 import vn.edu.iuh.fit.dtos.responses.ApiResponse;
 import vn.edu.iuh.fit.dtos.responses.LoginResponse;
 import vn.edu.iuh.fit.entities.User;
-import vn.edu.iuh.fit.entities.enums.UserStatus;
 import vn.edu.iuh.fit.exceptions.UserNotFoundException;
 import vn.edu.iuh.fit.repositories.UserRepository;
 import vn.edu.iuh.fit.services.AuthService;
@@ -27,322 +26,226 @@ import vn.edu.iuh.fit.utils.FormatPhoneNumber;
 import vn.edu.iuh.fit.utils.JwtUtil;
 
 import java.time.LocalDateTime;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 @RestController
 @RequestMapping("/api/v1/auth")
 public class AuthController {
     private static final Logger logger = LoggerFactory.getLogger(AuthController.class);
 
-    @Autowired
-    private UserRepository userRepository;
-    @Autowired
-    private PasswordEncoder encoder;
-    @Autowired
-    private JwtUtil jwtTokenUtil;
-    @Autowired
-    private AuthService authService;
-    @Autowired
-    private SmsService smsService;
-    @Autowired
-    private DefaultConversationService defaultConversationService;
-    @Autowired
-    private Validator validator;
+    @Autowired private UserRepository userRepository;
+    @Autowired private PasswordEncoder encoder;
+    @Autowired private JwtUtil jwtUtil;
+    @Autowired private AuthService authService;
+    @Autowired private SmsService smsService;
+    @Autowired private DefaultConversationService defaultConversationService;
+    @Autowired private Validator validator;
 
+    // Lưu tạm yêu cầu đăng ký: key = phone0 (0...), value = SignUpRequest
     private final Map<String, SignUpRequest> pendingRegistrations = new HashMap<>();
 
-//    @PostMapping("/login")
-//    public ResponseEntity<LoginResponse> login(@RequestBody LoginRequest request) {
-//        String phoneNumber0 = FormatPhoneNumber.formatPhoneNumberTo0(request.getPhoneNumber());
-//        String phoneNumber84 = FormatPhoneNumber.formatPhoneNumberTo84(request.getPhoneNumber());
+    // ==============================
+    // 1. API: /register → GỬI OTP
+    // ==============================
+    @PostMapping("/register")
+    public ResponseEntity<ApiResponse<?>> register(@RequestBody @Valid SignUpRequest request) {
+        String phone = request.getPhoneNumber();
+        String phone84 = FormatPhoneNumber.formatPhoneNumberTo84(phone);
+        String phone0 = FormatPhoneNumber.formatPhoneNumberTo0(phone);
+
+        // Kiểm tra trùng
+        if (userRepository.existsByPhoneNumber(phone84) || userRepository.existsByPhoneNumber(phone0)) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Số điện thoại đã được đăng ký"));
+        }
+        // Lưu tạm
+        pendingRegistrations.put(phone0, request);
+
+        try {
+            smsService.sendOtp("+" + phone84); // Gửi thật qua AWS SNS
+            logger.info("OTP sent to: +{}", phone84);
+            return ResponseEntity.ok(ApiResponse.success("Mã OTP đã được gửi đến: " + phone));
+        } catch (Exception e) {
+            pendingRegistrations.remove(phone0);
+            logger.error("Gửi OTP thất bại: {}", e.getMessage());
+            return ResponseEntity.status(500).body(ApiResponse.error("Gửi OTP thất bại: " + e.getMessage()));
+        }
+    }
+
+    // ==============================
+    // 2. API: /verify-otp-sns → XÁC THỰC OTP → HOÀN TẤT ĐĂNG KÝ
+    // ==============================
+    @PostMapping("/verify-otp-sns")
+    public ResponseEntity<ApiResponse<?>> verifyOtpSns(@RequestBody Map<String, String> body) {
+        String phoneInput = body.get("phoneNumber");
+        String otp = body.get("otp");
+
+        if (phoneInput == null || otp == null || phoneInput.isBlank() || otp.isBlank()) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Số điện thoại và OTP là bắt buộc"));
+        }
+
+        String phone0 = FormatPhoneNumber.formatPhoneNumberTo0(phoneInput);
+        String phone84 = FormatPhoneNumber.formatPhoneNumberTo84(phoneInput);
+        String key = "+" + phone84;
+
+        // Xác thực OTP
+        if (!smsService.verifyOtp(key, otp)) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("OTP không đúng hoặc đã hết hạn"));
+        }
+
+        // Lấy yêu cầu tạm
+        SignUpRequest pending = pendingRegistrations.remove(phone0);
+        if (pending == null) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Không tìm thấy yêu cầu đăng ký. Vui lòng gửi lại."));
+        }
+
+        // Đăng ký
+        boolean success = authService.signUp(pending);
+        if (!success) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Đăng ký thất bại"));
+        }
+
+        // Tạo chat với admin
+        User user = userRepository.findByPhoneNumber(phone0).orElseThrow();
+        defaultConversationService.createConversationWithAdmin(user);
+
+        // Tạo token
+        String token = jwtUtil.generateToken(user.getUserId(), user.getRole().getRoleName());
+
+        return ResponseEntity.ok(ApiResponse.success("Đăng ký thành công!", Map.of(
+                "token", token,
+                "userId", user.getUserId(),
+                "role", user.getRole().getRoleName()
+        )));
+    }
+
+    // ==============================
+    // CÁC API CŨ (GIỮ NGUYÊN)
+    // ==============================
+
+
+    // Dùng cho quên mật khẩu hoặc kiểm tra số điện thoại đã đăng ký
+    @PostMapping("/send-otp")
+    public ResponseEntity<ApiResponse<?>> sendOtp(@RequestBody Map<String, String> req) {
+        String phone = req.get("phoneNumber");
+        if (phone == null || !phone.matches("^(\\+84|0)[3|5|7|8|9]\\d{8}$")) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Số điện thoại không hợp lệ"));
+        }
+
+        String phone84 = FormatPhoneNumber.formatPhoneNumberTo84(phone);
+        String phone0 = "0" + phone84.substring(2);
+
+        // SỬA: Phải là số ĐÃ đăng ký (quên mật khẩu)
+        if (!userRepository.existsByPhoneNumber(phone84) && !userRepository.existsByPhoneNumber(phone0)) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Số điện thoại chưa được đăng ký"));
+        }
+
+        try {
+            smsService.sendOtp("+" + phone84);
+            return ResponseEntity.ok(ApiResponse.success("OTP đã được gửi"));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(ApiResponse.error("Gửi OTP thất bại: " + e.getMessage()));
+        }
+    }
+
+//    @PostMapping(value = "/sign-up", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+//    public ResponseEntity<ApiResponse<?>> signUp(
+//            @RequestPart("request") String json,
+//            @RequestPart(value = "avatar", required = false) MultipartFile avatar) {
 //
-//        User user = userRepository.findByPhoneNumber(phoneNumber0)
-//                .orElseGet(() -> userRepository.findByPhoneNumber(phoneNumber84).orElse(null));
-//        if (user == null) {
-//            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-//                    .body(LoginResponse.fail("Số điện thoại không đúng"));
+//        ObjectMapper mapper = new ObjectMapper().registerModule(new JavaTimeModule());
+//        SignUpRequest req;
+//        try {
+//            req = mapper.readValue(json, SignUpRequest.class);
+//
+//            if (avatar != null && !avatar.isEmpty()) {
+//                return ResponseEntity.badRequest().body(ApiResponse.error("Tính năng upload avatar tạm thời bị tắt. Vui lòng gửi avatarUrl trong JSON."));
+//            }
+//        } catch (Exception e) {
+//            return ResponseEntity.badRequest().body(ApiResponse.error("JSON không hợp lệ: " + e.getMessage()));
 //        }
 //
-//        if (user.getStatus() == UserStatus.BANNED) {
-//            return ResponseEntity.status(HttpStatus.FORBIDDEN)
-//                    .body(LoginResponse.fail("Tài khoản đã bị khóa"));
-//        }
-//        if (user.getStatus() == UserStatus.INACTIVE) {
-//            return ResponseEntity.status(HttpStatus.FORBIDDEN)
-//                    .body(LoginResponse.fail("Tài khoản chưa kích hoạt"));
+//        Set<ConstraintViolation<SignUpRequest>> violations = validator.validate(req);
+//        if (!violations.isEmpty()) {
+//            Map<String, String> errors = new HashMap<>();
+//            violations.forEach(v -> errors.put(v.getPropertyPath().toString(), v.getMessage()));
+//            return ResponseEntity.badRequest().body(ApiResponse.error("Dữ liệu không hợp lệ", errors));
 //        }
 //
-//        if (!encoder.matches(request.getPassword(), user.getPasswordHash())) {
-//            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-//                    .body(LoginResponse.fail("Mật khẩu không đúng"));
+//        String phone84 = FormatPhoneNumber.formatPhoneNumberTo84(req.getPhoneNumber());
+//        String key = "+" + phone84;
+//
+//        if (!smsService.verifyOtp(key, req.getOtp())) {
+//            return ResponseEntity.badRequest().body(ApiResponse.error("OTP không đúng hoặc đã hết hạn"));
 //        }
 //
-//        String roleName = user.getRole() != null ? user.getRole().getRoleName() : "USER";
-//        String token = jwtTokenUtil.generateToken(user.getUserId(), roleName);
-//        String refreshToken = jwtTokenUtil.generateRefreshToken(user.getUserId());
+//        String phone0 = "0" + phone84.substring(2);
+//        if (userRepository.existsByPhoneNumber(phone84) || userRepository.existsByPhoneNumber(phone0)) {
+//            return ResponseEntity.badRequest().body(ApiResponse.error("Số điện thoại đã tồn tại"));
+//        }
 //
-//        return ResponseEntity.ok(LoginResponse.ok(
-//                token, roleName, user.getUserId(), jwtTokenUtil.getExpiration(), "Đăng nhập thành công", refreshToken
-//        ));
+//        boolean success = authService.signUp(req);
+//        if (!success) {
+//            return ResponseEntity.badRequest().body(ApiResponse.error("Đăng ký thất bại"));
+//        }
+//
+//        User user = userRepository.findByPhoneNumber(phone0).orElseThrow();
+//        String token = jwtUtil.generateToken(user.getUserId(), user.getRole().getRoleName());
+//        defaultConversationService.createConversationWithAdmin(user);
+//
+//        return ResponseEntity.ok(ApiResponse.success("Đăng ký thành công!", Map.of(
+//                "token", token,
+//                "userId", user.getUserId(),
+//                "role", user.getRole().getRoleName()
+//        )));
 //    }
 
-    @PostMapping("/login")
-    public ResponseEntity<LoginResponse> login(@RequestBody vn.edu.iuh.fit.dtos.requests.LoginRequest request) {
-//        String phone = request.getPhoneNumber();
-//        User user = userRepository.findByPhoneNumber(phone)
-//                .orElseThrow(() -> new RuntimeException("User not found"));
-        String formattedPhone = FormatPhoneNumber.formatPhoneNumberTo0(request.getPhoneNumber());
-        User user = userRepository.findByPhoneNumber(formattedPhone)
+    @PostMapping("/sign-in")
+    public ResponseEntity<LoginResponse> signIn(@Valid @RequestBody LoginRequest req) {
+        String phone0 = FormatPhoneNumber.formatPhoneNumberTo0(req.getPhoneNumber());
+        User user = userRepository.findByPhoneNumber(phone0)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
-        if (user.getStatus() == UserStatus.BANNED) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(LoginResponse.fail("Account is banned"));
-        }
-        if (user.getStatus() == UserStatus.INACTIVE) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(LoginResponse.fail("Account is inactive"));
-        }
+        if (user.getStatus() == vn.edu.iuh.fit.entities.enums.UserStatus.BANNED)
+            return ResponseEntity.status(403).body(LoginResponse.fail("Tài khoản bị khóa"));
+        if (user.getStatus() == vn.edu.iuh.fit.entities.enums.UserStatus.INACTIVE)
+            return ResponseEntity.status(403).body(LoginResponse.fail("Tài khoản chưa kích hoạt"));
 
-        if (!encoder.matches(request.getPassword(), user.getPasswordHash())) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(LoginResponse.fail("Invalid phone number or password"));
-        }
-        String roleName = user.getRole() != null ? user.getRole().getRoleName() : "tenant";
-        String token = jwtTokenUtil.generateToken(user.getUserId(), roleName);
-        Date expiry = new Date(System.currentTimeMillis() + jwtTokenUtil.getExpiration());
+        if (!encoder.matches(req.getPassword(), user.getPasswordHash()))
+            return ResponseEntity.status(401).body(LoginResponse.fail("Mật khẩu sai"));
+
+        String role = user.getRole() != null ? user.getRole().getRoleName() : "tenant";
+        String token = jwtUtil.generateToken(user.getUserId(), role);
+        long expiry = System.currentTimeMillis() + jwtUtil.getExpiration();
 
         user.setLastLogin(LocalDateTime.now());
         userRepository.save(user);
 
-        return ResponseEntity.ok(LoginResponse.ok(token, roleName, user.getUserId(), user.getFullName(), expiry.getTime()));
+        return ResponseEntity.ok(LoginResponse.ok(token, role, user.getUserId(), user.getFullName(), expiry));
     }
+
     @Data
     public static class LoginRequest {
-        private String userId;    // ví dụ: UUID của user
-        private String roleName;  // tenant | landlord | admin
+        private String phoneNumber;
+        private String password;
     }
 
-    @Data
-    public static class JwtResponse {
-        private final String token;
-    }
-
-    @PostMapping("/register")
-    public ResponseEntity<ApiResponse<?>> register(@RequestBody String signUpRequestJson) {
-        ObjectMapper objectMapper = new ObjectMapper();
-        objectMapper.registerModule(new JavaTimeModule());
-        SignUpRequest signUpRequest;
+    @PostMapping("/verify-otp-firebase")
+    public ResponseEntity<ApiResponse<?>> verifyFirebase(@RequestBody Map<String, String> req) {
+        String idToken = req.get("idToken");
         try {
-            signUpRequest = objectMapper.readValue(signUpRequestJson, SignUpRequest.class);
+            FirebaseToken token = FirebaseAuth.getInstance().verifyIdToken(idToken);
+            String phone = token.getClaims().get("phone_number").toString();
+            if (userRepository.existsByPhoneNumber(phone)) {
+                return ResponseEntity.badRequest().body(ApiResponse.error("Số điện thoại đã được dùng"));
+            }
+            return ResponseEntity.ok(ApiResponse.success("Xác thực Firebase thành công", Map.of("phone", phone)));
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.builder()
-                    .success(false)
-                    .message("Invalid request format: " + e.getMessage())
-                    .data(null)
-                    .build());
-        }
-
-        Set<ConstraintViolation<SignUpRequest>> violations = validator.validate(signUpRequest);
-        if (!violations.isEmpty()) {
-            Map<String, String> errors = new HashMap<>();
-            violations.forEach(violation -> errors.put(violation.getPropertyPath().toString(), violation.getMessage()));
-            return ResponseEntity.badRequest().body(ApiResponse.builder()
-                    .success(false)
-                    .message("Validation failed")
-                    .data(errors)
-                    .build());
-        }
-
-        String formattedPhone = FormatPhoneNumber.formatPhoneNumberTo0(signUpRequest.getPhoneNumber());
-        logger.debug("Checking registration for phone number: {}", formattedPhone);
-
-        // Check if phone number already exists
-        if (userRepository.existsByPhoneNumber(formattedPhone)) {
-            logger.warn("Phone number {} is already registered.", formattedPhone);
-            return ResponseEntity.badRequest().body(ApiResponse.builder()
-                    .success(false)
-                    .message("Phone number already registered!")
-                    .data(null)
-                    .build());
-        }
-
-        // Optional: Check "+84" format for legacy data
-        String formattedPhone84 = FormatPhoneNumber.formatPhoneNumberTo84(signUpRequest.getPhoneNumber());
-        if (userRepository.existsByPhoneNumber(formattedPhone84)) {
-            logger.warn("Phone number {} (+84 format) is already registered.", formattedPhone84);
-            return ResponseEntity.badRequest().body(ApiResponse.builder()
-                    .success(false)
-                    .message("Phone number already registered!")
-                    .data(null)
-                    .build());
-        }
-
-        pendingRegistrations.put(formattedPhone, signUpRequest);
-
-        try {
-            smsService.sendOtp(formattedPhone);
-            logger.info("OTP sent successfully to phone number: {}", formattedPhone);
-            return ResponseEntity.ok(ApiResponse.builder()
-                    .success(true)
-                    .message("OTP sent to phone number: " + formattedPhone)
-                    .data(null)
-                    .build());
-        } catch (Exception e) {
-            pendingRegistrations.remove(formattedPhone);
-            logger.error("Failed to send OTP to {}: {}", formattedPhone, e.getMessage());
-            return ResponseEntity.badRequest().body(ApiResponse.builder()
-                    .success(false)
-                    .message("Failed to send OTP: " + e.getMessage())
-                    .data(null)
-                    .build());
+            return ResponseEntity.badRequest().body(ApiResponse.error("OTP Firebase thất bại: " + e.getMessage()));
         }
     }
 
-    @PostMapping("/verify-otp-sns")
-    public ResponseEntity<ApiResponse<?>> verifyOtpSns(@RequestBody Map<String, String> request) {
-        String phoneNumber = request.get("phoneNumber");
-        String otp = request.get("otp");
 
-        if (phoneNumber == null || otp == null || phoneNumber.trim().isEmpty() || otp.trim().isEmpty()) {
-            return ResponseEntity.badRequest().body(ApiResponse.builder()
-                    .success(false)
-                    .message("Phone number or OTP cannot be empty")
-                    .data(null)
-                    .build());
-        }
-
-        String formattedPhone = FormatPhoneNumber.formatPhoneNumberTo0(phoneNumber);
-        boolean isValid = smsService.verifyOtp(formattedPhone, otp);
-        if (!isValid) {
-            return ResponseEntity.badRequest().body(ApiResponse.builder()
-                    .success(false)
-                    .message("OTP verification failed! Please check the OTP or try resending it.")
-                    .data(null)
-                    .build());
-        }
-
-
-
-        SignUpRequest signUpRequest = pendingRegistrations.remove(formattedPhone);
-        if (signUpRequest == null) {
-            return ResponseEntity.badRequest().body(ApiResponse.builder()
-                    .success(false)
-                    .message("No pending registration found for phone number: " + formattedPhone)
-                    .data(null)
-                    .build());
-        }
-
-        boolean success = authService.signUp(signUpRequest);
-        if (success) {
-            userRepository.findByPhoneNumber(formattedPhone)
-                    .ifPresent(defaultConversationService::createConversationWithAdmin);
-            return ResponseEntity.ok(ApiResponse.builder()
-                    .success(true)
-                    .message("User registered successfully!")
-                    .data(null)
-                    .build());
-        } else {
-            return ResponseEntity.badRequest().body(ApiResponse.builder()
-                    .success(false)
-                    .message("Registration failed!")
-                    .data(null)
-                    .build());
-        }
-    }
-
-    @PostMapping("/logout")
-    public ResponseEntity<ApiResponse<?>> logout(@RequestHeader("Authorization") String accessToken) {
-        authService.logout(accessToken);
-        return ResponseEntity.ok(ApiResponse.builder()
-                .message("SUCCESS")
-                .data(null)
-                .message("Logout successfully!")
-                .build());
-    }
-
-    @PostMapping("/send-reset-otp")
-    public ResponseEntity<ApiResponse<?>> sendResetOtp(@RequestBody Map<String, String> request) {
-        String phone = request.get("phoneNumber");
-        if (phone == null || phone.trim().isEmpty()) {
-            return ResponseEntity.badRequest().body(ApiResponse.builder()
-                    .success(false)
-                    .message("Phone number cannot be empty")
-                    .data(null)
-                    .build());
-        }
-
-        // Dùng 0... để tìm trong DB
-        String formattedPhone = FormatPhoneNumber.formatPhoneNumberTo0(phone);
-        boolean exists = userRepository.existsByPhoneNumber(formattedPhone);
-        if (!exists) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiResponse.builder()
-                    .success(false)
-                    .message("User not found")
-                    .data(null)
-                    .build());
-        }
-
-        try {
-            // Gửi OTP: cần +84 cho SNS
-            String phoneForSns = FormatPhoneNumber.formatPhoneNumberTo84(phone);
-            smsService.sendOtp(phoneForSns); // sendOtp dùng +84
-            return ResponseEntity.ok(ApiResponse.builder()
-                    .success(true)
-                    .message("OTP sent successfully.")
-                    .data(null)
-                    .build());
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.builder()
-                    .success(false)
-                    .message("Failed to send OTP: " + e.getMessage())
-                    .data(null)
-                    .build());
-        }
-    }
-
-    @PostMapping("/verify-reset-otp")
-    public ResponseEntity<ApiResponse<?>> verifyResetOtp(@RequestBody Map<String, String> request) {
-        String phone = request.get("phoneNumber");
-        String otp = request.get("otp");
-
-        if (phone == null || otp == null || phone.trim().isEmpty() || otp.trim().isEmpty()) {
-            return ResponseEntity.badRequest().body(ApiResponse.builder()
-                    .success(false)
-                    .message("Phone number or OTP cannot be empty")
-                    .data(null)
-                    .build());
-        }
-
-        // Dùng +84 để verify (vì sendOtp lưu bằng +84)
-        String phoneForVerify = FormatPhoneNumber.formatPhoneNumberTo84(phone);
-        boolean isValid = smsService.verifyOtp(phoneForVerify, otp);
-
-        if (!isValid) {
-            return ResponseEntity.badRequest().body(ApiResponse.builder()
-                    .success(false)
-                    .message("OTP verification failed!")
-                    .data(null)
-                    .build());
-        }
-
-        // Lưu flag verify bằng 0... (để reset dùng 0...)
-        String formattedPhone = FormatPhoneNumber.formatPhoneNumberTo0(phone);
-        if (smsService instanceof SmsServiceImpl smsServiceImpl) {
-            smsServiceImpl.setOtpVerified(formattedPhone, true);
-        }
-
-        return ResponseEntity.ok(ApiResponse.builder()
-                .success(true)
-                .message("OTP verified successfully! You can now reset your password.")
-                .data(null)
-                .build());
-    }
-
-
+    // đặt lại mật khẩu khi quên
     @PostMapping("/reset-password")
     public ResponseEntity<ApiResponse<?>> resetPassword(@RequestBody Map<String, String> request) {
         String phone = request.get("phoneNumber");
@@ -406,6 +309,7 @@ public class AuthController {
         }
     }
 
+    // đổi mật khẩu khi đã đăng nhập
     @PostMapping("/change-password")
     public ResponseEntity<ApiResponse<?>> changePassword(@RequestBody Map<String, String> request) {
         String currentPassword = request.get("currentPassword");
@@ -442,5 +346,29 @@ public class AuthController {
         }
     }
 
+    @PostMapping("/verify-reset-otp")
+    public ResponseEntity<ApiResponse<?>> verifyResetOtp(@RequestBody Map<String, String> request) {
+        String phone = request.get("phoneNumber");
+        String otp = request.get("otp");
+
+        if (phone == null || otp == null || phone.trim().isEmpty() || otp.trim().isEmpty()) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Phone number or OTP cannot be empty"));
+        }
+
+        // SỬA: Dùng +84 để verify
+        String phoneForVerify = "+" + FormatPhoneNumber.formatPhoneNumberTo84(phone);
+        boolean isValid = smsService.verifyOtp(phoneForVerify, otp);
+
+        if (!isValid) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("OTP không đúng hoặc đã hết hạn"));
+        }
+
+        String formattedPhone = FormatPhoneNumber.formatPhoneNumberTo0(phone);
+        if (smsService instanceof SmsServiceImpl smsServiceImpl) {
+            smsServiceImpl.setOtpVerified(formattedPhone, true);
+        }
+
+        return ResponseEntity.ok(ApiResponse.success("OTP hợp lệ"));
+    }
 
 }
