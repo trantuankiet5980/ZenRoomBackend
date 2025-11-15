@@ -3,9 +3,9 @@ package vn.edu.iuh.fit.payments;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import vn.payos.PayOS;
-import vn.payos.type.CheckoutResponseData;
-import vn.payos.type.ItemData;
-import vn.payos.type.PaymentData;
+import vn.payos.exception.PayOSException;
+import vn.payos.model.v2.paymentRequests.CreatePaymentLinkRequest;
+import vn.payos.model.v2.paymentRequests.CreatePaymentLinkResponse;
 
 import java.util.Date;
 
@@ -15,29 +15,38 @@ public class PayOsGateway implements PaymentGateway{
     private final PayOS payOS;
 
     @Override
-    public PaymentLink createPayment(String invoiceId, long amount, String description, String returnUrl, String notifyUrl) {
+    public PaymentLink createPayment(
+            String invoiceId,
+            long amount,
+            String description,
+            String returnUrl,
+            String notifyUrl // webhook config trên dashboard, tạm không cần gửi vào request
+    ) {
         try {
-            String now = String.valueOf(new Date().getTime());
-            long orderCode = Long.parseLong(now.substring(now.length() - 6));
+            long orderCode = Long.parseLong(
+                    String.valueOf(new Date().getTime()).substring(4, 13)
+            );
 
-            ItemData item = ItemData.builder()
-                    .name("Invoice " + invoiceId)
-                    .price((int) amount)
-                    .quantity(1)
-                    .build();
+            Long amountLong = amount;
 
-            PaymentData pd = PaymentData.builder()
+            CreatePaymentLinkRequest request = CreatePaymentLinkRequest.builder()
                     .orderCode(orderCode)
+                    .amount(amountLong)
                     .description(description)
-                    .amount((int) amount)
-                    .item(item)
                     .returnUrl(returnUrl)
                     .cancelUrl(returnUrl)
                     .build();
 
-            CheckoutResponseData data = payOS.createPaymentLink(pd);
-            return new PaymentLink(data.getCheckoutUrl(), data.getQrCode(), data.getOrderCode(), data.getPaymentLinkId());
-        } catch (Exception e) {
+            CreatePaymentLinkResponse res =
+                    payOS.paymentRequests().create(request);
+
+            return new PaymentLink(
+                    res.getCheckoutUrl(),
+                    res.getQrCode(),
+                    res.getOrderCode(),
+                    res.getPaymentLinkId()
+            );
+        } catch (PayOSException e) {
             throw new RuntimeException("PayOS createPayment error: " + e.getMessage(), e);
         }
     }
