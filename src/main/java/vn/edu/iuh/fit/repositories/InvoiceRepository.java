@@ -62,7 +62,7 @@ public interface InvoiceRepository extends JpaRepository<Invoice, String> {
         i.booking.property.landlord.userId,
         COALESCE(i.booking.property.landlord.fullName, 'Unknown'),
         FUNCTION('DATE', i.paidAt),
-        SUM(CASE WHEN i.status = 'PAID' THEN i.paidAmount ELSE 0 END),
+        SUM(CASE WHEN i.status = 'PAID' THEN i.total ELSE 0 END),
         SUM(CASE WHEN i.status = 'PAID' THEN i.platformFee ELSE 0 END),
         SUM(CASE WHEN i.status = 'PAID' THEN i.landlordReceivable ELSE 0 END),
         SUM(CASE WHEN i.status = 'REFUNDED' THEN COALESCE(i.refundableAmount, 0) ELSE 0 END)
@@ -86,7 +86,7 @@ public interface InvoiceRepository extends JpaRepository<Invoice, String> {
         COALESCE(i.booking.property.landlord.fullName, 'Unknown'),
         FUNCTION('YEAR', i.paidAt),
         FUNCTION('MONTH', i.paidAt),
-        SUM(CASE WHEN i.status = 'PAID' THEN i.paidAmount ELSE 0 END),
+        SUM(CASE WHEN i.status = 'PAID' THEN i.total ELSE 0 END),
         SUM(CASE WHEN i.status = 'PAID' THEN i.platformFee ELSE 0 END),
         SUM(CASE WHEN i.status = 'PAID' THEN i.landlordReceivable ELSE 0 END),
         SUM(CASE WHEN i.status = 'REFUNDED' THEN COALESCE(i.refundableAmount, 0) ELSE 0 END)
@@ -109,7 +109,7 @@ public interface InvoiceRepository extends JpaRepository<Invoice, String> {
         i.booking.property.landlord.userId,
         COALESCE(i.booking.property.landlord.fullName, 'Unknown'),
         FUNCTION('YEAR', i.paidAt),
-        SUM(CASE WHEN i.status = 'PAID' THEN i.paidAmount ELSE 0 END),
+        SUM(CASE WHEN i.status = 'PAID' THEN i.total ELSE 0 END),
         SUM(CASE WHEN i.status = 'PAID' THEN i.platformFee ELSE 0 END),
         SUM(CASE WHEN i.status = 'PAID' THEN i.landlordReceivable ELSE 0 END),
         SUM(CASE WHEN i.status = 'REFUNDED' THEN COALESCE(i.refundableAmount, 0) ELSE 0 END)

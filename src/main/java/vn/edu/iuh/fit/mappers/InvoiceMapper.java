@@ -31,7 +31,6 @@ public class InvoiceMapper {
                 e.getTax(),
                 e.getTotal(),
                 e.getDueAmount(),
-                e.getPaidAmount(),
                 e.getPlatformFee(),
                 e.getLandlordReceivable(),
                 e.getPaymentMethod(),
@@ -74,7 +73,6 @@ public class InvoiceMapper {
                 .tax(d.getTax())
                 .total(d.getTotal())
                 .dueAmount(d.getDueAmount())
-                .paidAmount(d.getPaidAmount())
                 .platformFee(d.getPlatformFee())
                 .landlordReceivable(d.getLandlordReceivable())
                 .paymentMethod(d.getPaymentMethod())

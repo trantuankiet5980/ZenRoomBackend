@@ -76,14 +76,14 @@ public class InvoiceServiceImpl implements InvoiceService {
     }
 
     @Transactional
-    public Invoice markPaidByWebhook(String invoiceNo, String paymentRef, BigDecimal paidAmount) {
+    public Invoice markPaidByWebhook(String invoiceNo, String paymentRef) {
         var inv = invoiceRepo.findByInvoiceNo(invoiceNo)
                 .orElseThrow(() -> new EntityNotFoundException("Invoice not found"));
         // Kiểm tra số tiền, tình trạng
+        var paidAmount = inv.getTotal();
         if (paidAmount.compareTo(inv.getDueAmount()) < 0)
             throw new IllegalStateException("Paid amount less than due amount");
         inv.setStatus(InvoiceStatus.PAID);
-        inv.setPaidAmount(paidAmount);
         BigDecimal fee = paidAmount.multiply(new BigDecimal("0.03"))
                 .setScale(2, RoundingMode.HALF_UP);
         inv.setPlatformFee(fee);

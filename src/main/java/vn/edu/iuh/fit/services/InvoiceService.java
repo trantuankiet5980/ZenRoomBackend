@@ -9,8 +9,7 @@ import java.util.List;
 
 public interface InvoiceService {
     Invoice issueForBooking(String bookingId);
-    Invoice markPaidByWebhook(String invoiceNo, String paymentRef, BigDecimal paidAmount);
-
+    Invoice markPaidByWebhook(String invoiceNo, String paymentRef);
 
     List<Object[]> getLandlordRevenueByDayRaw(LocalDate from, LocalDate to);
     List<Object[]> getLandlordRevenueByMonthRaw(Integer year, Integer month);
