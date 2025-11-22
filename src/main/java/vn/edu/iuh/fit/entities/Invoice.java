@@ -34,6 +34,9 @@ public class Invoice {
         if (cancellationFee == null) cancellationFee = BigDecimal.ZERO;
         if (refundableAmount == null) refundableAmount = BigDecimal.ZERO;
         if (refundConfirmed == null) refundConfirmed = Boolean.FALSE;
+        if (paidAmount == null) paidAmount = BigDecimal.ZERO;
+        if (platformFee == null) platformFee = BigDecimal.ZERO;
+        if (landlordReceivable == null) landlordReceivable = BigDecimal.ZERO;
     }
     @PreUpdate void upd(){ updatedAt = LocalDateTime.now(); }
 
@@ -71,6 +74,15 @@ public class Invoice {
 
     // Cấu hình “cọc 50% theo ngày” hoặc “cọc 1 tháng” => thể hiện ở dueAmount
     @Column(precision = 14, scale = 2, nullable = false) private BigDecimal dueAmount; // số phải thanh toán kỳ này (VD: tiền cọc)
+
+    @Column(precision = 14, scale = 2)
+    private BigDecimal paidAmount; // số tiền thực khách đã thanh toán
+
+    @Column(precision = 14, scale = 2)
+    private BigDecimal platformFee; // phí nền tảng thu (3%)
+
+    @Column(precision = 14, scale = 2)
+    private BigDecimal landlordReceivable; // số tiền chuyển cho chủ nhà
 
     // Thanh toán
     @Column(length = 32) private String paymentMethod; // "PAYOS", "CASH", ...

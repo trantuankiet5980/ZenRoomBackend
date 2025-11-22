@@ -4,6 +4,10 @@ import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import vn.edu.iuh.fit.dtos.DailyRevenueDTO;
+import vn.edu.iuh.fit.dtos.MonthlyRevenueDTO;
+import vn.edu.iuh.fit.dtos.RevenueStatsDTO;
+import vn.edu.iuh.fit.dtos.StatPeriod;
 import vn.edu.iuh.fit.entities.Booking;
 import vn.edu.iuh.fit.entities.Invoice;
 import vn.edu.iuh.fit.entities.enums.InvoiceStatus;
@@ -12,6 +16,7 @@ import vn.edu.iuh.fit.repositories.InvoiceRepository;
 import vn.edu.iuh.fit.services.InvoiceService;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -78,6 +83,11 @@ public class InvoiceServiceImpl implements InvoiceService {
         if (paidAmount.compareTo(inv.getDueAmount()) < 0)
             throw new IllegalStateException("Paid amount less than due amount");
         inv.setStatus(InvoiceStatus.PAID);
+        inv.setPaidAmount(paidAmount);
+        BigDecimal fee = paidAmount.multiply(new BigDecimal("0.03"))
+                .setScale(2, RoundingMode.HALF_UP);
+        inv.setPlatformFee(fee);
+        inv.setLandlordReceivable(paidAmount.subtract(fee));
         inv.setPaymentRef(paymentRef);
         inv.setPaidAt(LocalDateTime.now());
         inv.setCancelledAt(null);
@@ -99,11 +109,65 @@ public class InvoiceServiceImpl implements InvoiceService {
         return invoiceRepo.getLandlordRevenueByYearRaw(year);
     }
 
+    @Override
+    public RevenueStatsDTO getLandlordPayoutStats(String landlordId, Integer year, Integer month) {
+        LocalDate today = LocalDate.now();
+        int resolvedYear = year != null ? year : today.getYear();
+
+        if (month != null) {
+            validateMonth(month);
+            BigDecimal total = invoiceRepo.getLandlordPayoutForMonth(landlordId, resolvedYear, month);
+            var dailyBreakdown = invoiceRepo.getLandlordPayoutDailyBreakdown(landlordId, resolvedYear, month)
+                    .stream()
+                    .map(row -> new DailyRevenueDTO(
+                            ((java.sql.Date) row[0]).toLocalDate(),
+                            (BigDecimal) row[1]
+                    ))
+                    .toList();
+
+            return new RevenueStatsDTO(
+                    StatPeriod.MONTH,
+                    resolvedYear,
+                    month,
+                    null,
+                    total,
+                    dailyBreakdown,
+                    List.of()
+            );
+        }
+
+        BigDecimal total = invoiceRepo.getLandlordPayoutForYear(landlordId, resolvedYear);
+        var monthlyBreakdown = invoiceRepo.getLandlordPayoutMonthlyBreakdown(landlordId, resolvedYear)
+                .stream()
+                .map(row -> new MonthlyRevenueDTO(
+                        ((Number) row[0]).intValue(),
+                        ((Number) row[1]).intValue(),
+                        (BigDecimal) row[2]
+                ))
+                .toList();
+
+        return new RevenueStatsDTO(
+                StatPeriod.YEAR,
+                resolvedYear,
+                null,
+                null,
+                total,
+                List.of(),
+                monthlyBreakdown
+        );
+    }
+
     private BigDecimal computeDeposit(Booking booking) {
         // Ví dụ:
         // if (booking.getType() == DAILY) return booking.getTotalAmount().multiply(new BigDecimal("0.5"));
         // if (booking.getType() == MONTHLY) return booking.getMonthlyPrice(); // cọc 1 tháng
         return booking.getTotalPrice(); // tạm cho MVP
+    }
+
+    private void validateMonth(int month) {
+        if (month < 1 || month > 12) {
+            throw new IllegalArgumentException("Invalid month");
+        }
     }
 
     private String generateInvoiceNo() {

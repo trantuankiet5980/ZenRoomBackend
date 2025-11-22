@@ -29,6 +29,9 @@ public class InvoiceDto implements Serializable {
     BigDecimal tax;
     BigDecimal total;
     BigDecimal dueAmount;
+    BigDecimal paidAmount;
+    BigDecimal platformFee;
+    BigDecimal landlordReceivable;
     String paymentMethod;
     String paymentRef;
     String paymentUrl;
