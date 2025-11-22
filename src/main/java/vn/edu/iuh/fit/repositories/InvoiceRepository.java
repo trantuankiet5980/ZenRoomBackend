@@ -8,6 +8,7 @@ import org.springframework.data.repository.query.Param;
 import vn.edu.iuh.fit.entities.Invoice;
 import vn.edu.iuh.fit.entities.enums.InvoiceStatus;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
@@ -57,17 +58,19 @@ public interface InvoiceRepository extends JpaRepository<Invoice, String> {
 
 
     @Query("""
-    SELECT 
+    SELECT
         i.booking.property.landlord.userId,
         COALESCE(i.booking.property.landlord.fullName, 'Unknown'),
         FUNCTION('DATE', i.paidAt),
-        SUM(CASE WHEN i.status = 'PAID' THEN i.dueAmount ELSE 0 END),
-        SUM(CASE WHEN i.status = 'REFUNDED' THEN i.dueAmount ELSE 0 END)
+        SUM(CASE WHEN i.status = 'PAID' THEN i.total ELSE 0 END),
+        SUM(CASE WHEN i.status = 'PAID' THEN i.platformFee ELSE 0 END),
+        SUM(CASE WHEN i.status = 'PAID' THEN i.landlordReceivable ELSE 0 END),
+        SUM(CASE WHEN i.status = 'REFUNDED' THEN COALESCE(i.refundableAmount, 0) ELSE 0 END)
     FROM Invoice i
     WHERE i.paidAt IS NOT NULL
       AND (:from IS NULL OR FUNCTION('DATE', i.paidAt) >= :from)
       AND (:to IS NULL OR FUNCTION('DATE', i.paidAt) <= :to)
-    GROUP BY i.booking.property.landlord.userId, 
+    GROUP BY i.booking.property.landlord.userId,
              i.booking.property.landlord.fullName,
              FUNCTION('DATE', i.paidAt)
     ORDER BY FUNCTION('DATE', i.paidAt) DESC
@@ -78,18 +81,20 @@ public interface InvoiceRepository extends JpaRepository<Invoice, String> {
     );
 
     @Query("""
-    SELECT 
+    SELECT
         i.booking.property.landlord.userId,
         COALESCE(i.booking.property.landlord.fullName, 'Unknown'),
         FUNCTION('YEAR', i.paidAt),
         FUNCTION('MONTH', i.paidAt),
-        SUM(CASE WHEN i.status = 'PAID' THEN i.dueAmount ELSE 0 END),
-        SUM(CASE WHEN i.status = 'REFUNDED' THEN i.dueAmount ELSE 0 END)
+        SUM(CASE WHEN i.status = 'PAID' THEN i.total ELSE 0 END),
+        SUM(CASE WHEN i.status = 'PAID' THEN i.platformFee ELSE 0 END),
+        SUM(CASE WHEN i.status = 'PAID' THEN i.landlordReceivable ELSE 0 END),
+        SUM(CASE WHEN i.status = 'REFUNDED' THEN COALESCE(i.refundableAmount, 0) ELSE 0 END)
     FROM Invoice i
     WHERE i.paidAt IS NOT NULL
       AND (:year IS NULL OR FUNCTION('YEAR', i.paidAt) = :year)
       AND (:month IS NULL OR FUNCTION('MONTH', i.paidAt) = :month)
-    GROUP BY i.booking.property.landlord.userId, 
+    GROUP BY i.booking.property.landlord.userId,
              i.booking.property.landlord.fullName,
              FUNCTION('YEAR', i.paidAt), FUNCTION('MONTH', i.paidAt)
     ORDER BY FUNCTION('YEAR', i.paidAt) DESC, FUNCTION('MONTH', i.paidAt) DESC
@@ -104,17 +109,79 @@ public interface InvoiceRepository extends JpaRepository<Invoice, String> {
         i.booking.property.landlord.userId,
         COALESCE(i.booking.property.landlord.fullName, 'Unknown'),
         FUNCTION('YEAR', i.paidAt),
-        SUM(CASE WHEN i.status = 'PAID' THEN i.dueAmount ELSE 0 END),
-        SUM(CASE WHEN i.status = 'REFUNDED' THEN i.dueAmount ELSE 0 END)
+        SUM(CASE WHEN i.status = 'PAID' THEN i.total ELSE 0 END),
+        SUM(CASE WHEN i.status = 'PAID' THEN i.platformFee ELSE 0 END),
+        SUM(CASE WHEN i.status = 'PAID' THEN i.landlordReceivable ELSE 0 END),
+        SUM(CASE WHEN i.status = 'REFUNDED' THEN COALESCE(i.refundableAmount, 0) ELSE 0 END)
     FROM Invoice i
     WHERE i.paidAt IS NOT NULL
       AND (:year IS NULL OR FUNCTION('YEAR', i.paidAt) = :year)
-    GROUP BY i.booking.property.landlord.userId, 
+    GROUP BY i.booking.property.landlord.userId,
              i.booking.property.landlord.fullName,
              FUNCTION('YEAR', i.paidAt)
     ORDER BY FUNCTION('YEAR', i.paidAt) DESC
     """)
     List<Object[]> getLandlordRevenueByYearRaw(
             @Param("year") Integer year
+    );
+
+    @Query("""
+    SELECT COALESCE(SUM(i.landlordReceivable), 0)
+    FROM Invoice i
+    WHERE i.paidAt IS NOT NULL
+      AND i.status = 'PAID'
+      AND i.booking.property.landlord.userId = :landlordId
+      AND FUNCTION('YEAR', i.paidAt) = :year
+      AND FUNCTION('MONTH', i.paidAt) = :month
+    """)
+    BigDecimal getLandlordPayoutForMonth(
+            @Param("landlordId") String landlordId,
+            @Param("year") int year,
+            @Param("month") int month
+    );
+
+    @Query("""
+    SELECT FUNCTION('DATE', i.paidAt), COALESCE(SUM(i.landlordReceivable), 0)
+    FROM Invoice i
+    WHERE i.paidAt IS NOT NULL
+      AND i.status = 'PAID'
+      AND i.booking.property.landlord.userId = :landlordId
+      AND FUNCTION('YEAR', i.paidAt) = :year
+      AND FUNCTION('MONTH', i.paidAt) = :month
+    GROUP BY FUNCTION('DATE', i.paidAt)
+    ORDER BY FUNCTION('DATE', i.paidAt)
+    """)
+    List<Object[]> getLandlordPayoutDailyBreakdown(
+            @Param("landlordId") String landlordId,
+            @Param("year") int year,
+            @Param("month") int month
+    );
+
+    @Query("""
+    SELECT COALESCE(SUM(i.landlordReceivable), 0)
+    FROM Invoice i
+    WHERE i.paidAt IS NOT NULL
+      AND i.status = 'PAID'
+      AND i.booking.property.landlord.userId = :landlordId
+      AND FUNCTION('YEAR', i.paidAt) = :year
+    """)
+    BigDecimal getLandlordPayoutForYear(
+            @Param("landlordId") String landlordId,
+            @Param("year") int year
+    );
+
+    @Query("""
+    SELECT FUNCTION('YEAR', i.paidAt), FUNCTION('MONTH', i.paidAt), COALESCE(SUM(i.landlordReceivable), 0)
+    FROM Invoice i
+    WHERE i.paidAt IS NOT NULL
+      AND i.status = 'PAID'
+      AND i.booking.property.landlord.userId = :landlordId
+      AND FUNCTION('YEAR', i.paidAt) = :year
+    GROUP BY FUNCTION('YEAR', i.paidAt), FUNCTION('MONTH', i.paidAt)
+    ORDER BY FUNCTION('YEAR', i.paidAt), FUNCTION('MONTH', i.paidAt)
+    """)
+    List<Object[]> getLandlordPayoutMonthlyBreakdown(
+            @Param("landlordId") String landlordId,
+            @Param("year") int year
     );
 }

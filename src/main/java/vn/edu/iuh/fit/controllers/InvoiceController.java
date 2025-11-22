@@ -1,7 +1,6 @@
 package vn.edu.iuh.fit.controllers;
 
 import jakarta.persistence.EntityNotFoundException;
-import jakarta.persistence.PrePersist;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -11,6 +10,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import vn.edu.iuh.fit.dtos.InvoiceDto;
+import vn.edu.iuh.fit.dtos.RevenueStatsDTO;
 import vn.edu.iuh.fit.entities.Invoice;
 import vn.edu.iuh.fit.entities.User;
 import vn.edu.iuh.fit.entities.UserManagementLog;
@@ -191,14 +191,27 @@ public class InvoiceController {
         return raw.stream().map(this::toYearlyMap).toList();
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
+    @GetMapping("/stats/landlords/summary")
+    public RevenueStatsDTO getLandlordPayoutSummary(
+            @RequestParam String landlordId,
+            @RequestParam(required = false) Integer year,
+            @RequestParam(required = false) Integer month) {
+
+        validateYearMonth(year, month);
+        return invoiceService.getLandlordPayoutStats(landlordId, year, month);
+    }
+
     private Map<String, Object> toDailyMap(Object[] row) {
         return Map.of(
                 "landlordId", row[0],
                 "landlordName", row[1],
                 "date", row[2],
-                "paidRevenue", row[3], // Tổng doanh thu đã thanh toán
-                "refundedAmount", row[4], // Tổng số tiền đã hoàn trả
-                "netRevenue", ((BigDecimal) row[3]).subtract((BigDecimal) row[4]) // Doanh thu thực tế
+                "paidAmount", row[3], // Số tiền khách trả
+                "platformFee", row[4], // Phí app thu
+                "landlordReceivable", row[5], // Tiền của chủ nhà
+                "refundedAmount", row[6], // Tổng số tiền đã hoàn trả
+                "netRevenue", ((BigDecimal) row[5]).subtract((BigDecimal) row[6]) // Doanh thu thực tế của chủ nhà
         );
     }
 
@@ -246,15 +259,28 @@ public class InvoiceController {
                 .toList();
     }
 
+    @PreAuthorize("hasRole('LANDLORD')")
+    @GetMapping("/stats/me/summary")
+    public RevenueStatsDTO getMyPayoutSummary(
+            Principal principal,
+            @RequestParam(required = false) Integer year,
+            @RequestParam(required = false) Integer month) {
+
+        validateYearMonth(year, month);
+        return invoiceService.getLandlordPayoutStats(principal.getName(), year, month);
+    }
+
     private Map<String, Object> toMonthlyMap(Object[] row) {
         return Map.of(
                 "landlordId", row[0],
                 "landlordName", row[1],
                 "year", row[2],
                 "month", row[3],
-                "paidRevenue", row[4], // Tổng doanh thu đã thanh toán
-                "refundedAmount", row[5], // Tổng số tiền đã hoàn trả
-                "netRevenue", ((BigDecimal) row[4]).subtract((BigDecimal) row[5]) // Doanh thu thực tế
+                "paidAmount", row[4],
+                "platformFee", row[5],
+                "landlordReceivable", row[6],
+                "refundedAmount", row[7],
+                "netRevenue", ((BigDecimal) row[6]).subtract((BigDecimal) row[7])
         );
     }
 
@@ -263,9 +289,11 @@ public class InvoiceController {
                 "landlordId", row[0],
                 "landlordName", row[1],
                 "year", row[2],
-                "paidRevenue", row[3], // Tổng doanh thu đã thanh toán
-                "refundedAmount", row[4], // Tổng số tiền đã hoàn trả
-                "netRevenue", ((BigDecimal) row[3]).subtract((BigDecimal) row[4]) // Doanh thu thực tế
+                "paidAmount", row[3],
+                "platformFee", row[4],
+                "landlordReceivable", row[5],
+                "refundedAmount", row[6],
+                "netRevenue", ((BigDecimal) row[5]).subtract((BigDecimal) row[6])
         );
     }
 
