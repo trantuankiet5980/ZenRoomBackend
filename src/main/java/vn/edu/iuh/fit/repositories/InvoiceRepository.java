@@ -184,4 +184,24 @@ public interface InvoiceRepository extends JpaRepository<Invoice, String> {
             @Param("landlordId") String landlordId,
             @Param("year") int year
     );
+
+    @Query("""
+    SELECT
+        l.userId,
+        COALESCE(l.fullName, 'Unknown'),
+        COALESCE(l.phoneNumber, ''),
+        FUNCTION('MONTH', i.paidAt) AS month,
+        COALESCE(
+            SUM(CASE WHEN i.status = 'PAID' THEN i.landlordReceivable ELSE 0 END)
+            - SUM(CASE WHEN i.status = 'REFUNDED' THEN COALESCE(i.refundableAmount, 0) ELSE 0 END),
+            0
+        )
+    FROM Invoice i
+    JOIN i.booking.property.landlord l
+    WHERE i.paidAt IS NOT NULL
+      AND FUNCTION('YEAR', i.paidAt) = :year
+    GROUP BY l.userId, l.fullName, l.phoneNumber, FUNCTION('MONTH', i.paidAt)
+    ORDER BY l.userId, FUNCTION('MONTH', i.paidAt)
+    """)
+    List<Object[]> getLandlordPayoutByMonthForYear(@Param("year") int year);
 }
