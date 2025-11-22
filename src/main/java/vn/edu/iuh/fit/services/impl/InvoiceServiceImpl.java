@@ -2,12 +2,12 @@ package vn.edu.iuh.fit.services.impl;
 
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import vn.edu.iuh.fit.dtos.DailyRevenueDTO;
-import vn.edu.iuh.fit.dtos.MonthlyRevenueDTO;
-import vn.edu.iuh.fit.dtos.RevenueStatsDTO;
-import vn.edu.iuh.fit.dtos.StatPeriod;
+import vn.edu.iuh.fit.dtos.*;
 import vn.edu.iuh.fit.entities.Booking;
 import vn.edu.iuh.fit.entities.Invoice;
 import vn.edu.iuh.fit.entities.enums.InvoiceStatus;
@@ -20,8 +20,7 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
@@ -155,6 +154,48 @@ public class InvoiceServiceImpl implements InvoiceService {
                 List.of(),
                 monthlyBreakdown
         );
+    }
+
+    @Override
+    public Page<LandlordYearlyPayoutDTO> getLandlordYearlyPayout(Integer year, int page, int size) {
+        int targetYear = year != null ? year : LocalDate.now().getYear();
+
+        var rows = invoiceRepo.getLandlordPayoutByMonthForYear(targetYear);
+        Map<String, LandlordYearlyPayoutDTO> result = new LinkedHashMap<>();
+
+        for (Object[] row : rows) {
+            String landlordId = (String) row[0];
+            String landlordName = (String) row[1];
+            String landlordPhone = (String) row[2];
+            int month = ((Number) row[3]).intValue();
+            BigDecimal amount = (BigDecimal) row[4];
+            if (amount == null) {
+                amount = BigDecimal.ZERO;
+            }
+
+            LandlordYearlyPayoutDTO dto = result.computeIfAbsent(landlordId, id ->
+                    new LandlordYearlyPayoutDTO(
+                            id,
+                            landlordName,
+                            landlordPhone,
+                            new ArrayList<>(Collections.nCopies(12, BigDecimal.ZERO)),
+                            BigDecimal.ZERO
+                    ));
+
+            dto.getMonthlyPayouts().set(month - 1, amount);
+            dto.setTotal(dto.getTotal().add(amount));
+        }
+
+        int safePage = Math.max(page, 0);
+        int safeSize = Math.max(1, Math.min(size, 100));
+        var pageRequest = PageRequest.of(safePage, safeSize);
+
+        List<LandlordYearlyPayoutDTO> allDtos = new ArrayList<>(result.values());
+        int fromIndex = Math.min(safePage * safeSize, allDtos.size());
+        int toIndex = Math.min(fromIndex + safeSize, allDtos.size());
+
+        List<LandlordYearlyPayoutDTO> content = allDtos.subList(fromIndex, toIndex);
+        return new PageImpl<>(content, pageRequest, allDtos.size());
     }
 
     private BigDecimal computeDeposit(Booking booking) {

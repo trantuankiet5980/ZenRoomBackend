@@ -10,6 +10,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import vn.edu.iuh.fit.dtos.InvoiceDto;
+import vn.edu.iuh.fit.dtos.LandlordYearlyPayoutDTO;
 import vn.edu.iuh.fit.dtos.RevenueStatsDTO;
 import vn.edu.iuh.fit.entities.Invoice;
 import vn.edu.iuh.fit.entities.User;
@@ -189,6 +190,17 @@ public class InvoiceController {
 
         var raw = invoiceService.getLandlordRevenueByYearRaw(year);
         return raw.stream().map(this::toYearlyMap).toList();
+    }
+
+    @PreAuthorize("hasRole('ADMIN')")
+    @GetMapping("/stats/landlords/payouts/yearly")
+    public Page<LandlordYearlyPayoutDTO> getLandlordYearlyPayout(
+            @RequestParam(required = false) Integer year,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size
+    ) {
+        validateYear(year);
+        return invoiceService.getLandlordYearlyPayout(year, page, size);
     }
 
     @PreAuthorize("hasRole('ADMIN')")

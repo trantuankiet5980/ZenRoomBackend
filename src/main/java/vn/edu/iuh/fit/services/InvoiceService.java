@@ -1,9 +1,10 @@
 package vn.edu.iuh.fit.services;
 
+import org.springframework.data.domain.Page;
+import vn.edu.iuh.fit.dtos.LandlordYearlyPayoutDTO;
 import vn.edu.iuh.fit.dtos.RevenueStatsDTO;
 import vn.edu.iuh.fit.entities.Invoice;
 
-import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -16,4 +17,5 @@ public interface InvoiceService {
     List<Object[]> getLandlordRevenueByYearRaw(Integer year);
 
     RevenueStatsDTO getLandlordPayoutStats(String landlordId, Integer year, Integer month);
+    Page<LandlordYearlyPayoutDTO> getLandlordYearlyPayout(Integer year, int page, int size);
 }
