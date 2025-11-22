@@ -131,7 +131,10 @@ public class InvoiceServiceImpl implements InvoiceService {
                     null,
                     total,
                     dailyBreakdown,
-                    List.of()
+                    List.of(),
+                    total,
+                    BigDecimal.ZERO,
+                    BigDecimal.ZERO
             );
         }
 
@@ -152,7 +155,10 @@ public class InvoiceServiceImpl implements InvoiceService {
                 null,
                 total,
                 List.of(),
-                monthlyBreakdown
+                monthlyBreakdown,
+                total,
+                BigDecimal.ZERO,
+                BigDecimal.ZERO
         );
     }
 

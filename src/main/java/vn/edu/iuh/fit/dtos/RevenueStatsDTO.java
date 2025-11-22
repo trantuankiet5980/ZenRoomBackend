@@ -10,6 +10,9 @@ public record RevenueStatsDTO(
         Integer day,
         BigDecimal totalRevenue,
         List<DailyRevenueDTO> dailyBreakdown,
-        List<MonthlyRevenueDTO> monthlyBreakdown
+        List<MonthlyRevenueDTO> monthlyBreakdown,
+        BigDecimal totalLandlordPayout,
+        BigDecimal totalRefunded,
+        BigDecimal totalPlatformFee
 ) {
 }

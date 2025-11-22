@@ -13,6 +13,15 @@ public interface AdminStatsRepository {
     BigDecimal getRevenueForDay(java.time.LocalDate date);
     BigDecimal getRevenueForMonth(int year, int month);
     BigDecimal getRevenueForYear(int year);
+    BigDecimal getLandlordPayoutForDay(java.time.LocalDate date);
+    BigDecimal getLandlordPayoutForMonth(int year, int month);
+    BigDecimal getLandlordPayoutForYear(int year);
+    BigDecimal getRefundAmountForDay(java.time.LocalDate date);
+    BigDecimal getRefundAmountForMonth(int year, int month);
+    BigDecimal getRefundAmountForYear(int year);
+    BigDecimal getPlatformFeeForDay(java.time.LocalDate date);
+    BigDecimal getPlatformFeeForMonth(int year, int month);
+    BigDecimal getPlatformFeeForYear(int year);
     List<DailyRevenueDTO> getDailyRevenueForMonth(int year, int month);
     List<MonthlyRevenueDTO> getMonthlyRevenueForYear(int year);
     long getApprovedPostCountForDay(java.time.LocalDate date);

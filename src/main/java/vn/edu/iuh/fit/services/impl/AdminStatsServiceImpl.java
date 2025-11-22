@@ -18,7 +18,15 @@ public class AdminStatsServiceImpl implements AdminStatsService {
 
     @Override
     public OverviewStatsDTO getOverview(Integer year, Integer month) {
-        return repo.getOverview(year, month);
+        var today = LocalDate.now();
+        Integer resolvedYear = year;
+        Integer resolvedMonth = month;
+
+        if (resolvedMonth != null && resolvedYear == null) {
+            resolvedYear = today.getYear();
+        }
+
+        return repo.getOverview(resolvedYear, resolvedMonth);
     }
 
     @Override
@@ -65,6 +73,9 @@ public class AdminStatsServiceImpl implements AdminStatsService {
 
             LocalDate targetDate = validateDate(resolvedYear, resolvedMonth, resolvedDay);
             var total = repo.getRevenueForDay(targetDate);
+            var landlordPayout = repo.getLandlordPayoutForDay(targetDate);
+            var refunded = repo.getRefundAmountForDay(targetDate);
+            var platformFee = repo.getPlatformFeeForDay(targetDate);
             return new RevenueStatsDTO(
                     StatPeriod.DAY,
                     resolvedYear,
@@ -72,7 +83,10 @@ public class AdminStatsServiceImpl implements AdminStatsService {
                     resolvedDay,
                     total,
                     List.of(new DailyRevenueDTO(targetDate, total)),
-                    List.of()
+                    List.of(),
+                    landlordPayout,
+                    refunded,
+                    platformFee
             );
         }
 
@@ -82,6 +96,9 @@ public class AdminStatsServiceImpl implements AdminStatsService {
             }
             validateMonth(resolvedMonth);
             var total = repo.getRevenueForMonth(resolvedYear, resolvedMonth);
+            var landlordPayout = repo.getLandlordPayoutForMonth(resolvedYear, resolvedMonth);
+            var refunded = repo.getRefundAmountForMonth(resolvedYear, resolvedMonth);
+            var platformFee = repo.getPlatformFeeForMonth(resolvedYear, resolvedMonth);
             var daily = repo.getDailyRevenueForMonth(resolvedYear, resolvedMonth);
             return new RevenueStatsDTO(
                     StatPeriod.MONTH,
@@ -90,11 +107,17 @@ public class AdminStatsServiceImpl implements AdminStatsService {
                     null,
                     total,
                     daily,
-                    List.of()
+                    List.of(),
+                    landlordPayout,
+                    refunded,
+                    platformFee
             );
         }
 
         var total = repo.getRevenueForYear(resolvedYear);
+        var landlordPayout = repo.getLandlordPayoutForYear(resolvedYear);
+        var refunded = repo.getRefundAmountForYear(resolvedYear);
+        var platformFee = repo.getPlatformFeeForYear(resolvedYear);
         var monthly = repo.getMonthlyRevenueForYear(resolvedYear);
         return new RevenueStatsDTO(
                 StatPeriod.YEAR,
@@ -103,7 +126,10 @@ public class AdminStatsServiceImpl implements AdminStatsService {
                 null,
                 total,
                 List.of(),
-                monthly
+                monthly,
+                landlordPayout,
+                refunded,
+                platformFee
         );
     }
 
