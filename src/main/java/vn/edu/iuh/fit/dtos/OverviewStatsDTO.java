@@ -13,5 +13,7 @@ public record OverviewStatsDTO(
         long totalBookings,
         long completedBookings,
         long cancelledBookings,
-        BigDecimal totalRevenue
+        BigDecimal totalRevenue,
+        BigDecimal landlordPayout,
+        BigDecimal platformFee
 ) {}

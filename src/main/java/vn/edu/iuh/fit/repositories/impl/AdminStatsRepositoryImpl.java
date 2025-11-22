@@ -65,17 +65,41 @@ public class AdminStatsRepositoryImpl implements AdminStatsRepository {
             SELECT COUNT(*) FROM bookings WHERE booking_status = 'CANCELLED'
         """).getSingleResult()).longValue();
 
-        BigDecimal totalRevenue = (BigDecimal) em.createNativeQuery("""
-            SELECT COALESCE(SUM(i.total), 0)
+        var revenueSql = new StringBuilder("""
+            SELECT COALESCE(SUM(i.total), 0),
+                   COALESCE(SUM(i.landlord_receivable), 0),
+                   COALESCE(SUM(i.platform_fee), 0)
             FROM invoice i
             WHERE i.status = 'PAID'
-        """).getSingleResult();
+        """);
+
+        int paramIndex = 1;
+        if (year != null) {
+            revenueSql.append(" AND YEAR(COALESCE(i.paid_at, i.issued_at)) = ?").append(paramIndex++);
+        }
+        if (month != null) {
+            revenueSql.append(" AND MONTH(COALESCE(i.paid_at, i.issued_at)) = ?").append(paramIndex++);
+        }
+
+        var revenueQuery = em.createNativeQuery(revenueSql.toString());
+        paramIndex = 1;
+        if (year != null) {
+            revenueQuery.setParameter(paramIndex++, year);
+        }
+        if (month != null) {
+            revenueQuery.setParameter(paramIndex, month);
+        }
+
+        Object[] totals = (Object[]) revenueQuery.getSingleResult();
+        BigDecimal totalRevenue = (BigDecimal) totals[0];
+        BigDecimal landlordPayout = (BigDecimal) totals[1];
+        BigDecimal platformFee = (BigDecimal) totals[2];
 
         return new OverviewStatsDTO(
                 totalUsers, activeUsers, landlords, tenants,
                 totalProperties, approvedProps, pendingProps,
                 totalBookings, completedBookings, cancelledBookings,
-                totalRevenue
+                totalRevenue, landlordPayout, platformFee
         );
     }
 
@@ -157,6 +181,120 @@ public class AdminStatsRepositoryImpl implements AdminStatsRepository {
     public BigDecimal getRevenueForYear(int year) {
         return (BigDecimal) em.createNativeQuery("""
             SELECT COALESCE(SUM(i.total), 0)
+            FROM invoice i
+            WHERE i.status = 'PAID'
+              AND YEAR(COALESCE(i.paid_at, i.issued_at)) = ?1
+        """)
+                .setParameter(1, year)
+                .getSingleResult();
+    }
+
+    @Override
+    public BigDecimal getLandlordPayoutForDay(LocalDate date) {
+        return (BigDecimal) em.createNativeQuery("""
+            SELECT COALESCE(SUM(i.landlord_receivable), 0)
+            FROM invoice i
+            WHERE i.status = 'PAID'
+              AND DATE(COALESCE(i.paid_at, i.issued_at)) = ?1
+        """)
+                .setParameter(1, java.sql.Date.valueOf(date))
+                .getSingleResult();
+    }
+
+    @Override
+    public BigDecimal getLandlordPayoutForMonth(int year, int month) {
+        return (BigDecimal) em.createNativeQuery("""
+            SELECT COALESCE(SUM(i.landlord_receivable), 0)
+            FROM invoice i
+            WHERE i.status = 'PAID'
+              AND YEAR(COALESCE(i.paid_at, i.issued_at)) = ?1
+              AND MONTH(COALESCE(i.paid_at, i.issued_at)) = ?2
+        """)
+                .setParameter(1, year)
+                .setParameter(2, month)
+                .getSingleResult();
+    }
+
+    @Override
+    public BigDecimal getLandlordPayoutForYear(int year) {
+        return (BigDecimal) em.createNativeQuery("""
+            SELECT COALESCE(SUM(i.landlord_receivable), 0)
+            FROM invoice i
+            WHERE i.status = 'PAID'
+              AND YEAR(COALESCE(i.paid_at, i.issued_at)) = ?1
+        """)
+                .setParameter(1, year)
+                .getSingleResult();
+    }
+
+    @Override
+    public BigDecimal getRefundAmountForDay(LocalDate date) {
+        return (BigDecimal) em.createNativeQuery("""
+            SELECT COALESCE(SUM(i.refundable_amount), 0)
+            FROM invoice i
+            WHERE i.status = 'REFUNDED'
+              AND DATE(COALESCE(i.refund_confirmed_at, i.cancelled_at, i.updated_at)) = ?1
+        """)
+                .setParameter(1, java.sql.Date.valueOf(date))
+                .getSingleResult();
+    }
+
+    @Override
+    public BigDecimal getRefundAmountForMonth(int year, int month) {
+        return (BigDecimal) em.createNativeQuery("""
+            SELECT COALESCE(SUM(i.refundable_amount), 0)
+            FROM invoice i
+            WHERE i.status = 'REFUNDED'
+              AND YEAR(COALESCE(i.refund_confirmed_at, i.cancelled_at, i.updated_at)) = ?1
+              AND MONTH(COALESCE(i.refund_confirmed_at, i.cancelled_at, i.updated_at)) = ?2
+        """)
+                .setParameter(1, year)
+                .setParameter(2, month)
+                .getSingleResult();
+    }
+
+    @Override
+    public BigDecimal getRefundAmountForYear(int year) {
+        return (BigDecimal) em.createNativeQuery("""
+            SELECT COALESCE(SUM(i.refundable_amount), 0)
+            FROM invoice i
+            WHERE i.status = 'REFUNDED'
+              AND YEAR(COALESCE(i.refund_confirmed_at, i.cancelled_at, i.updated_at)) = ?1
+        """)
+                .setParameter(1, year)
+                .getSingleResult();
+    }
+
+    @Override
+    public BigDecimal getPlatformFeeForDay(LocalDate date) {
+        return (BigDecimal) em.createNativeQuery("""
+            SELECT COALESCE(SUM(i.platform_fee), 0)
+            FROM invoice i
+            WHERE i.status = 'PAID'
+              AND DATE(COALESCE(i.paid_at, i.issued_at)) = ?1
+        """)
+                .setParameter(1, java.sql.Date.valueOf(date))
+                .getSingleResult();
+    }
+
+    @Override
+    public BigDecimal getPlatformFeeForMonth(int year, int month) {
+        return (BigDecimal) em.createNativeQuery("""
+            SELECT COALESCE(SUM(i.platform_fee), 0)
+            FROM invoice i
+            WHERE i.status = 'PAID'
+              AND YEAR(COALESCE(i.paid_at, i.issued_at)) = ?1
+              AND MONTH(COALESCE(i.paid_at, i.issued_at)) = ?2
+        """)
+                .setParameter(1, year)
+                .setParameter(2, month)
+                .getSingleResult();
+    }
+
+    @Override
+    public BigDecimal getPlatformFeeForYear(int year) {
+        return (BigDecimal) em.createNativeQuery("""
+            SELECT COALESCE(SUM(i.platform_fee), 0)
             FROM invoice i
             WHERE i.status = 'PAID'
               AND YEAR(COALESCE(i.paid_at, i.issued_at)) = ?1
