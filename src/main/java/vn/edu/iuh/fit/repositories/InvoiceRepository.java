@@ -33,6 +33,17 @@ public interface InvoiceRepository extends JpaRepository<Invoice, String> {
     """)
     List<Invoice> findPaidByBooking(@Param("bookingId") String bookingId);
 
+    @Query("""
+        select i from Invoice i
+        where i.booking.property.landlord.userId = :landlordId
+          and i.status = vn.edu.iuh.fit.entities.enums.InvoiceStatus.PAID
+          and function('DATE', i.paidAt) = :date
+    """)
+    List<Invoice> findPaidByLandlordAndDate(
+            @Param("landlordId") String landlordId,
+            @Param("date") LocalDate date
+    );
+
     Page<Invoice> findByBooking_Tenant_UserIdOrderByCreatedAtDesc(String tenantId, Pageable pageable);
 
     Page<Invoice> findByBooking_Property_Landlord_UserIdOrderByCreatedAtDesc(String landlordId, Pageable pageable);
@@ -68,6 +79,7 @@ public interface InvoiceRepository extends JpaRepository<Invoice, String> {
         SUM(CASE WHEN i.status = 'REFUNDED' THEN COALESCE(i.refundableAmount, 0) ELSE 0 END)
     FROM Invoice i
     WHERE i.paidAt IS NOT NULL
+      AND i.status = 'PAID'
       AND (:from IS NULL OR FUNCTION('DATE', i.paidAt) >= :from)
       AND (:to IS NULL OR FUNCTION('DATE', i.paidAt) <= :to)
     GROUP BY i.booking.property.landlord.userId,
@@ -92,6 +104,7 @@ public interface InvoiceRepository extends JpaRepository<Invoice, String> {
         SUM(CASE WHEN i.status = 'REFUNDED' THEN COALESCE(i.refundableAmount, 0) ELSE 0 END)
     FROM Invoice i
     WHERE i.paidAt IS NOT NULL
+      AND i.status = 'PAID'
       AND (:year IS NULL OR FUNCTION('YEAR', i.paidAt) = :year)
       AND (:month IS NULL OR FUNCTION('MONTH', i.paidAt) = :month)
     GROUP BY i.booking.property.landlord.userId,
@@ -115,6 +128,7 @@ public interface InvoiceRepository extends JpaRepository<Invoice, String> {
         SUM(CASE WHEN i.status = 'REFUNDED' THEN COALESCE(i.refundableAmount, 0) ELSE 0 END)
     FROM Invoice i
     WHERE i.paidAt IS NOT NULL
+      AND i.status = 'PAID'
       AND (:year IS NULL OR FUNCTION('YEAR', i.paidAt) = :year)
     GROUP BY i.booking.property.landlord.userId,
              i.booking.property.landlord.fullName,
