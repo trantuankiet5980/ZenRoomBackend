@@ -10,6 +10,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import vn.edu.iuh.fit.dtos.InvoiceDto;
+import vn.edu.iuh.fit.dtos.LandlordRevenueSummaryDTO;
 import vn.edu.iuh.fit.dtos.LandlordYearlyPayoutDTO;
 import vn.edu.iuh.fit.dtos.RevenueStatsDTO;
 import vn.edu.iuh.fit.entities.Invoice;
@@ -282,6 +283,18 @@ public class InvoiceController {
         return invoiceService.getLandlordPayoutStats(principal.getName(), year, month);
     }
 
+    @PreAuthorize("hasRole('LANDLORD')")
+    @GetMapping("/stats/me/revenue/projection")
+    public LandlordRevenueSummaryDTO getMyProjectedRevenue(
+            Principal principal,
+            @RequestParam(required = false) Integer year,
+            @RequestParam(required = false) Integer month,
+            @RequestParam(required = false) Integer day
+    ) {
+        validateYearMonthDay(year, month, day);
+        return invoiceService.getLandlordProjectedRevenue(principal.getName(), year, month, day);
+    }
+
     private Map<String, Object> toMonthlyMap(Object[] row) {
         return Map.of(
                 "landlordId", row[0],
@@ -325,6 +338,19 @@ public class InvoiceController {
         validateYear(year);
         if (month != null && (month < 1 || month > 12)) {
             throw new IllegalArgumentException("Invalid month");
+        }
+    }
+
+    private void validateYearMonthDay(Integer year, Integer month, Integer day) {
+        validateYearMonth(year, month);
+        if (day != null) {
+            int targetYear = year != null ? year : LocalDate.now().getYear();
+            int targetMonth = month != null ? month : LocalDate.now().getMonthValue();
+            try {
+                LocalDate.of(targetYear, targetMonth, day);
+            } catch (Exception e) {
+                throw new IllegalArgumentException("Invalid day", e);
+            }
         }
     }
 }

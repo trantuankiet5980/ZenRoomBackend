@@ -1,6 +1,7 @@
 package vn.edu.iuh.fit.services;
 
 import org.springframework.data.domain.Page;
+import vn.edu.iuh.fit.dtos.LandlordRevenueSummaryDTO;
 import vn.edu.iuh.fit.dtos.LandlordYearlyPayoutDTO;
 import vn.edu.iuh.fit.dtos.RevenueStatsDTO;
 import vn.edu.iuh.fit.entities.Invoice;
@@ -18,4 +19,5 @@ public interface InvoiceService {
 
     RevenueStatsDTO getLandlordPayoutStats(String landlordId, Integer year, Integer month);
     Page<LandlordYearlyPayoutDTO> getLandlordYearlyPayout(Integer year, int page, int size);
+    LandlordRevenueSummaryDTO getLandlordProjectedRevenue(String landlordId, Integer year, Integer month, Integer day);
 }

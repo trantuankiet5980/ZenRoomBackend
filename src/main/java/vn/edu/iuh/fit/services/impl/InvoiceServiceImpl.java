@@ -204,6 +204,143 @@ public class InvoiceServiceImpl implements InvoiceService {
         return new PageImpl<>(content, pageRequest, allDtos.size());
     }
 
+    @Override
+    public LandlordRevenueSummaryDTO getLandlordProjectedRevenue(String landlordId, Integer year, Integer month, Integer day) {
+        LocalDate today = LocalDate.now();
+        int resolvedYear = year != null ? year : today.getYear();
+        Integer resolvedMonth = month;
+        Integer resolvedDay = day;
+
+        if (resolvedDay != null) {
+            if (resolvedMonth == null) {
+                resolvedMonth = today.getMonthValue();
+            }
+            LocalDate targetDate = validateDate(resolvedYear, resolvedMonth, resolvedDay);
+            var invoices = invoiceRepo.findPaidByLandlordAndDate(landlordId, targetDate);
+
+            List<LandlordRevenueBookingDTO> bookings = invoices.stream()
+                    .map(this::toLandlordRevenueBooking)
+                    .toList();
+
+            BigDecimal totalReceivable = bookings.stream()
+                    .map(LandlordRevenueBookingDTO::landlordReceivable)
+                    .filter(Objects::nonNull)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+            BigDecimal totalPlatformFee = bookings.stream()
+                    .map(LandlordRevenueBookingDTO::platformFee)
+                    .filter(Objects::nonNull)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+            return new LandlordRevenueSummaryDTO(
+                    StatPeriod.DAY,
+                    resolvedYear,
+                    resolvedMonth,
+                    resolvedDay,
+                    totalReceivable,
+                    totalPlatformFee,
+                    List.of(new LandlordDailyRevenueDTO(targetDate, totalReceivable, totalPlatformFee)),
+                    List.of(),
+                    bookings
+            );
+        }
+
+        if (resolvedMonth != null) {
+            validateMonth(resolvedMonth);
+            LocalDate from = LocalDate.of(resolvedYear, resolvedMonth, 1);
+            LocalDate to = from.withDayOfMonth(from.lengthOfMonth());
+            var rows = invoiceRepo.getLandlordRevenueByDayRaw(from, to);
+
+            List<LandlordDailyRevenueDTO> daily = rows.stream()
+                    .filter(row -> landlordId.equals(row[0]))
+                    .map(row -> new LandlordDailyRevenueDTO(
+                            ((java.sql.Date) row[2]).toLocalDate(),
+                            safeAmount(row[5]),
+                            safeAmount(row[4])
+                    ))
+                    .toList();
+
+            BigDecimal totalReceivable = daily.stream()
+                    .map(LandlordDailyRevenueDTO::landlordReceivable)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+            BigDecimal totalPlatformFee = daily.stream()
+                    .map(LandlordDailyRevenueDTO::platformFee)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+            return new LandlordRevenueSummaryDTO(
+                    StatPeriod.MONTH,
+                    resolvedYear,
+                    resolvedMonth,
+                    null,
+                    totalReceivable,
+                    totalPlatformFee,
+                    daily,
+                    List.of(),
+                    List.of()
+            );
+        }
+
+        var rows = invoiceRepo.getLandlordRevenueByMonthRaw(resolvedYear, null);
+        List<LandlordMonthlyRevenueDTO> monthly = rows.stream()
+                .filter(row -> landlordId.equals(row[0]))
+                .map(row -> new LandlordMonthlyRevenueDTO(
+                        ((Number) row[2]).intValue(),
+                        ((Number) row[3]).intValue(),
+                        safeAmount(row[6]),
+                        safeAmount(row[5])
+                ))
+                .toList();
+
+        BigDecimal totalReceivable = monthly.stream()
+                .map(LandlordMonthlyRevenueDTO::landlordReceivable)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal totalPlatformFee = monthly.stream()
+                .map(LandlordMonthlyRevenueDTO::platformFee)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        return new LandlordRevenueSummaryDTO(
+                StatPeriod.YEAR,
+                resolvedYear,
+                null,
+                null,
+                totalReceivable,
+                totalPlatformFee,
+                List.of(),
+                monthly,
+                List.of()
+        );
+    }
+
+    private LandlordRevenueBookingDTO toLandlordRevenueBooking(Invoice invoice) {
+        return new LandlordRevenueBookingDTO(
+                invoice.getInvoiceId(),
+                invoice.getInvoiceNo(),
+                invoice.getBooking() != null ? invoice.getBooking().getBookingId() : null,
+                invoice.getBooking() != null && invoice.getBooking().getProperty() != null
+                        ? invoice.getBooking().getProperty().getTitle()
+                        : null,
+                invoice.getTotal(),
+                invoice.getPlatformFee(),
+                invoice.getLandlordReceivable(),
+                invoice.getPaidAt() != null ? invoice.getPaidAt().toLocalDate() : null
+        );
+    }
+
+    private LocalDate validateDate(int year, int month, int day) {
+        validateMonth(month);
+        try {
+            return LocalDate.of(year, month, day);
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Invalid date", e);
+        }
+    }
+
+    private BigDecimal safeAmount(Object value) {
+        return value != null ? (BigDecimal) value : BigDecimal.ZERO;
+    }
+
     private BigDecimal computeDeposit(Booking booking) {
         // Ví dụ:
         // if (booking.getType() == DAILY) return booking.getTotalAmount().multiply(new BigDecimal("0.5"));
