@@ -397,13 +397,15 @@ public class BookingServiceImpl implements BookingService {
     public void handlePaymentWebhook(PaymentWebhookPayload payload) {
         System.out.println("Handling payment webhook: " + payload);
         Invoice invoice = invoiceRepo.findById(payload.getInvoiceId()).orElseThrow();
-
+        BigDecimal fee = invoice.getTotal().multiply(new BigDecimal("0.03")).setScale(2, RoundingMode.HALF_UP); // Phí nền tảng 3%
         if (payload.isSuccess()) {
             invoice.setPaidAt(LocalDateTime.now());
             invoice.setStatus(InvoiceStatus.PAID);
             if (payload.getTransactionId() != null && !payload.getTransactionId().isBlank()) {
                 invoice.setPaymentRef(payload.getTransactionId());
             }
+            invoice.setPlatformFee(fee);
+            invoice.setLandlordReceivable(invoice.getTotal().subtract(fee));
             invoice.setCancellationFee(BigDecimal.ZERO);
             invoice.setRefundableAmount(BigDecimal.ZERO);
             invoice.setRefundConfirmed(Boolean.FALSE);
