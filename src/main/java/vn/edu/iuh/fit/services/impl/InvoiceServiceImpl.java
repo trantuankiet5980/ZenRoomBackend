@@ -313,6 +313,81 @@ public class InvoiceServiceImpl implements InvoiceService {
         );
     }
 
+    @Override
+    public AdminLandlordMonthlyPayoutDTO getLandlordMonthlyPayout(Integer year, Integer month) {
+        LocalDate today = LocalDate.now();
+        int resolvedYear = year != null ? year : today.getYear();
+        int resolvedMonth = month != null ? month : today.getMonthValue();
+        validateMonth(resolvedMonth);
+
+        var rows = invoiceRepo.getLandlordRevenueByMonthRaw(resolvedYear, resolvedMonth);
+        List<LandlordMonthlyPayoutDTO> landlords = rows.stream()
+                .map(row -> new LandlordMonthlyPayoutDTO(
+                        (String) row[0],
+                        (String) row[1],
+                        safeAmount(row[4]),
+                        safeAmount(row[5]),
+                        safeAmount(row[6])
+                ))
+                .toList();
+
+        BigDecimal totalPaid = landlords.stream()
+                .map(LandlordMonthlyPayoutDTO::paidAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal totalPlatformFee = landlords.stream()
+                .map(LandlordMonthlyPayoutDTO::platformFee)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal totalReceivable = landlords.stream()
+                .map(LandlordMonthlyPayoutDTO::landlordReceivable)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        return new AdminLandlordMonthlyPayoutDTO(
+                resolvedYear,
+                resolvedMonth,
+                totalPaid,
+                totalPlatformFee,
+                totalReceivable,
+                landlords
+        );
+    }
+
+    @Override
+    public LandlordRevenueSummaryDTO getLandlordMonthlyRevenueDetail(String landlordId, Integer year, Integer month) {
+        LocalDate today = LocalDate.now();
+        int resolvedYear = year != null ? year : today.getYear();
+        int resolvedMonth = month != null ? month : today.getMonthValue();
+        validateMonth(resolvedMonth);
+
+        var invoices = invoiceRepo.findPaidByLandlordAndMonth(landlordId, resolvedYear, resolvedMonth);
+        List<LandlordRevenueBookingDTO> bookings = invoices.stream()
+                .map(this::toLandlordRevenueBooking)
+                .toList();
+
+        BigDecimal totalReceivable = bookings.stream()
+                .map(LandlordRevenueBookingDTO::landlordReceivable)
+                .filter(Objects::nonNull)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal totalPlatformFee = bookings.stream()
+                .map(LandlordRevenueBookingDTO::platformFee)
+                .filter(Objects::nonNull)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        return new LandlordRevenueSummaryDTO(
+                StatPeriod.MONTH,
+                resolvedYear,
+                resolvedMonth,
+                null,
+                totalReceivable,
+                totalPlatformFee,
+                List.of(),
+                List.of(),
+                bookings
+        );
+    }
+
     private LandlordRevenueBookingDTO toLandlordRevenueBooking(Invoice invoice) {
         return new LandlordRevenueBookingDTO(
                 invoice.getInvoiceId(),
