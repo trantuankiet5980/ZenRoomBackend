@@ -5,7 +5,7 @@ import vn.edu.iuh.fit.dtos.requests.WalletTransactionRequest;
 import vn.edu.iuh.fit.dtos.responses.WalletOverviewResponse;
 
 public interface WalletService {
-    WalletOverviewResponse getCurrentWallet();
+    WalletOverviewResponse getCurrentWallet(Integer month, Integer year);
 
     WalletOverviewResponse deposit(WalletTransactionRequest request);
 

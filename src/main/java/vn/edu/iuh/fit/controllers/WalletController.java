@@ -15,8 +15,11 @@ public class WalletController {
     private final WalletService walletService;
 
     @GetMapping
-    public ResponseEntity<WalletOverviewResponse> getWallet() {
-        return ResponseEntity.ok(walletService.getCurrentWallet());
+    public ResponseEntity<WalletOverviewResponse> getWallet(
+            @RequestParam(required = false) Integer month,
+            @RequestParam(required = false) Integer year
+    ) {
+        return ResponseEntity.ok(walletService.getCurrentWallet(month, year));
     }
 
     @PostMapping("/deposit")
