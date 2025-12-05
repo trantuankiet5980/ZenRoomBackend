@@ -20,6 +20,9 @@ import vn.edu.iuh.fit.repositories.WalletTransactionRepository;
 import vn.edu.iuh.fit.services.WalletService;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.YearMonth;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -34,9 +37,10 @@ public class WalletServiceImpl implements WalletService {
     private final WalletMapper walletMapper;
 
     @Override
-    public WalletOverviewResponse getCurrentWallet() {
+    public WalletOverviewResponse getCurrentWallet(Integer month, Integer year) {
         Wallet wallet = getOrCreateWalletForCurrentUser();
-        return buildOverview(wallet);
+        DateRange dateRange = resolveDateRange(month, year);
+        return buildOverview(wallet, dateRange);
     }
 
     @Override
@@ -49,7 +53,7 @@ public class WalletServiceImpl implements WalletService {
 
         createTransaction(wallet, WalletTransactionType.MONEY_IN, amount, request.getDescription());
 
-        return buildOverview(wallet);
+        return buildOverview(wallet, DateRange.none());
     }
 
     @Override
@@ -66,7 +70,7 @@ public class WalletServiceImpl implements WalletService {
 
         createTransaction(wallet, WalletTransactionType.MONEY_OUT, amount, request.getDescription());
 
-        return buildOverview(wallet);
+        return buildOverview(wallet, DateRange.none());
     }
 
     @Override
@@ -83,13 +87,16 @@ public class WalletServiceImpl implements WalletService {
 
         createTransaction(wallet, WalletTransactionType.MONEY_IN, amount, description);
 
-        return buildOverview(wallet);
+        return buildOverview(wallet, DateRange.none());
     }
 
-    private WalletOverviewResponse buildOverview(Wallet wallet) {
-        List<WalletTransactionDto> transactions = walletTransactionRepository
-                .findByWallet_WalletIdOrderByCreatedAtDesc(wallet.getWalletId())
-                .stream()
+    private WalletOverviewResponse buildOverview(Wallet wallet, DateRange dateRange) {
+        List<WalletTransaction> transactionEntities = dateRange.isFiltered()
+                ? walletTransactionRepository.findByWallet_WalletIdAndCreatedAtBetweenOrderByCreatedAtDesc(
+                wallet.getWalletId(), dateRange.start(), dateRange.end())
+                : walletTransactionRepository.findByWallet_WalletIdOrderByCreatedAtDesc(wallet.getWalletId());
+
+        List<WalletTransactionDto> transactions = transactionEntities.stream()
                 .map(walletMapper::toDto)
                 .collect(Collectors.toList());
 
@@ -131,6 +138,41 @@ public class WalletServiceImpl implements WalletService {
         transaction.setDescription(description);
 
         walletTransactionRepository.save(transaction);
+    }
+
+    private DateRange resolveDateRange(Integer month, Integer year) {
+        if (year == null && month == null) {
+            return DateRange.none();
+        }
+
+        if (month != null && (month < 1 || month > 12)) {
+            throw new IllegalArgumentException("Tháng không hợp lệ. Tháng phải từ 1 đến 12");
+        }
+
+        if (year == null) {
+            throw new IllegalArgumentException("Vui lòng cung cấp năm khi lọc theo tháng");
+        }
+
+        if (month == null) {
+            LocalDate startOfYear = LocalDate.of(year, 1, 1);
+            LocalDate startOfNextYear = startOfYear.plusYears(1);
+            return new DateRange(startOfYear.atStartOfDay(), startOfNextYear.atStartOfDay());
+        }
+
+        YearMonth yearMonth = YearMonth.of(year, month);
+        LocalDateTime start = yearMonth.atDay(1).atStartOfDay();
+        LocalDateTime end = yearMonth.plusMonths(1).atDay(1).atStartOfDay();
+        return new DateRange(start, end);
+    }
+
+    private record DateRange(LocalDateTime start, LocalDateTime end) {
+        static DateRange none() {
+            return new DateRange(null, null);
+        }
+
+        boolean isFiltered() {
+            return start != null && end != null;
+        }
     }
 
     private String getCurrentUserId() {
