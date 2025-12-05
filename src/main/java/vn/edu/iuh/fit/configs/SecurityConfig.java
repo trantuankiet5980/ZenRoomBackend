@@ -153,6 +153,9 @@ public class SecurityConfig {
                         // WALLET
                         .requestMatchers("/api/v1/wallet/**").authenticated()
 
+                        //admin wallet
+                        .requestMatchers("/api/v1/admin/wallet/**").hasRole("ADMIN")
+
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);

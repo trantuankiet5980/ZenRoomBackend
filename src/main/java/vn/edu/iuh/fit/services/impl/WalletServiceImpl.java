@@ -6,6 +6,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vn.edu.iuh.fit.dtos.WalletTransactionDto;
+import vn.edu.iuh.fit.dtos.requests.AdminWalletTransferRequest;
 import vn.edu.iuh.fit.dtos.requests.WalletTransactionRequest;
 import vn.edu.iuh.fit.dtos.responses.WalletOverviewResponse;
 import vn.edu.iuh.fit.entities.User;
@@ -68,6 +69,23 @@ public class WalletServiceImpl implements WalletService {
         return buildOverview(wallet);
     }
 
+    @Override
+    public WalletOverviewResponse adminTransferToUser(AdminWalletTransferRequest request) {
+        BigDecimal amount = requirePositiveAmount(request.getAmount());
+        Wallet wallet = getOrCreateWalletForUser(request.getUserId());
+
+        wallet.setBalance(wallet.getBalance().add(amount));
+        walletRepository.save(wallet);
+
+        String description = request.getDescription() != null
+                ? request.getDescription()
+                : "Thanh toán doanh thu";
+
+        createTransaction(wallet, WalletTransactionType.MONEY_IN, amount, description);
+
+        return buildOverview(wallet);
+    }
+
     private WalletOverviewResponse buildOverview(Wallet wallet) {
         List<WalletTransactionDto> transactions = walletTransactionRepository
                 .findByWallet_WalletIdOrderByCreatedAtDesc(wallet.getWalletId())
@@ -83,6 +101,16 @@ public class WalletServiceImpl implements WalletService {
         return walletRepository.findByUser_UserId(userId)
                 .orElseGet(() -> createNewWallet(userId));
     }
+
+    private Wallet getOrCreateWalletForUser(String userId) {
+        if (userId == null || userId.isBlank()) {
+            throw new IllegalArgumentException("UserId không hợp lệ");
+        }
+
+        return walletRepository.findByUser_UserId(userId)
+                .orElseGet(() -> createNewWallet(userId));
+    }
+
 
     private Wallet createNewWallet(String userId) {
         User user = userRepository.findById(userId)
