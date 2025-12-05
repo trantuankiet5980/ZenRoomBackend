@@ -44,6 +44,20 @@ public interface InvoiceRepository extends JpaRepository<Invoice, String> {
             @Param("date") LocalDate date
     );
 
+    @Query("""
+        select i from Invoice i
+        where i.booking.property.landlord.userId = :landlordId
+          and i.status = vn.edu.iuh.fit.entities.enums.InvoiceStatus.PAID
+          and function('YEAR', i.paidAt) = :year
+          and function('MONTH', i.paidAt) = :month
+        order by i.paidAt desc
+    """)
+    List<Invoice> findPaidByLandlordAndMonth(
+            @Param("landlordId") String landlordId,
+            @Param("year") int year,
+            @Param("month") int month
+    );
+
     Page<Invoice> findByBooking_Tenant_UserIdOrderByCreatedAtDesc(String tenantId, Pageable pageable);
 
     Page<Invoice> findByBooking_Property_Landlord_UserIdOrderByCreatedAtDesc(String landlordId, Pageable pageable);

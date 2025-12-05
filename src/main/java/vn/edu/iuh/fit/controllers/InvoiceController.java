@@ -9,10 +9,7 @@ import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
-import vn.edu.iuh.fit.dtos.InvoiceDto;
-import vn.edu.iuh.fit.dtos.LandlordRevenueSummaryDTO;
-import vn.edu.iuh.fit.dtos.LandlordYearlyPayoutDTO;
-import vn.edu.iuh.fit.dtos.RevenueStatsDTO;
+import vn.edu.iuh.fit.dtos.*;
 import vn.edu.iuh.fit.entities.Invoice;
 import vn.edu.iuh.fit.entities.User;
 import vn.edu.iuh.fit.entities.UserManagementLog;
@@ -182,6 +179,27 @@ public class InvoiceController {
 
         var raw = invoiceService.getLandlordRevenueByMonthRaw(year, month);
         return raw.stream().map(this::toMonthlyMap).toList();
+    }
+
+    @PreAuthorize("hasRole('ADMIN')")
+    @GetMapping("/stats/landlords/monthly/payouts")
+    public AdminLandlordMonthlyPayoutDTO getLandlordMonthlyPayouts(
+            @RequestParam(required = false) Integer year,
+            @RequestParam(required = false) Integer month
+    ) {
+        validateYearMonth(year, month);
+        return invoiceService.getLandlordMonthlyPayout(year, month);
+    }
+
+    @PreAuthorize("hasRole('ADMIN')")
+    @GetMapping("/stats/landlords/{landlordId}/monthly/bookings")
+    public LandlordRevenueSummaryDTO getLandlordMonthlyRevenueDetail(
+            @PathVariable String landlordId,
+            @RequestParam(required = false) Integer year,
+            @RequestParam(required = false) Integer month
+    ) {
+        validateYearMonth(year, month);
+        return invoiceService.getLandlordMonthlyRevenueDetail(landlordId, year, month);
     }
 
     @PreAuthorize("hasRole('ADMIN')")
