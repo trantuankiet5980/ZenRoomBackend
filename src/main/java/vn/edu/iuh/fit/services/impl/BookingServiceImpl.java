@@ -14,6 +14,7 @@ import vn.edu.iuh.fit.entities.*;
 import vn.edu.iuh.fit.entities.enums.BookingStatus;
 import vn.edu.iuh.fit.entities.enums.ContractStatus;
 import vn.edu.iuh.fit.entities.enums.InvoiceStatus;
+import vn.edu.iuh.fit.entities.enums.WalletTransactionType;
 import vn.edu.iuh.fit.mappers.BookingMapper;
 import vn.edu.iuh.fit.payments.PaymentGateway;
 import vn.edu.iuh.fit.payments.PaymentLink;
@@ -38,6 +39,8 @@ public class BookingServiceImpl implements BookingService {
     private final UserRepository userRepo;
     private final InvoiceRepository invoiceRepo;
     private final ContractRepository contractRepo;
+    private final WalletRepository walletRepository;
+    private final WalletTransactionRepository walletTransactionRepository;
     private final BookingMapper bookingMapper;
     private final PaymentGateway paymentGateway;
     private final SimpMessagingTemplate messaging;
@@ -394,9 +397,11 @@ public class BookingServiceImpl implements BookingService {
     }
 
     @Override
+    @Transactional
     public void handlePaymentWebhook(PaymentWebhookPayload payload) {
         System.out.println("Handling payment webhook: " + payload);
         Invoice invoice = invoiceRepo.findById(payload.getInvoiceId()).orElseThrow();
+        InvoiceStatus previousStatus = invoice.getStatus();
         BigDecimal fee = invoice.getTotal().multiply(new BigDecimal("0.03")).setScale(2, RoundingMode.HALF_UP); // Phí nền tảng 3%
         if (payload.isSuccess()) {
             invoice.setPaidAt(LocalDateTime.now());
@@ -426,6 +431,11 @@ public class BookingServiceImpl implements BookingService {
 
         Booking booking = invoice.getBooking();
         Booking savedBooking = booking;
+        if (payload.isSuccess() && previousStatus != InvoiceStatus.PAID) {
+            creditPlatformWallet(invoice.getTotal(),
+                    booking.getTenant().getFullName() + " thanh toán tiền đặt phòng " + booking.getProperty().getLandlord().getFullName()
+                            + ", Invoice No: " + invoice.getInvoiceNo());
+        }
         if (payload.isSuccess()) {
             booking.setBookingStatus(BookingStatus.APPROVED);
             booking.setPaymentUrl(null);
@@ -488,6 +498,34 @@ public class BookingServiceImpl implements BookingService {
         String date = LocalDate.now().toString().replace("-", "");
         String rand = UUID.randomUUID().toString().substring(0, 7).toUpperCase();
         return "INV-" + date + "-" + rand;
+    }
+
+    private void creditPlatformWallet(BigDecimal amount, String description) {
+        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
+            return;
+        }
+
+        Wallet wallet = getOrCreatePlatformWallet();
+        wallet.setBalance(wallet.getBalance().add(amount));
+        walletRepository.save(wallet);
+
+        WalletTransaction transaction = new WalletTransaction();
+        transaction.setWallet(wallet);
+        transaction.setType(WalletTransactionType.MONEY_IN);
+        transaction.setAmount(amount);
+        transaction.setDescription(description);
+        walletTransactionRepository.save(transaction);
+    }
+
+    private Wallet getOrCreatePlatformWallet() {
+        return userRepo.findByRole_RoleName("ADMIN").stream()
+                .findFirst()
+                .flatMap(admin -> walletRepository.findByUser_UserId(admin.getUserId())
+                        .or(() -> Optional.of(walletRepository.save(Wallet.builder()
+                                .user(admin)
+                                .balance(BigDecimal.ZERO)
+                                .build()))))
+                .orElseThrow(() -> new IllegalStateException("Không tìm thấy tài khoản admin để giữ tiền nền tảng"));
     }
 
     private void applyRefundPolicy(Booking booking, Invoice invoice, LocalDateTime cancelAt) {
