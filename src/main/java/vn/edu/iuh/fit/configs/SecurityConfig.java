@@ -150,6 +150,9 @@ public class SecurityConfig {
                         // REPORTS
                         .requestMatchers("/api/v1/reports/**").authenticated()
 
+                        // WALLET
+                        .requestMatchers("/api/v1/wallet/**").authenticated()
+
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
